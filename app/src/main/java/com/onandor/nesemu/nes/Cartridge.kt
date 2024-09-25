@@ -1,5 +1,6 @@
 package com.onandor.nesemu.nes
 
+import okio.internal.commonToUtf8String
 import java.io.ByteArrayInputStream
 
 data class INesHeader(
@@ -12,19 +13,19 @@ data class INesHeader(
     val tvSystem: Int
 )
 
-class Cartridge(rom: ByteArray) {
+class Cartridge {
 
     private var prgRom: IntArray? = null
     private var chrRom: IntArray? = null
     private var mapperID: Int = -1
 
-    init {
-        parseRom(rom)
-    }
-
-    private fun parseRom(rom: ByteArray) {
+    fun parseRom(rom: ByteArray): Boolean {
         val stream = rom.inputStream()
         val header = parseINesHeader(stream)
+
+        if (header.name.commonToUtf8String(0, 3) != "NES") {
+            return false
+        }
 
         if (header.mapperFlags1 and 4 > 0) {
             stream.read(ByteArray(512)) // Discarding trainer
@@ -45,6 +46,7 @@ class Cartridge(rom: ByteArray) {
         }
 
         stream.close()
+        return true
     }
 
     private fun parseINesHeader(stream: ByteArrayInputStream): INesHeader {
