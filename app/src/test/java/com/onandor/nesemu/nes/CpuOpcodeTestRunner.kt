@@ -22,8 +22,11 @@ class CpuOpcodeTestRunner(
         const val ALL = 0b111
     }
 
-    private val memory: Memory = Memory()
-    private val cpu: Cpu = Cpu(memory)
+    private val bus: Bus = Bus()
+
+    init {
+        bus.setMemorySize(65536)
+    }
 
     fun runAll(tests: List<CpuTest>): Boolean {
         var allPassed = true
@@ -74,9 +77,9 @@ class CpuOpcodeTestRunner(
                 Y = opcodeTest.initialState.Y,
                 PS = opcodeTest.initialState.PS
             )
-            cpu.setState(cpuState)
+            bus.cpu.setState(cpuState)
             opcodeTest.initialState.memory.forEach { value ->
-                cpu.writeByte(value[0], value[1])
+                bus.writeMemory(value[0], value[1])
             }
 
             if (canPrint(Verbosity.BASIC_INFO)) {
@@ -84,7 +87,7 @@ class CpuOpcodeTestRunner(
             }
 
             val expectedCycles = opcodeTest.cycles.size
-            val actualCycles = cpu.execute(expectedCycles)
+            val actualCycles = bus.cpu.execute(expectedCycles)
 
             val passed = evaluateAndPrintResult(opcodeTest.finalState, expectedCycles, actualCycles)
             if (passed) {
@@ -112,7 +115,7 @@ class CpuOpcodeTestRunner(
     private fun printMemoryResult(finalState: TestCpuState) {
         println("+-Err-+------Addr------+----Exp-----+----Got-----+")
         finalState.memory.forEach { value ->
-            val error = if (memory[value[0]] == value[1]) "     " else "  x  "
+            val error = if (bus.memory[value[0]] == value[1]) "     " else "  x  "
             val address = StringBuilder()
                 .append(value[0].toString())
                 .append(" (${value[0].toString(16).padStart(4, '0')})  ")
@@ -124,8 +127,8 @@ class CpuOpcodeTestRunner(
                 .padStart(12, ' ')
                 .toString()
             val got = StringBuilder()
-                .append(memory[value[0]].toString())
-                .append(" (${memory[value[0]].toString(16).padStart(2, '0')})  ")
+                .append(bus.memory[value[0]].toString())
+                .append(" (${bus.memory[value[0]].toString(16).padStart(2, '0')})  ")
                 .padStart(12, ' ')
                 .toString()
 
@@ -140,7 +143,7 @@ class CpuOpcodeTestRunner(
         actualCycles: Int
     ): Boolean {
         var pass = true
-        val cpuState = cpu.getState()
+        val cpuState = bus.cpu.getState()
 
         if (cpuState.PC == finalState.PC) {
             if (canPrint(Verbosity.OK)) println("PC: OK")
@@ -198,7 +201,7 @@ class CpuOpcodeTestRunner(
 
         var memoryPass = true
         finalState.memory.forEach { value ->
-            if (memory[value[0]] != value[1]) {
+            if (bus.memory[value[0]] != value[1]) {
                 memoryPass = false
             }
         }

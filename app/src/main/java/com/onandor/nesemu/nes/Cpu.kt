@@ -11,7 +11,7 @@ data class CpuState(
 )
 
 @Suppress("FunctionName", "PrivatePropertyName")
-class Cpu(private var memory: Memory) {
+class Cpu(private val bus: Bus) {
 
     private object Flags {
         const val CARRY: Int = 0b00000001
@@ -70,14 +70,12 @@ class Cpu(private var memory: Memory) {
         return this.cycles
     }
 
-    private fun readByte(address: Int): Int = memory[address and 0xFFFF]
+    private fun readByte(address: Int): Int = bus.readMemory(address and 0xFFFF)
 
     private fun read2Bytes(address: Int): Int =
-        memory[address and 0xFFFF] or (memory[(address + 1) and 0xFFFF] shl 8)
+        bus.readMemory(address and 0xFFFF) or (bus.readMemory((address + 1) and 0xFFFF) shl 8)
 
-    fun writeByte(address: Int, value: Int) {
-        memory[address and 0xFFFF] = value and 0xFF
-    }
+    fun writeByte(address: Int, value: Int) = bus.writeMemory(address and 0xFFFF, value and 0xFF)
 
     private fun setFlag(flag: Int, set: Boolean) {
         PS = if (set) PS or flag else PS and flag.inv()
