@@ -62,6 +62,8 @@ dependencies {
     implementation(libs.hilt.android)
     implementation(libs.hilt.navigation.compose)
     ksp(libs.hilt.android.compiler)
-    //DataStore
+    // DataStore
     implementation(libs.androidx.datastore.preferences)
+    // Gson
+    implementation(libs.google.code.gson)
 }

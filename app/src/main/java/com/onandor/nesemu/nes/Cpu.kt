@@ -1,7 +1,17 @@
 package com.onandor.nesemu.nes
 
+@Suppress("PropertyName")
+data class CpuState(
+    val PC: Int,
+    val SP: Int,
+    val A: Int,
+    val X: Int,
+    val Y: Int,
+    val PS: Int
+)
+
 @Suppress("FunctionName", "PrivatePropertyName")
-class Cpu(private val memory: Memory) {
+class Cpu(private var memory: Memory) {
 
     private object Flags {
         const val CARRY: Int = 0b00000001
@@ -12,10 +22,6 @@ class Cpu(private val memory: Memory) {
         const val UNUSED: Int = 0b00100000
         const val OVERFLOW: Int = 0b01000000
         const val NEGATIVE: Int = 0b10000000
-
-        const val BIT_0 = CARRY
-        const val BIT_1 = ZERO
-        const val BIT_7 = NEGATIVE
     }
 
     private var PC: Int = 0xFFFC            // Program Counter - 16 bits
@@ -38,7 +44,7 @@ class Cpu(private val memory: Memory) {
     }
 
     fun reset() {
-        SP = 0x00FD
+        SP = 0xFD
         A = 0
         X = 0
         Y = 0
@@ -68,7 +74,7 @@ class Cpu(private val memory: Memory) {
     private fun read2Bytes(address: Int): Int =
         memory[address and 0xFFFF] or (memory[(address + 1) and 0xFFFF] shl 8)
 
-    private fun writeByte(address: Int, value: Int) {
+    fun writeByte(address: Int, value: Int) {
         memory[address and 0xFFFF] = value
     }
 
@@ -87,6 +93,26 @@ class Cpu(private val memory: Memory) {
     private fun setZNFlags(data: Int) {
         setFlag(Flags.ZERO, data == 0)
         setFlag(Flags.NEGATIVE, (data and Flags.NEGATIVE) > 0)
+    }
+
+    fun getState(): CpuState {
+        return CpuState(
+            PC = this.PC,
+            SP = this.SP,
+            A = this.A,
+            X = this.X,
+            Y = this.Y,
+            PS = this.PS
+        )
+    }
+
+    fun setState(state: CpuState) {
+        PC = state.PC
+        SP = state.SP
+        A = state.A
+        X = state.X
+        Y = state.Y
+        PS = state.PS
     }
 
     // ------ Addressing mode functions ------
@@ -181,7 +207,7 @@ class Cpu(private val memory: Memory) {
     }
 
     private fun ADC(operand: Int) {
-        var sum = 0
+        var sum: Int
         if (getFlag(Flags.DECIMAL)) {
             sum = (A and 0x0F) + (operand and 0x0F) + getFlag(Flags.CARRY).toInt()
             if (sum > 0x09)
@@ -217,13 +243,13 @@ class Cpu(private val memory: Memory) {
 
     private fun ASL() {
         if (addressHandlerTable[opcode] == ::acc) {
-            setFlag(Flags.CARRY, A and Flags.BIT_7 > 0)
+            setFlag(Flags.CARRY, A and Flags.NEGATIVE > 0)
             A = A shl 1
             setZNFlags(A)
             return
         }
         var data = readByte(eaddress)
-        setFlag(Flags.CARRY, data and Flags.BIT_7 > 0)
+        setFlag(Flags.CARRY, data and Flags.NEGATIVE > 0)
         data = data shl 1
         writeByte(eaddress, data)
         setZNFlags(data)
