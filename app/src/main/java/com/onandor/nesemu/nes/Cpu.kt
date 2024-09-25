@@ -57,7 +57,8 @@ class Cpu(private var memory: Memory) {
             addressingCycle = false
             opcodeCycle = false
 
-            opcode = readByte(PC++)
+            opcode = readByte(PC)
+            PC = PC.plus16(1)
             addressHandlerTable[opcode]()
             opcodeHandlerTable[opcode]()
 
@@ -75,7 +76,7 @@ class Cpu(private var memory: Memory) {
         memory[address and 0xFFFF] or (memory[(address + 1) and 0xFFFF] shl 8)
 
     fun writeByte(address: Int, value: Int) {
-        memory[address and 0xFFFF] = value
+        memory[address and 0xFFFF] = value and 0xFF
     }
 
     private fun setFlag(flag: Int, set: Boolean) {
@@ -83,12 +84,6 @@ class Cpu(private var memory: Memory) {
     }
 
     private fun getFlag(flag: Int): Boolean = (PS and flag) > 0
-
-    private fun incrPC(incrementBy: Int): Int {
-        val oldPC = PC
-        PC = (PC + incrementBy) and 0xFFFF
-        return oldPC
-    }
 
     private fun setZNFlags(data: Int) {
         setFlag(Flags.ZERO, data == 0)
@@ -115,6 +110,27 @@ class Cpu(private var memory: Memory) {
         PS = state.PS
     }
 
+    // ------ Stack functions ------
+
+    private fun pushByte(value: Int) {
+        writeByte(SP or 0x100, value)
+        SP = (SP - 1) and 0xFF
+    }
+
+    private fun push2Bytes(value: Int) {
+        pushByte(value shr 8)
+        pushByte(value)
+    }
+
+    private fun pullByte(): Int {
+        SP = (SP + 1) and 0xFF
+        return readByte(SP or 0x100)
+    }
+
+    private fun pull2Bytes(): Int {
+        return pullByte() or (pullByte() shl 8)
+    }
+
     // ------ Addressing mode functions ------
 
     // Accumulator
@@ -122,15 +138,16 @@ class Cpu(private var memory: Memory) {
 
     // Absolute
     private fun abs() {
-        eaddress = readByte(incrPC(1)) or (readByte(incrPC(1)) shl 8)
+        eaddress = read2Bytes(PC)
+        PC = PC.plus16(2)
     }
 
     // Absolute,X
     private fun absx() {
-        val address = readByte(PC)
+        val address = read2Bytes(PC)
         eaddress = address + X
         addressingCycle = (address xor eaddress) shr 8 > 0
-        incrPC(2)
+        PC = PC.plus16(2)
     }
 
     // Absolute,Y
@@ -138,12 +155,13 @@ class Cpu(private var memory: Memory) {
         val address = read2Bytes(PC);
         eaddress = address + Y
         addressingCycle = (address xor eaddress) shr 8 > 0
-        incrPC(2)
+        PC = PC.plus16(2)
     }
 
     // Immediate
     private fun imm() {
-        eaddress = incrPC(1)
+        eaddress = PC
+        PC = PC.plus16(1)
     }
 
     // Implied
@@ -152,81 +170,96 @@ class Cpu(private var memory: Memory) {
     // Indirect
     private fun ind() {
         val address = read2Bytes(PC)
-        incrPC(2)
         eaddress = if ((address and 0xFF) == 0xFF) {
             readByte(address) or (readByte(address and 0xFF00) shl 8)
         } else {
             read2Bytes(address)
         }
+        PC = PC.plus16(2)
     }
 
     // Indexed Indirect
     private fun indx() {
-        val pageZeroAddress = readByte(incrPC(1)) + X
-        val nextPageZeroAddress = (pageZeroAddress + 1) and 0xFF // Zero page wrap-around
-        eaddress = readByte(pageZeroAddress) or (readByte(nextPageZeroAddress) shl 8)
+        val pageZeroAddress = readByte(PC).plus8(X)
+        eaddress = readByte(pageZeroAddress) or (readByte(pageZeroAddress.plus8(1)) shl 8)
+        PC = PC.plus16(1)
     }
 
     // Indirect Indexed
     private fun indy() {
-        val pageZeroAddress = readByte(PC++)
+        val pageZeroAddress = readByte(PC)
         val nextPageZeroAddress = (pageZeroAddress + 1) and 0xFF // Zero page wrap around
         val address = readByte(pageZeroAddress) or (readByte(nextPageZeroAddress) shl 8)
         val addressY = address + Y
         addressingCycle = (address xor addressY) shr 8 > 0
         eaddress = addressY
+        PC = PC.plus16(1)
     }
 
     // Relative
     private fun rel() {
-        eaddress = PC++
+        eaddress = PC
+        PC = PC.plus16(1)
     }
 
     // Zero Page
     private fun zpg() {
-        eaddress = readByte(PC++)
+        eaddress = readByte(PC)
+        PC = PC.plus16(1)
     }
 
     // Zero Page,X
     private fun zpgx() {
-        eaddress = (readByte(PC++) + X) and 0xFF
+        //eaddress = (readByte(PC) + X) and 0xFF
+        eaddress = readByte(PC).plus8(X)
+        PC = PC.plus16(1)
     }
 
     // Zero Page,Y
     private fun zpgy() {
-        eaddress = (readByte(PC++) + Y) and 0xFF
+        eaddress = readByte(PC).plus8(Y)
+        PC = PC.plus16(1)
     }
 
     // ------ Instruction handler functions ------
 
     private fun branch() {
-        val displacement = readByte(eaddress)
+        val offset = readByte(eaddress)
         val oldPC = PC
-        PC += displacement
+        PC = PC.plus16(offset.toSigned8())
         cycles += 1 + ((PC and 0xFF00) != (oldPC and 0xFF00)).toInt()
     }
 
-    private fun ADC(operand: Int) {
-        var sum: Int
-        if (getFlag(Flags.DECIMAL)) {
-            sum = (A and 0x0F) + (operand and 0x0F) + getFlag(Flags.CARRY).toInt()
-            if (sum > 0x09)
-                sum += 0x06
-            sum = (A and 0xF0) + (operand and 0xF0) + (if (sum > 0x0F) 0x10 else 0) + (sum and 0x0F)
-        } else {
-            sum = A + operand + getFlag(Flags.CARRY).toInt()
-        }
-
+    private fun ADC_binary(operand: Int) {
+        var sum = A + operand + getFlag(Flags.CARRY).toInt()
+        setZNFlags(sum and 0xFF)
         setFlag(Flags.OVERFLOW, (operand xor sum) and (A xor sum) and 0x80 > 0)
-        if (getFlag(Flags.DECIMAL)) {
-            setZNFlags(sum)
-            if (sum > 0x9F)
-                sum += 0x60
-        } else {
-            setZNFlags(sum and 0xFF)
-        }
         setFlag(Flags.CARRY, sum > 0xFF)
         A = sum and 0xFF
+    }
+
+    // Not perfect
+    private fun ADC_decimal(operand: Int) {
+        var sum = (A and 0x0F) + (operand and 0x0F) + getFlag(Flags.CARRY).toInt()
+        if (sum > 0x09)
+            sum += 0x06
+        sum = (A and 0xF0) + (operand and 0xF0) + (if (sum > 0x0F) 0x10 else 0) + (sum and 0x0F)
+
+        setFlag(Flags.OVERFLOW, (operand xor sum) and (A xor sum) and 0x80 > 0)
+        setZNFlags(sum)
+        if (sum > 0x9F)
+            sum += 0x60
+        setFlag(Flags.CARRY, sum > 0xFF)
+        A = sum and 0xFF
+    }
+
+    private fun ADC(operand: Int) {
+        if (getFlag(Flags.DECIMAL)) {
+            //ADC_decimal(operand)
+            throw RuntimeException("ADC in decimal mode is not supported")
+        } else {
+            ADC_binary(operand)
+        }
         opcodeCycle = true
     }
 
@@ -244,13 +277,13 @@ class Cpu(private var memory: Memory) {
     private fun ASL() {
         if (addressHandlerTable[opcode] == ::acc) {
             setFlag(Flags.CARRY, A and Flags.NEGATIVE > 0)
-            A = A shl 1
+            A = (A shl 1) and 0xFF
             setZNFlags(A)
             return
         }
         var data = readByte(eaddress)
         setFlag(Flags.CARRY, data and Flags.NEGATIVE > 0)
-        data = data shl 1
+        data = (data shl 1) and 0xFF
         writeByte(eaddress, data)
         setZNFlags(data)
     }
@@ -287,11 +320,11 @@ class Cpu(private var memory: Memory) {
     }
 
     private fun BRK() {
-        PC++
-        writeByte(SP-- or 0x100, PC shr 8)
-        writeByte(SP-- or 0x100, PC)
-        writeByte(SP-- or 0x100, PS or Flags.BREAK)
+        PC = PC.plus16(1)
+        push2Bytes(PC)
+        pushByte(PS or Flags.BREAK)
         PC = read2Bytes(0xFFFE)
+        setFlag(Flags.INTERRUPT, true)
     }
 
     private fun BVC() {
@@ -339,18 +372,18 @@ class Cpu(private var memory: Memory) {
     }
 
     private fun DEC() {
-        val data = readByte(eaddress) - 1
+        val data = readByte(eaddress).plus8(-1)
         writeByte(eaddress, data)
         setZNFlags(data)
     }
 
     private fun DEX() {
-        X -= 1
+        X = X.plus8(-1)
         setZNFlags(X)
     }
 
     private fun DEY() {
-        Y -= 1
+        Y = Y.plus8(-1)
         setZNFlags(Y)
     }
 
@@ -362,18 +395,18 @@ class Cpu(private var memory: Memory) {
     }
 
     private fun INC() {
-        val data = readByte(eaddress) + 1
+        val data = readByte(eaddress).plus8(1)
         writeByte(eaddress, data)
         setZNFlags(data)
     }
 
     private fun INX() {
-        X += 1
+        X = X.plus8(1)
         setZNFlags(X)
     }
 
     private fun INY() {
-        Y += 1
+        Y = Y.plus8(1)
         setZNFlags(Y)
     }
 
@@ -382,8 +415,7 @@ class Cpu(private var memory: Memory) {
     }
 
     private fun JSR() {
-        writeByte(SP-- or 0x100, --PC shr 0)
-        writeByte(SP-- or 0x100, PC)
+        push2Bytes(PC.plus16(-1))
         PC = eaddress
     }
 
@@ -429,33 +461,33 @@ class Cpu(private var memory: Memory) {
     }
 
     private fun PHA() {
-        writeByte(--SP or 0x100, A)
+        pushByte(A)
     }
 
     private fun PHP() {
-        writeByte(SP or 0x100, PS or Flags.UNUSED or Flags.BREAK)
+        pushByte(PS or Flags.UNUSED or Flags.BREAK)
     }
 
     private fun PLA() {
-        A = readByte(++SP or 0x100)
+        A = pullByte()
         setZNFlags(A)
     }
 
     private fun PLP() {
-        PS = readByte(++SP or 0x100) and Flags.BREAK.inv() or Flags.UNUSED
+        PS = pullByte() and Flags.BREAK.inv() or Flags.UNUSED
     }
 
     private fun ROL() {
         val oldCarry = PS and Flags.CARRY
         if (addressHandlerTable[opcode] == ::acc) {
             setFlag(Flags.CARRY, A and Flags.NEGATIVE > 0)
-            A = (A shl 1) or oldCarry
+            A = ((A shl 1) and 0xFF) or oldCarry
             setZNFlags(A)
             return
         }
         var data = readByte(eaddress)
         setFlag(Flags.CARRY, data and Flags.NEGATIVE > 0)
-        data = (data shl 1) or oldCarry
+        data = ((data shl 1) and 0xFF) or oldCarry
         writeByte(eaddress, data)
         setZNFlags(data)
     }
@@ -476,19 +508,21 @@ class Cpu(private var memory: Memory) {
     }
 
     private fun RTI() {
-        PS = readByte(++SP or 0x100) and Flags.BREAK.inv() or Flags.UNUSED
-        PC = readByte(++SP or 0x100) or (readByte(++ SP or 0x100) shl 8)
+        PS = pullByte() and Flags.BREAK.inv() or Flags.UNUSED
+        PC = pull2Bytes()
     }
 
     private fun RTS() {
-        val pcLow = readByte(++SP or 0x100)
-        val pcHigh = readByte(++SP or 0x100)
-        PC = (pcLow or (pcHigh shl 8)) + 1
+        PC = pull2Bytes().plus16(1)
     }
 
     private fun SBC() {
         val data = readByte(eaddress)
-        ADC(data.inv())
+        if (getFlag(Flags.DECIMAL)) {
+            throw RuntimeException("SBC in decimal mode is not supported")
+        } else {
+            ADC(data.inv() and 0xFF)
+        }
     }
 
     private fun SEC() {

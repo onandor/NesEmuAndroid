@@ -20,7 +20,7 @@ class CpuOpcodeTests {
     private val testRunner = CpuOpcodeTestRunner(
         verbosity = Verbosities.FAIL,
         testsToRun = 5000,
-        decimalMode = true,
+        skipDecimalMode = false,
         stopOnFail = false
     )
 

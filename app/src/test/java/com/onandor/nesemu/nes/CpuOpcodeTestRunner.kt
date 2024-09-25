@@ -6,7 +6,7 @@ import java.io.File
 class CpuOpcodeTestRunner(
     private val verbosity: Int,
     private val testsToRun: Int,
-    private val decimalMode: Boolean,
+    private val skipDecimalMode: Boolean,
     private val stopOnFail: Boolean
 ) {
 
@@ -62,7 +62,7 @@ class CpuOpcodeTestRunner(
             val opcodeTest: CpuOpcodeTest =
                 Gson().fromJson<CpuOpcodeTest>(testJson, CpuOpcodeTest::class.java)
 
-            if (!decimalMode && opcodeTest.initialState.PS and 0b00001000 > 0) {
+            if (skipDecimalMode && opcodeTest.initialState.PS and 0b00001000 > 0) {
                 continue
             }
 
