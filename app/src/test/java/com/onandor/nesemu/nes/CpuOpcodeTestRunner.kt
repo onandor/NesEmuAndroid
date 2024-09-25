@@ -6,7 +6,8 @@ import java.io.File
 class CpuOpcodeTestRunner(
     private val verbosity: Int,
     private val testsToRun: Int,
-    private val decimalMode: Boolean
+    private val decimalMode: Boolean,
+    private val stopOnFail: Boolean
 ) {
 
     companion object {
@@ -24,13 +25,23 @@ class CpuOpcodeTestRunner(
     private val memory: Memory = Memory()
     private val cpu: Cpu = Cpu(memory)
 
-    fun runAll(tests: List<CpuTest>) {
-        tests.forEach { test ->
-            run(test.name, test.opcode)
+    fun runAll(tests: List<CpuTest>): Boolean {
+        var allPassed = true
+        run breaking@ {
+            tests.forEach { test ->
+                val testPassed = run(test.name, test.opcode)
+                if (allPassed && !testPassed) {
+                    allPassed = false
+                }
+                if (stopOnFail && !testPassed) {
+                    return@breaking
+                }
+            }
         }
+        return allPassed
     }
 
-    fun run(instructionName: String, opcode: Int) {
+    fun run(instructionName: String, opcode: Int): Boolean {
         val opcodeStr = opcode.toString(16).padStart(2, '0')
         val file = File("$TESTS_DIR$opcodeStr.json")
         val br = file.bufferedReader()
@@ -38,12 +49,15 @@ class CpuOpcodeTestRunner(
         println("Running tests for instruction: $instructionName (opcode: $opcodeStr)")
 
         var passedCount = 0
-        var testCount = 0
-        while (testCount < testsToRun) {
+        var totalTests = 0
+        var testIdx = 0
+        while (testIdx < testsToRun) {
             val testJson = br.readLine()
             if (testJson == null) {
-                return
+                return false
             }
+
+            testIdx++
 
             val opcodeTest: CpuOpcodeTest =
                 Gson().fromJson<CpuOpcodeTest>(testJson, CpuOpcodeTest::class.java)
@@ -66,7 +80,7 @@ class CpuOpcodeTestRunner(
             }
 
             if (canPrint(Verbosity.BASIC_INFO)) {
-                println("Test ${testCount + 1} of $testsToRun - ${opcodeTest.name}")
+                println("Test $testIdx of $testsToRun - ${opcodeTest.name}")
             }
 
             val expectedCycles = opcodeTest.cycles.size
@@ -80,25 +94,44 @@ class CpuOpcodeTestRunner(
                 println("FAILED\n")
             }
 
-            testCount++
+            totalTests++
+
+            if (stopOnFail && !passed) {
+                break
+            }
         }
 
-        val successRate = passedCount / testCount.toFloat() * 100
-        println("Passed: $passedCount/$testCount - $successRate%\n")
+        val successRate = passedCount / totalTests.toFloat() * 100
+        println("Passed: $passedCount/$totalTests - $successRate%\n")
 
         br.close()
+
+        return successRate == 100f
     }
 
     private fun printMemoryResult(finalState: TestCpuState) {
-        println("+-Err-+--Addr--+-Exp--+-Got--+")
+        println("+-Err-+------Addr------+----Exp-----+----Got-----+")
         finalState.memory.forEach { value ->
-            val error = if (memory[value[0]] == value[1]) ' ' else 'x'
-            val address = value[0].toString(16)
-            val expected = value[1].toString(16)
-            val got = memory[value[0]].toString(16)
-            println("|  $error  |  $address  |  $expected  |  $got  |")
+            val error = if (memory[value[0]] == value[1]) "     " else "  x  "
+            val address = StringBuilder()
+                .append(value[0].toString())
+                .append(" (${value[0].toString(16).padStart(4, '0')})  ")
+                .padStart(16, ' ')
+                .toString()
+            val expected = StringBuilder()
+                .append(value[1].toString())
+                .append(" (${value[1].toString(16).padStart(2, '0')})  ")
+                .padStart(12, ' ')
+                .toString()
+            val got = StringBuilder()
+                .append(memory[value[0]].toString())
+                .append(" (${memory[value[0]].toString(16).padStart(2, '0')})  ")
+                .padStart(12, ' ')
+                .toString()
+
+            println("|$error|$address|$expected|$got|")
         }
-        println("+-----+--------+------+------+")
+        println("+-----+----------------+------------+------------+")
     }
 
     private fun evaluateAndPrintResult(

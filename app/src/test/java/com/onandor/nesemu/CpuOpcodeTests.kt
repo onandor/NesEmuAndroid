@@ -12,12 +12,17 @@ import org.junit.Test
 class CpuOpcodeTests {
 
     private object Verbosities {
-        const val BASIC = CpuOpcodeTestRunner.Verbosity.BASIC_INFO or CpuOpcodeTestRunner.Verbosity.FAIL
+        const val FAIL = CpuOpcodeTestRunner.Verbosity.BASIC_INFO or CpuOpcodeTestRunner.Verbosity.FAIL
         const val NONE = CpuOpcodeTestRunner.Verbosity.NONE
         const val ALL = CpuOpcodeTestRunner.Verbosity.ALL
     }
 
-    private val testRunner = CpuOpcodeTestRunner(Verbosities.NONE, 100, true)
+    private val testRunner = CpuOpcodeTestRunner(
+        verbosity = Verbosities.FAIL,
+        testsToRun = 5000,
+        decimalMode = true,
+        stopOnFail = false
+    )
 
     @Test
     fun testADC() {
