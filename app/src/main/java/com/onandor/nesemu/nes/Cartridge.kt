@@ -1,5 +1,11 @@
 package com.onandor.nesemu.nes
 
+import com.onandor.nesemu.nes.NesEvent.CartridgeEvent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.launch
 import okio.internal.commonToUtf8String
 import java.io.ByteArrayInputStream
 
@@ -15,19 +21,27 @@ data class INesHeader(
 
 class Cartridge {
 
+    object Flags {
+        const val TRAINER = 4
+    }
+
     private var prgRom: IntArray? = null
     private var chrRom: IntArray? = null
     private var mapperID: Int = -1
 
-    fun parseRom(rom: ByteArray): Boolean {
+    private val mEventFlow: MutableSharedFlow<CartridgeEvent> = MutableSharedFlow()
+    val eventFlow = mEventFlow.asSharedFlow()
+
+    fun parseRom(rom: ByteArray) {
         val stream = rom.inputStream()
         val header = parseINesHeader(stream)
 
         if (header.name.commonToUtf8String(0, 3) != "NES") {
-            return false
+            emitEvent(CartridgeEvent.InvalidRom)
+            return
         }
 
-        if (header.mapperFlags1 and 4 > 0) {
+        if (header.mapperFlags1 and Flags.TRAINER > 0) {
             stream.read(ByteArray(512)) // Discarding trainer
         }
 
@@ -42,11 +56,10 @@ class Cartridge {
             stream.read(chrRomBytes)
             chrRom = chrRomBytes.toIntArray()
         } else {
-            throw RuntimeException("CHR RAM is not supported")
+            emitEvent(CartridgeEvent.ChrRamNotSupported)
         }
 
         stream.close()
-        return true
     }
 
     private fun parseINesHeader(stream: ByteArrayInputStream): INesHeader {
@@ -61,5 +74,11 @@ class Cartridge {
         )
         stream.read(ByteArray(6)) // Discarding padding
         return header
+    }
+
+    private fun emitEvent(event: CartridgeEvent) {
+        CoroutineScope(Dispatchers.Main).launch {
+            mEventFlow.emit(event)
+        }
     }
 }
