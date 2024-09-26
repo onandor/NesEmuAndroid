@@ -6,16 +6,9 @@ class Bus {
         const val MEMORY_SIZE = 2048
     }
 
-    internal var memory: IntArray = IntArray(MEMORY_SIZE)
-        private set
-    internal val cpu: Cpu = Cpu(this)
-    internal var cartridge: Cartridge? = null
-        private set
-
-    // Used only for the 6502 tests
-    fun setMemorySize(size: Int) {
-        memory = IntArray(size)
-    }
+    private var memory: IntArray = IntArray(MEMORY_SIZE)
+    private val cpu: Cpu = Cpu(this::readMemory, this::writeMemory)
+    private var cartridge: Cartridge? = null
 
     fun readMemory(address: Int): Int {
         return memory[address]
