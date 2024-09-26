@@ -1,13 +1,13 @@
 package com.onandor.nesemu.viewmodels
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.onandor.nesemu.navigation.NavigationManager
 import com.onandor.nesemu.nes.Cartridge
-import com.onandor.nesemu.nes.Bus
-import com.onandor.nesemu.nes.NesEvent
+import com.onandor.nesemu.nes.Nes
+import com.onandor.nesemu.nes.NesException
+import com.onandor.nesemu.nes.RomParseException
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.launch
 import java.io.InputStream
 import javax.inject.Inject
 
@@ -16,31 +16,33 @@ class MainViewModel @Inject constructor(
     private val navManager: NavigationManager
 ) : ViewModel() {
 
-    private val bus: Bus = Bus()
+    private val nes: Nes = Nes()
     private var cartridge: Cartridge = Cartridge()
-
-    init {
-        viewModelScope.launch { bus.eventFlow.collect(::onBusEvent) }
-    }
 
     fun onRomSelected(stream: InputStream) {
         val rom = stream.readBytes()
         stream.close()
-        cartridge.parseRom(rom)
-    }
 
-    fun onBusEvent(event: NesEvent) {
-        when (event) {
-            is NesEvent.CartridgeEvent -> onCartridgeEvent(event)
+        try {
+            cartridge.parseRom(rom)
+        } catch (e: RomParseException) {
+            Log.e(e.tag, e.message.toString())
+            // TODO: display some kind of error message
+        }
+
+        nes.insertCartridge(cartridge)
+
+        try {
+            nes.reset()
+        } catch (e: Exception) {
+            if (e is NesException) {
+                handleNesException(e)
+            }
         }
     }
 
-    fun onCartridgeEvent(event: NesEvent.CartridgeEvent) {
-        when (event) {
-            is NesEvent.CartridgeEvent.Ready -> bus.insertCartridge(cartridge)
-            NesEvent.CartridgeEvent.ChrRamNotSupported -> { println("ChrRamNotSupported") }
-            NesEvent.CartridgeEvent.InvalidRom -> { println("InvalidRom") }
-            is NesEvent.CartridgeEvent.MapperNotSupported -> { println("MapperNotSupported") }
-        }
+    fun handleNesException(e: NesException) {
+        Log.e(e.tag, e.message.toString())
+        // TODO: display some kind of error message
     }
 }

@@ -1,11 +1,6 @@
 package com.onandor.nesemu.nes
 
-import com.onandor.nesemu.nes.NesEvent.CartridgeEvent
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.launch
+import android.util.Log
 import okio.internal.commonToUtf8String
 import java.io.ByteArrayInputStream
 
@@ -13,39 +8,74 @@ data class INesHeader(
     val name: ByteArray,
     val numPrgBank: Int,
     val numChrBank: Int,
-    val mapperFlags1: Int,
-    val mapperFlags2: Int,
+    val control1: Int,
+    val control2: Int,
     val prgRamSize: Int,
     val tvSystem: Int
 )
 
+enum class Mirroring {
+    HORIZONTAL,
+    VERTICAL,
+    SINGLE_SCREEN,
+    FOUR_SCREEN
+}
+
 class Cartridge {
 
-    object Flags {
-        const val TRAINER = 4
+    class UnsupportedMapperException(val mapperId: Int) : Exception()
+    class ChrRamUnsupportedException : Exception()
+    class InvalidRomException : Exception()
+    class UnsupportedINesVersionException : Exception()
+
+    companion object {
+        private const val TAG = "Cartridge"
     }
 
-    private var prgRom: IntArray? = null
-    private var chrRom: IntArray? = null
-    private var mapperID: Int = -1
+    object Bits {
+        const val TRAINER = 4
+        const val NAMETABLE = 1
+        const val ALT_NAMETABLE = 8
+    }
 
-    private val mEventFlow: MutableSharedFlow<CartridgeEvent> = MutableSharedFlow()
-    val eventFlow = mEventFlow.asSharedFlow()
+    lateinit var prgRom: IntArray
+        private set
+    lateinit var chrRom: IntArray
+        private set
+    var mirroring: Mirroring = Mirroring.HORIZONTAL
+        private set
+    var mapperId: Int = 0
+        private set
 
     fun parseRom(rom: ByteArray) {
         val stream = rom.inputStream()
         val header = parseINesHeader(stream)
 
         if (header.name.commonToUtf8String(0, 3) != "NES") {
-            emitEvent(CartridgeEvent.InvalidRom)
-            return
+            stream.close()
+            throw RomParseException(TAG, "Invalid ROM file")
         }
 
-        if (header.mapperFlags1 and Flags.TRAINER > 0) {
+        if (header.control2 shr 2 == 0b11) {
+            stream.close()
+            throw RomParseException(TAG, "Unsupported iNES version")
+        }
+
+        if (header.control1 and Bits.TRAINER > 0) {
             stream.read(ByteArray(512)) // Discarding trainer
         }
 
-        mapperID = (header.mapperFlags1 shr 4) or ((header.mapperFlags2 shr 4) shl 4)
+        mapperId = (header.control1 shr 4) or ((header.control2 shr 4) shl 4)
+        Log.i(TAG, "Using mapper $mapperId")
+        if (mapperId != 0) {
+            stream.close()
+            throw RomParseException(TAG, "Unsupported mapper")
+        }
+
+        // The mappers currently supported only use horizontal or vertical mirroring
+        if (header.control1 and Bits.NAMETABLE == 0) {
+            mirroring = Mirroring.VERTICAL
+        } // else horizontal
 
         val prgRomBytes = ByteArray(header.numPrgBank * 16384)
         stream.read(prgRomBytes)
@@ -56,9 +86,10 @@ class Cartridge {
             stream.read(chrRomBytes)
             chrRom = chrRomBytes.toIntArray()
         } else {
-            emitEvent(CartridgeEvent.ChrRamNotSupported)
+            stream.close()
+            throw RomParseException(TAG, "Cartridge uses CHR RAM")
         }
-
+        Log.i(TAG, "PRG ROM banks: ${header.numPrgBank}, CHR ROM banks: ${header.numChrBank}")
         stream.close()
     }
 
@@ -67,18 +98,12 @@ class Cartridge {
             name = (0..3).map { stream.read().toByte() }.toByteArray(),
             numPrgBank = stream.read(),
             numChrBank = stream.read(),
-            mapperFlags1 = stream.read(),
-            mapperFlags2 = stream.read(),
+            control1 = stream.read(),
+            control2 = stream.read(),
             prgRamSize = stream.read(),
             tvSystem = stream.read()
         )
         stream.read(ByteArray(6)) // Discarding padding
         return header
-    }
-
-    private fun emitEvent(event: CartridgeEvent) {
-        CoroutineScope(Dispatchers.Main).launch {
-            mEventFlow.emit(event)
-        }
     }
 }
