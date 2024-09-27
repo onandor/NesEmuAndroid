@@ -157,7 +157,11 @@ class NesTestCpu {
             }
         }
 
-        val opcodeHex = opcodeHexJoiner.toString().padEnd(10)
+        val opcodeHex = if (Cpu.ILLEGAL_INSTRUCTION_TABLE[nextInstruction]) {
+            opcodeHexJoiner.toString().padEnd(9) + "*"
+        } else {
+            opcodeHexJoiner.toString().padEnd(10)
+        }
         val opcodeAsm = opcodeAsmJoiner.toString().padEnd(32)
 
         val registerStatus = StringJoiner(" ")

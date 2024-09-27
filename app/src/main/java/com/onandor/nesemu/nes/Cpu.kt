@@ -1,5 +1,7 @@
 package com.onandor.nesemu.nes
 
+import android.util.Log
+
 @Suppress("PropertyName")
 data class CpuState(
     val PC: Int,
@@ -25,6 +27,9 @@ class Cpu(
         const val UNUSED: Int = 0b00100000
         const val OVERFLOW: Int = 0b01000000
         const val NEGATIVE: Int = 0b10000000
+
+        const val BIT_5: Int = UNUSED
+        const val BIT_6: Int = OVERFLOW
     }
 
     var debugCallback: (PC: Int, SP: Int, A: Int, X: Int, Y: Int, PS: Int) -> Unit =
@@ -260,6 +265,8 @@ class Cpu(
 
     // ------ Instruction handler functions ------
 
+    // ----------- Legal instructions ------------
+
     private fun branch() {
         val offset = readByte(eaddress)
         val oldPC = PC
@@ -292,8 +299,8 @@ class Cpu(
 
     private fun ADC(operand: Int) {
         if (getFlag(Flags.DECIMAL)) {
+            Log.w(TAG, "ADC in decimal mode is not supported, using binary mode")
             ADC_binary(operand)
-            throw InvalidOperationException(TAG, "ADC in decimal mode is not supported")
         } else {
             ADC_binary(operand)
         }
@@ -474,12 +481,15 @@ class Cpu(
         instructionCycle = true
     }
 
+    private fun LSR_A() {
+        setFlag(Flags.CARRY, A and Flags.CARRY > 0)
+        A = A shr 1
+        setZNFlags(A)
+    }
+
     private fun LSR() {
         if (ADDRESS_HANDLER_TABLE[instruction] == ::acc) {
-            setFlag(Flags.CARRY, A and Flags.CARRY > 0)
-            A = A shr 1
-            setZNFlags(A)
-            return
+            LSR_A()
         }
         var data = readByte(eaddress)
         setFlag(Flags.CARRY, data and Flags.CARRY > 0)
@@ -529,14 +539,18 @@ class Cpu(
         setZNFlags(data)
     }
 
-    private fun ROR() {
+    private fun ROR_A() {
         val oldCarry = PS and Flags.CARRY
+        setFlag(Flags.CARRY, A and Flags.CARRY > 0)
+        A = (A shr 1) or (oldCarry shl 7)
+        setZNFlags(A)
+    }
+
+    private fun ROR() {
         if (ADDRESS_HANDLER_TABLE[instruction] == ::acc) {
-            setFlag(Flags.CARRY, A and Flags.CARRY > 0)
-            A = (A shr 1) or (oldCarry shl 7)
-            setZNFlags(A)
-            return
+            ROR_A()
         }
+        val oldCarry = PS and Flags.CARRY
         var data = readByte(eaddress)
         setFlag(Flags.CARRY, data and Flags.CARRY > 0)
         data = (data shr 1) or (oldCarry shl 7)
@@ -556,8 +570,8 @@ class Cpu(
     private fun SBC() {
         val data = readByte(eaddress)
         if (getFlag(Flags.DECIMAL)) {
+            Log.w(TAG, "SBC in decimal mode is not supported, using binary mode")
             ADC(data.inv() and 0xFF)
-            throw InvalidOperationException(TAG, "SBC in decimal mode is not supported")
         } else {
             ADC(data.inv() and 0xFF)
         }
@@ -616,64 +630,146 @@ class Cpu(
         setZNFlags(A)
     }
 
+    // ---------- Illegal instructions -----------
+
+    private fun ALR() {
+        AND()
+        LSR_A()
+    }
+
+    private fun ANC() {
+        AND()
+        setFlag(Flags.CARRY, (A and Flags.NEGATIVE) > 0)
+        instructionCycle = false
+    }
+
+    private fun ARR() {
+        AND()
+        ROR_A()
+        setFlag(Flags.OVERFLOW, (A and Flags.BIT_6) xor ((A and Flags.BIT_5) shl 1) > 0)
+        setFlag(Flags.CARRY, A and Flags.BIT_6 > 0)
+    }
+
+    private fun DCP() {
+        DEC()
+        CMP(A)
+    }
+
+    private fun ISB() {
+        INC()
+        SBC()
+        instructionCycle = false
+    }
+
+    private fun LAS() {
+        val data = readByte(eaddress)
+        val result = SP and data
+        A = result
+        X = result
+        SP = result
+        setZNFlags(result)
+        instructionCycle = true
+    }
+
+    private fun LAX() {
+        LDA()
+        LDX()
+    }
+
+    private fun RLA() {
+        ROL()
+        AND()
+        instructionCycle = false
+    }
+
+    private fun RRA() {
+        ROR()
+        ADC()
+        instructionCycle = false
+    }
+
+    private fun SAX() {
+        writeByte(eaddress, A and X)
+    }
+
+    private fun SBX() {
+        val oldX = X
+        X = (A and X).plus8(-readByte(eaddress))
+        setFlag(Flags.CARRY, (A and oldX) >= X)
+        setZNFlags(X)
+    }
+
+    private fun SLO() {
+        ASL()
+        ORA()
+        instructionCycle = false
+    }
+
+    private fun SRE(){
+        LSR()
+        EOR()
+        instructionCycle = false
+    }
+
     private val ADDRESS_HANDLER_TABLE: Array<() -> Unit> = arrayOf(
         /*      |   0   |   1   |   2   |   3   |   4   |   5   |   6   |   7   |   8   |   9   |   A   |   B   |   C   |   D   |   E   |   F   */
-        /* 0 */	 ::impl, ::indx, ::impl, ::impl, ::impl,  ::zpg,  ::zpg, ::impl, ::impl,  ::imm,  ::acc, ::impl, ::impl,  ::abs,  ::abs, ::impl,
-        /* 1 */   ::rel, ::indy, ::impl, ::impl, ::impl, ::zpgx, ::zpgx, ::impl, ::impl, ::absy, ::impl, ::impl, ::impl, ::absx, ::absx, ::impl,
-        /* 2 */   ::abs, ::indx, ::impl, ::impl,  ::zpg,  ::zpg,  ::zpg, ::impl, ::impl,  ::imm,  ::acc, ::impl,  ::abs,  ::abs,  ::abs, ::impl,
-        /* 3 */   ::rel, ::indy, ::impl, ::impl, ::impl, ::zpgx, ::zpgx, ::impl, ::impl, ::absy, ::impl, ::impl, ::impl, ::absx, ::absx, ::impl,
-        /* 4 */  ::impl, ::indx, ::impl, ::impl, ::impl,  ::zpg,  ::zpg, ::impl, ::impl,  ::imm,  ::acc, ::impl,  ::abs,  ::abs,  ::abs, ::impl,
-        /* 5 */   ::rel, ::indy, ::impl, ::impl, ::impl, ::zpgx, ::zpgx, ::impl, ::impl, ::absy, ::impl, ::impl, ::impl, ::absx, ::absx, ::impl,
-        /* 6 */  ::impl, ::indx, ::impl, ::impl, ::impl,  ::zpg,  ::zpg, ::impl, ::impl,  ::imm,  ::acc, ::impl,  ::ind,  ::abs,  ::abs, ::impl,
-        /* 7 */   ::rel, ::indy, ::impl, ::impl, ::impl, ::zpgx, ::zpgx, ::impl, ::impl, ::absy, ::impl, ::impl, ::impl, ::absx, ::absx, ::impl,
-        /* 8 */  ::impl, ::indx, ::impl, ::impl,  ::zpg,  ::zpg,  ::zpg, ::impl, ::impl, ::impl, ::impl, ::impl,  ::abs,  ::abs,  ::abs, ::impl,
-        /* 9 */   ::rel, ::indy, ::impl, ::impl, ::zpgx, ::zpgx, ::zpgy, ::impl, ::impl, ::absy, ::impl, ::impl, ::impl, ::absx, ::impl, ::impl,
-        /* A */   ::imm, ::indx,  ::imm, ::impl,  ::zpg,  ::zpg,  ::zpg, ::impl, ::impl,  ::imm, ::impl, ::impl,  ::abs,  ::abs,  ::abs, ::impl,
-        /* B */   ::rel, ::indy, ::impl, ::impl, ::zpgx, ::zpgx, ::zpgy, ::impl, ::impl, ::absy, ::impl, ::impl, ::absx, ::absx, ::absy, ::impl,
-        /* C */   ::imm, ::indx, ::impl, ::impl,  ::zpg,  ::zpg,  ::zpg, ::impl, ::impl,  ::imm, ::impl, ::impl,  ::abs,  ::abs,  ::abs, ::impl,
-        /* D */   ::rel, ::indy, ::impl, ::impl, ::impl, ::zpgx, ::zpgx, ::impl, ::impl, ::absy, ::impl, ::impl, ::impl, ::absx, ::absx, ::impl,
-        /* E */   ::imm, ::indx, ::impl, ::impl,  ::zpg,  ::zpg,  ::zpg, ::impl, ::impl,  ::imm, ::impl, ::impl,  ::abs,  ::abs,  ::abs, ::impl,
-        /* F */   ::rel, ::indy, ::impl, ::impl, ::impl, ::zpgx, ::zpgx, ::impl, ::impl, ::absy, ::impl, ::impl, ::impl, ::absx, ::absx, ::impl
+        /* 0 */  ::impl, ::indx, ::impl, ::indx,  ::zpg,  ::zpg,  ::zpg,  ::zpg, ::impl,  ::imm,  ::acc,  ::imm,  ::abs,  ::abs,  ::abs,  ::abs,
+        /* 1 */   ::rel, ::indy, ::impl, ::indy, ::zpgx, ::zpgx, ::zpgx, ::zpgx, ::impl, ::absy, ::impl, ::absy, ::absx, ::absx, ::absx, ::absx,
+        /* 2 */   ::abs, ::indx, ::impl, ::indx,  ::zpg,  ::zpg,  ::zpg,  ::zpg, ::impl,  ::imm,  ::acc,  ::imm,  ::abs,  ::abs,  ::abs,  ::abs,
+        /* 3 */   ::rel, ::indy, ::impl, ::indy, ::zpgx, ::zpgx, ::zpgx, ::zpgx, ::impl, ::absy, ::impl, ::absy, ::absx, ::absx, ::absx, ::absx,
+        /* 4 */  ::impl, ::indx, ::impl, ::indx,  ::zpg,  ::zpg,  ::zpg,  ::zpg, ::impl,  ::imm,  ::acc,  ::imm,  ::abs,  ::abs,  ::abs,  ::abs,
+        /* 5 */   ::rel, ::indy, ::impl, ::indy, ::zpgx, ::zpgx, ::zpgx, ::zpgx, ::impl, ::absy, ::impl, ::absy, ::absx, ::absx, ::absx, ::absx,
+        /* 6 */  ::impl, ::indx, ::impl, ::indx,  ::zpg,  ::zpg,  ::zpg,  ::zpg, ::impl,  ::imm,  ::acc,  ::imm,  ::ind,  ::abs,  ::abs,  ::abs,
+        /* 7 */   ::rel, ::indy, ::impl, ::indy, ::zpgx, ::zpgx, ::zpgx, ::zpgx, ::impl, ::absy, ::impl, ::absy, ::absx, ::absx, ::absx, ::absx,
+        /* 8 */   ::imm, ::indx,  ::imm, ::indx,  ::zpg,  ::zpg,  ::zpg,  ::zpg, ::impl,  ::imm, ::impl,  ::imm,  ::abs,  ::abs,  ::abs,  ::abs,
+        /* 9 */   ::rel, ::indy, ::impl, ::indy, ::zpgx, ::zpgx, ::zpgy, ::zpgy, ::impl, ::absy, ::impl, ::absy, ::absx, ::absx, ::absy, ::absy,
+        /* A */   ::imm, ::indx,  ::imm, ::indx,  ::zpg,  ::zpg,  ::zpg,  ::zpg, ::impl,  ::imm, ::impl,  ::imm,  ::abs,  ::abs,  ::abs,  ::abs,
+        /* B */   ::rel, ::indy, ::impl, ::indy, ::zpgx, ::zpgx, ::zpgy, ::zpgy, ::impl, ::absy, ::impl, ::absy, ::absx, ::absx, ::absy, ::absy,
+        /* C */   ::imm, ::indx,  ::imm, ::indx,  ::zpg,  ::zpg,  ::zpg,  ::zpg, ::impl,  ::imm, ::impl,  ::imm,  ::abs,  ::abs,  ::abs,  ::abs,
+        /* D */   ::rel, ::indy, ::impl, ::indy, ::zpgx, ::zpgx, ::zpgx, ::zpgx, ::impl, ::absy, ::impl, ::absy, ::absx, ::absx, ::absx, ::absx,
+        /* E */   ::imm, ::indx,  ::imm, ::indx,  ::zpg,  ::zpg,  ::zpg,  ::zpg, ::impl,  ::imm, ::impl,  ::imm,  ::abs,  ::abs,  ::abs,  ::abs,
+        /* F */   ::rel, ::indy, ::impl, ::indy, ::zpgx, ::zpgx, ::zpgx, ::zpgx, ::impl, ::absy, ::impl, ::absy, ::absx, ::absx, ::absx, ::absx
     )
 
+    // Using NOP instead of unstable instructions (ANE, LXA, SHA, SHX, SHY, TAS) and JAM
     private val INSTRUCTION_HANDLER_TABLE: Array<() -> Unit> = arrayOf(
         /*     |   0   |   1   |   2   |   3   |   4   |   5   |   6   |   7   |   8   |   9   |   A   |   B   |   C   |   D   |   E   |   F   | */
-        /* 0 */  ::BRK,  ::ORA,  ::NOP,  ::NOP,  ::NOP,  ::ORA,  ::ASL,  ::NOP,  ::PHP,  ::ORA,  ::ASL,  ::NOP,  ::NOP,  ::ORA,  ::ASL,  ::NOP,
-        /* 1 */  ::BPL,  ::ORA,  ::NOP,  ::NOP,  ::NOP,  ::ORA,  ::ASL,  ::NOP,  ::CLC,  ::ORA,  ::NOP,  ::NOP,  ::NOP,  ::ORA,  ::ASL,  ::NOP,
-        /* 2 */  ::JSR,  ::AND,  ::NOP,  ::NOP,  ::BIT,  ::AND,  ::ROL,  ::NOP,  ::PLP,  ::AND,  ::ROL,  ::NOP,  ::BIT,  ::AND,  ::ROL,  ::NOP,
-        /* 3 */  ::BMI,  ::AND,  ::NOP,  ::NOP,  ::NOP,  ::AND,  ::ROL,  ::NOP,  ::SEC,  ::AND,  ::NOP,  ::NOP,  ::NOP,  ::AND,  ::ROL,  ::NOP,
-        /* 4 */  ::RTI,  ::EOR,  ::NOP,  ::NOP,  ::NOP,  ::EOR,  ::LSR,  ::NOP,  ::PHA,  ::EOR,  ::LSR,  ::NOP,  ::JMP,  ::EOR,  ::LSR,  ::NOP,
-        /* 5 */  ::BVC,  ::EOR,  ::NOP,  ::NOP,  ::NOP,  ::EOR,  ::LSR,  ::NOP,  ::CLI,  ::EOR,  ::NOP,  ::NOP,  ::NOP,  ::EOR,  ::LSR,  ::NOP,
-        /* 6 */  ::RTS,  ::ADC,  ::NOP,  ::NOP,  ::NOP,  ::ADC,  ::ROR,  ::NOP,  ::PLA,  ::ADC,  ::ROR,  ::NOP,  ::JMP,  ::ADC,  ::ROR,  ::NOP,
-        /* 7 */  ::BVS,  ::ADC,  ::NOP,  ::NOP,  ::NOP,  ::ADC,  ::ROR,  ::NOP,  ::SEI,  ::ADC,  ::NOP,  ::NOP,  ::NOP,  ::ADC,  ::ROR,  ::NOP,
-        /* 8 */  ::NOP,  ::STA,  ::NOP,  ::NOP,  ::STY,  ::STA,  ::STX,  ::NOP,  ::DEY,  ::NOP,  ::TXA,  ::NOP,  ::STY,  ::STA,  ::STX,  ::NOP,
-        /* 9 */  ::BCC,  ::STA,  ::NOP,  ::NOP,  ::STY,  ::STA,  ::STX,  ::NOP,  ::TYA,  ::STA,  ::TXS,  ::NOP,  ::NOP,  ::STA,  ::NOP,  ::NOP,
-        /* A */  ::LDY,  ::LDA,  ::LDX,  ::NOP,  ::LDY,  ::LDA,  ::LDX,  ::NOP,  ::TAY,  ::LDA,  ::TAX,  ::NOP,  ::LDY,  ::LDA,  ::LDX,  ::NOP,
-        /* B */  ::BCS,  ::LDA,  ::NOP,  ::NOP,  ::LDY,  ::LDA,  ::LDX,  ::NOP,  ::CLV,  ::LDA,  ::TSX,  ::NOP,  ::LDY,  ::LDA,  ::LDX,  ::NOP,
-        /* C */  ::CPY,  ::CMP,  ::NOP,  ::NOP,  ::CPY,  ::CMP,  ::DEC,  ::NOP,  ::INY,  ::CMP,  ::DEX,  ::NOP,  ::CPY,  ::CMP,  ::DEC,  ::NOP,
-        /* D */  ::BNE,  ::CMP,  ::NOP,  ::NOP,  ::NOP,  ::CMP,  ::DEC,  ::NOP,  ::CLD,  ::CMP,  ::NOP,  ::NOP,  ::NOP,  ::CMP,  ::DEC,  ::NOP,
-        /* E */  ::CPX,  ::SBC,  ::NOP,  ::NOP,  ::CPX,  ::SBC,  ::INC,  ::NOP,  ::INX,  ::SBC,  ::NOP,  ::NOP,  ::CPX,  ::SBC,  ::INC,  ::NOP,
-        /* F */  ::BEQ,  ::SBC,  ::NOP,  ::NOP,  ::NOP,  ::SBC,  ::INC,  ::NOP,  ::SED,  ::SBC,  ::NOP,  ::NOP,  ::NOP,  ::SBC,  ::INC,  ::NOP
+        /* 0 */  ::BRK,  ::ORA,  ::NOP,  ::SLO,  ::NOP,  ::ORA,  ::ASL,  ::SLO,  ::PHP,  ::ORA,  ::ASL,  ::ANC,  ::NOP,  ::ORA,  ::ASL,  ::SLO,
+        /* 1 */  ::BPL,  ::ORA,  ::NOP,  ::SLO,  ::NOP,  ::ORA,  ::ASL,  ::SLO,  ::CLC,  ::ORA,  ::NOP,  ::SLO,  ::NOP,  ::ORA,  ::ASL,  ::SLO,
+        /* 2 */  ::JSR,  ::AND,  ::NOP,  ::RLA,  ::BIT,  ::AND,  ::ROL,  ::RLA,  ::PLP,  ::AND,  ::ROL,  ::ANC,  ::BIT,  ::AND,  ::ROL,  ::RLA,
+        /* 3 */  ::BMI,  ::AND,  ::NOP,  ::RLA,  ::NOP,  ::AND,  ::ROL,  ::RLA,  ::SEC,  ::AND,  ::NOP,  ::RLA,  ::NOP,  ::AND,  ::ROL,  ::RLA,
+        /* 4 */  ::RTI,  ::EOR,  ::NOP,  ::SRE,  ::NOP,  ::EOR,  ::LSR,  ::SRE,  ::PHA,  ::EOR,  ::LSR,  ::ALR,  ::JMP,  ::EOR,  ::LSR,  ::SRE,
+        /* 5 */  ::BVC,  ::EOR,  ::NOP,  ::SRE,  ::NOP,  ::EOR,  ::LSR,  ::SRE,  ::CLI,  ::EOR,  ::NOP,  ::SRE,  ::NOP,  ::EOR,  ::LSR,  ::SRE,
+        /* 6 */  ::RTS,  ::ADC,  ::NOP,  ::RRA,  ::NOP,  ::ADC,  ::ROR,  ::RRA,  ::PLA,  ::ADC,  ::ROR,  ::ARR,  ::JMP,  ::ADC,  ::ROR,  ::RRA,
+        /* 7 */  ::BVS,  ::ADC,  ::NOP,  ::RRA,  ::NOP,  ::ADC,  ::ROR,  ::RRA,  ::SEI,  ::ADC,  ::NOP,  ::RRA,  ::NOP,  ::ADC,  ::ROR,  ::RRA,
+        /* 8 */  ::NOP,  ::STA,  ::NOP,  ::SAX,  ::STY,  ::STA,  ::STX,  ::SAX,  ::DEY,  ::NOP,  ::TXA,  ::NOP,  ::STY,  ::STA,  ::STX,  ::SAX,
+        /* 9 */  ::BCC,  ::STA,  ::NOP,  ::NOP,  ::STY,  ::STA,  ::STX,  ::SAX,  ::TYA,  ::STA,  ::TXS,  ::NOP,  ::NOP,  ::STA,  ::NOP,  ::NOP,
+        /* A */  ::LDY,  ::LDA,  ::LDX,  ::LAX,  ::LDY,  ::LDA,  ::LDX,  ::LAX,  ::TAY,  ::LDA,  ::TAX,  ::NOP,  ::LDY,  ::LDA,  ::LDX,  ::LAX,
+        /* B */  ::BCS,  ::LDA,  ::NOP,  ::LAX,  ::LDY,  ::LDA,  ::LDX,  ::LAX,  ::CLV,  ::LDA,  ::TSX,  ::LAS,  ::LDY,  ::LDA,  ::LDX,  ::LAX,
+        /* C */  ::CPY,  ::CMP,  ::NOP,  ::DCP,  ::CPY,  ::CMP,  ::DEC,  ::DCP,  ::INY,  ::CMP,  ::DEX,  ::SBX,  ::CPY,  ::CMP,  ::DEC,  ::DCP,
+        /* D */  ::BNE,  ::CMP,  ::NOP,  ::DCP,  ::NOP,  ::CMP,  ::DEC,  ::DCP,  ::CLD,  ::CMP,  ::NOP,  ::DCP,  ::NOP,  ::CMP,  ::DEC,  ::DCP,
+        /* E */  ::CPX,  ::SBC,  ::NOP,  ::ISB,  ::CPX,  ::SBC,  ::INC,  ::ISB,  ::INX,  ::SBC,  ::NOP,  ::SBC,  ::CPX,  ::SBC,  ::INC,  ::ISB,
+        /* F */  ::BEQ,  ::SBC,  ::NOP,  ::ISB,  ::NOP,  ::SBC,  ::INC,  ::ISB,  ::SED,  ::SBC,  ::NOP,  ::ISB,  ::NOP,  ::SBC,  ::INC,  ::ISB
     )
 
     private val INSTRUCTION_CYCLES_TABLE: IntArray = intArrayOf(
         /*     |  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  8  |  9  |  A  |  B  |  C  |  D  |  E  |  F  | */
-        /* 0 */   7,    6,    2,    2,    2,    3,    5,    2,    3,    2,    2,    2,    2,    4,    6,    2,
-        /* 1 */   2,    5,    2,    2,    2,    4,    6,    2,    2,    4,    2,    2,    2,    4,    7,    2,
-        /* 2 */   6,    6,    2,    2,    3,    3,    5,    2,    4,    2,    2,    2,    4,    4,    6,    2,
-        /* 3 */   2,    5,    2,    2,    2,    4,    6,    2,    2,    4,    2,    2,    2,    4,    7,    2,
-        /* 4 */   6,    6,    2,    2,    2,    3,    5,    2,    3,    2,    2,    2,    3,    4,    6,    2,
-        /* 5 */   2,    5,    2,    2,    2,    4,    6,    2,    2,    4,    2,    2,    2,    4,    7,    2,
-        /* 6 */   6,    6,    2,    2,    2,    3,    5,    2,    4,    2,    2,    2,    5,    4,    6,    2,
-        /* 7 */   2,    5,    2,    2,    2,    4,    6,    2,    2,    4,    2,    2,    2,    4,    7,    2,
-        /* 8 */   2,    6,    2,    2,    3,    3,    3,    2,    2,    2,    2,    2,    4,    4,    4,    2,
-        /* 9 */   2,    6,    2,    2,    4,    4,    4,    2,    2,    5,    2,    2,    2,    5,    2,    2,
-        /* A */   2,    6,    2,    2,    3,    3,    3,    2,    2,    2,    2,    2,    4,    4,    4,    2,
-        /* B */   2,    5,    2,    2,    4,    4,    4,    2,    2,    4,    2,    2,    4,    4,    4,    2,
-        /* C */   2,    6,    2,    2,    3,    3,    5,    2,    2,    2,    2,    2,    4,    4,    6,    2,
-        /* D */   2,    5,    2,    2,    2,    4,    6,    2,    2,    4,    2,    2,    2,    4,    7,    2,
-        /* E */   2,    6,    2,    2,    3,    3,    5,    2,    2,    2,    2,    2,    4,    4,    6,    2,
-        /* F */   2,    5,    2,    2,    2,    4,    6,    2,    2,    4,    2,    2,    2,    4,    7,    2
+        /* 0 */   7,    6,    2,    8,    3,    3,    5,    5,    3,    2,    2,    2,    4,    4,    6,    6,
+        /* 1 */   2,    5,    2,    8,    4,    4,    6,    6,    2,    4,    2,    7,    4,    4,    7,    7,
+        /* 2 */   6,    6,    2,    8,    3,    3,    5,    5,    4,    2,    2,    2,    4,    4,    6,    6,
+        /* 3 */   2,    5,    2,    8,    4,    4,    6,    6,    2,    4,    2,    7,    4,    4,    7,    7,
+        /* 4 */   6,    6,    2,    8,    3,    3,    5,    5,    3,    2,    2,    2,    3,    4,    6,    6,
+        /* 5 */   2,    5,    2,    8,    4,    4,    6,    6,    2,    4,    2,    7,    4,    4,    7,    7,
+        /* 6 */   6,    6,    2,    8,    3,    3,    5,    5,    4,    2,    2,    2,    5,    4,    6,    6,
+        /* 7 */   2,    5,    2,    8,    4,    4,    6,    6,    2,    4,    2,    7,    4,    4,    7,    7,
+        /* 8 */   2,    6,    2,    6,    3,    3,    3,    3,    2,    2,    2,    2,    4,    4,    4,    4,
+        /* 9 */   2,    6,    2,    6,    4,    4,    4,    4,    2,    5,    2,    5,    5,    5,    5,    5,
+        /* A */   2,    6,    2,    6,    3,    3,    3,    3,    2,    2,    2,    2,    4,    4,    4,    4,
+        /* B */   2,    5,    2,    5,    4,    4,    4,    4,    2,    4,    2,    4,    4,    4,    4,    4,
+        /* C */   2,    6,    2,    8,    3,    3,    5,    5,    2,    2,    2,    2,    4,    4,    6,    6,
+        /* D */   2,    5,    2,    8,    4,    4,    6,    6,    2,    4,    2,    7,    4,    4,    7,    7,
+        /* E */   2,    6,    2,    8,    3,    3,    5,    5,    2,    2,    2,    2,    4,    4,    6,    6,
+        /* F */   2,    5,    2,    8,    4,    4,    6,    6,    2,    4,    2,    7,    4,    4,    7,    7
     )
 
     companion object {
@@ -689,42 +785,62 @@ class Cpu(
 
         val INSTRUCTION_NAME_TABLE: Array<String> = arrayOf(
             /*     |   0   |   1   |   2   |   3   |   4   |   5   |   6   |   7   |   8   |   9   |   A   |   B   |   C   |   D   |   E   |   F   | */
-            /* 0 */  "BRK",  "ORA",  "NOP",  "NOP",  "NOP",  "ORA",  "ASL",  "NOP",  "PHP",  "ORA",  "ASL",  "NOP",  "NOP",  "ORA",  "ASL",  "NOP",
-            /* 1 */  "BPL",  "ORA",  "NOP",  "NOP",  "NOP",  "ORA",  "ASL",  "NOP",  "CLC",  "ORA",  "NOP",  "NOP",  "NOP",  "ORA",  "ASL",  "NOP",
-            /* 2 */  "JSR",  "AND",  "NOP",  "NOP",  "BIT",  "AND",  "ROL",  "NOP",  "PLP",  "AND",  "ROL",  "NOP",  "BIT",  "AND",  "ROL",  "NOP",
-            /* 3 */  "BMI",  "AND",  "NOP",  "NOP",  "NOP",  "AND",  "ROL",  "NOP",  "SEC",  "AND",  "NOP",  "NOP",  "NOP",  "AND",  "ROL",  "NOP",
-            /* 4 */  "RTI",  "EOR",  "NOP",  "NOP",  "NOP",  "EOR",  "LSR",  "NOP",  "PHA",  "EOR",  "LSR",  "NOP",  "JMP",  "EOR",  "LSR",  "NOP",
-            /* 5 */  "BVC",  "EOR",  "NOP",  "NOP",  "NOP",  "EOR",  "LSR",  "NOP",  "CLI",  "EOR",  "NOP",  "NOP",  "NOP",  "EOR",  "LSR",  "NOP",
-            /* 6 */  "RTS",  "ADC",  "NOP",  "NOP",  "NOP",  "ADC",  "ROR",  "NOP",  "PLA",  "ADC",  "ROR",  "NOP",  "JMP",  "ADC",  "ROR",  "NOP",
-            /* 7 */  "BVS",  "ADC",  "NOP",  "NOP",  "NOP",  "ADC",  "ROR",  "NOP",  "SEI",  "ADC",  "NOP",  "NOP",  "NOP",  "ADC",  "ROR",  "NOP",
-            /* 8 */  "NOP",  "STA",  "NOP",  "NOP",  "STY",  "STA",  "STX",  "NOP",  "DEY",  "NOP",  "TXA",  "NOP",  "STY",  "STA",  "STX",  "NOP",
-            /* 9 */  "BCC",  "STA",  "NOP",  "NOP",  "STY",  "STA",  "STX",  "NOP",  "TYA",  "STA",  "TXS",  "NOP",  "NOP",  "STA",  "NOP",  "NOP",
-            /* A */  "LDY",  "LDA",  "LDX",  "NOP",  "LDY",  "LDA",  "LDX",  "NOP",  "TAY",  "LDA",  "TAX",  "NOP",  "LDY",  "LDA",  "LDX",  "NOP",
-            /* B */  "BCS",  "LDA",  "NOP",  "NOP",  "LDY",  "LDA",  "LDX",  "NOP",  "CLV",  "LDA",  "TSX",  "NOP",  "LDY",  "LDA",  "LDX",  "NOP",
-            /* C */  "CPY",  "CMP",  "NOP",  "NOP",  "CPY",  "CMP",  "DEC",  "NOP",  "INY",  "CMP",  "DEX",  "NOP",  "CPY",  "CMP",  "DEC",  "NOP",
-            /* D */  "BNE",  "CMP",  "NOP",  "NOP",  "NOP",  "CMP",  "DEC",  "NOP",  "CLD",  "CMP",  "NOP",  "NOP",  "NOP",  "CMP",  "DEC",  "NOP",
-            /* E */  "CPX",  "SBC",  "NOP",  "NOP",  "CPX",  "SBC",  "INC",  "NOP",  "INX",  "SBC",  "NOP",  "NOP",  "CPX",  "SBC",  "INC",  "NOP",
-            /* F */  "BEQ",  "SBC",  "NOP",  "NOP",  "NOP",  "SBC",  "INC",  "NOP",  "SED",  "SBC",  "NOP",  "NOP",  "NOP",  "SBC",  "INC",  "NOP"
+            /* 0 */  "BRK",  "ORA",  "NOP",  "SLO",  "NOP",  "ORA",  "ASL",  "SLO",  "PHP",  "ORA",  "ASL",  "ANC",  "NOP",  "ORA",  "ASL",  "SLO",
+            /* 1 */  "BPL",  "ORA",  "NOP",  "SLO",  "NOP",  "ORA",  "ASL",  "SLO",  "CLC",  "ORA",  "NOP",  "SLO",  "NOP",  "ORA",  "ASL",  "SLO",
+            /* 2 */  "JSR",  "AND",  "NOP",  "RLA",  "BIT",  "AND",  "ROL",  "RLA",  "PLP",  "AND",  "ROL",  "ANC",  "BIT",  "AND",  "ROL",  "RLA",
+            /* 3 */  "BMI",  "AND",  "NOP",  "RLA",  "NOP",  "AND",  "ROL",  "RLA",  "SEC",  "AND",  "NOP",  "RLA",  "NOP",  "AND",  "ROL",  "RLA",
+            /* 4 */  "RTI",  "EOR",  "NOP",  "SRE",  "NOP",  "EOR",  "LSR",  "SRE",  "PHA",  "EOR",  "LSR",  "ALR",  "JMP",  "EOR",  "LSR",  "SRE",
+            /* 5 */  "BVC",  "EOR",  "NOP",  "SRE",  "NOP",  "EOR",  "LSR",  "SRE",  "CLI",  "EOR",  "NOP",  "SRE",  "NOP",  "EOR",  "LSR",  "SRE",
+            /* 6 */  "RTS",  "ADC",  "NOP",  "RRA",  "NOP",  "ADC",  "ROR",  "RRA",  "PLA",  "ADC",  "ROR",  "ARR",  "JMP",  "ADC",  "ROR",  "RRA",
+            /* 7 */  "BVS",  "ADC",  "NOP",  "RRA",  "NOP",  "ADC",  "ROR",  "RRA",  "SEI",  "ADC",  "NOP",  "RRA",  "NOP",  "ADC",  "ROR",  "RRA",
+            /* 8 */  "NOP",  "STA",  "NOP",  "SAX",  "STY",  "STA",  "STX",  "SAX",  "DEY",  "NOP",  "TXA",  "NOP",  "STY",  "STA",  "STX",  "SAX",
+            /* 9 */  "BCC",  "STA",  "NOP",  "NOP",  "STY",  "STA",  "STX",  "SAX",  "TYA",  "STA",  "TXS",  "NOP",  "NOP",  "STA",  "NOP",  "NOP",
+            /* A */  "LDY",  "LDA",  "LDX",  "LAX",  "LDY",  "LDA",  "LDX",  "LAX",  "TAY",  "LDA",  "TAX",  "NOP",  "LDY",  "LDA",  "LDX",  "LAX",
+            /* B */  "BCS",  "LDA",  "NOP",  "LAX",  "LDY",  "LDA",  "LDX",  "LAX",  "CLV",  "LDA",  "TSX",  "LAS",  "LDY",  "LDA",  "LDX",  "LAX",
+            /* C */  "CPY",  "CMP",  "NOP",  "DCP",  "CPY",  "CMP",  "DEC",  "DCP",  "INY",  "CMP",  "DEX",  "SBX",  "CPY",  "CMP",  "DEC",  "DCP",
+            /* D */  "BNE",  "CMP",  "NOP",  "DCP",  "NOP",  "CMP",  "DEC",  "DCP",  "CLD",  "CMP",  "NOP",  "DCP",  "NOP",  "CMP",  "DEC",  "DCP",
+            /* E */  "CPX",  "SBC",  "NOP",  "ISB",  "CPX",  "SBC",  "INC",  "ISB",  "INX",  "SBC",  "NOP",  "SBC",  "CPX",  "SBC",  "INC",  "ISB",
+            /* F */  "BEQ",  "SBC",  "NOP",  "ISB",  "NOP",  "SBC",  "INC",  "ISB",  "SED",  "SBC",  "NOP",  "ISB",  "NOP",  "SBC",  "INC",  "ISB"
         )
 
         val ADDRESSING_MODE_TABLE: Array<String> = arrayOf(
             /*      |   0   |   1   |   2   |   3   |   4   |   5   |   6   |   7   |   8   |   9   |   A   |   B   |   C   |   D   |   E   |   F   */
-            /* 0 */	 "IMPL", "INDX", "IMPL", "IMPL", "IMPL",  "ZPG",  "ZPG", "IMPL", "IMPL",  "IMM",  "ACC", "IMPL", "IMPL",  "ABS",  "ABS", "IMPL",
-            /* 1 */   "REL", "INDY", "IMPL", "IMPL", "IMPL", "ZPGX", "ZPGX", "IMPL", "IMPL", "ABSY", "IMPL", "IMPL", "IMPL", "ABSX", "ABSX", "IMPL",
-            /* 2 */   "ABS", "INDX", "IMPL", "IMPL",  "ZPG",  "ZPG",  "ZPG", "IMPL", "IMPL",  "IMM",  "ACC", "IMPL",  "ABS",  "ABS",  "ABS", "IMPL",
-            /* 3 */   "REL", "INDY", "IMPL", "IMPL", "IMPL", "ZPGX", "ZPGX", "IMPL", "IMPL", "ABSY", "IMPL", "IMPL", "IMPL", "ABSX", "ABSX", "IMPL",
-            /* 4 */  "IMPL", "INDX", "IMPL", "IMPL", "IMPL",  "ZPG",  "ZPG", "IMPL", "IMPL",  "IMM",  "ACC", "IMPL",  "ABS",  "ABS",  "ABS", "IMPL",
-            /* 5 */   "REL", "INDY", "IMPL", "IMPL", "IMPL", "ZPGX", "ZPGX", "IMPL", "IMPL", "ABSY", "IMPL", "IMPL", "IMPL", "ABSX", "ABSX", "IMPL",
-            /* 6 */  "IMPL", "INDX", "IMPL", "IMPL", "IMPL",  "ZPG",  "ZPG", "IMPL", "IMPL",  "IMM",  "ACC", "IMPL",  "IND",  "ABS",  "ABS", "IMPL",
-            /* 7 */   "REL", "INDY", "IMPL", "IMPL", "IMPL", "ZPGX", "ZPGX", "IMPL", "IMPL", "ABSY", "IMPL", "IMPL", "IMPL", "ABSX", "ABSX", "IMPL",
-            /* 8 */  "IMPL", "INDX", "IMPL", "IMPL",  "ZPG",  "ZPG",  "ZPG", "IMPL", "IMPL", "IMPL", "IMPL", "IMPL",  "ABS",  "ABS",  "ABS", "IMPL",
-            /* 9 */   "REL", "INDY", "IMPL", "IMPL", "ZPGX", "ZPGX", "ZPGY", "IMPL", "IMPL", "ABSY", "IMPL", "IMPL", "IMPL", "ABSX", "IMPL", "IMPL",
-            /* A */   "IMM", "INDX",  "IMM", "IMPL",  "ZPG",  "ZPG",  "ZPG", "IMPL", "IMPL",  "IMM", "IMPL", "IMPL",  "ABS",  "ABS",  "ABS", "IMPL",
-            /* B */   "REL", "INDY", "IMPL", "IMPL", "ZPGX", "ZPGX", "ZPGY", "IMPL", "IMPL", "ABSY", "IMPL", "IMPL", "ABSX", "ABSX", "ABSY", "IMPL",
-            /* C */   "IMM", "INDX", "IMPL", "IMPL",  "ZPG",  "ZPG",  "ZPG", "IMPL", "IMPL",  "IMM", "IMPL", "IMPL",  "ABS",  "ABS",  "ABS", "IMPL",
-            /* D */   "REL", "INDY", "IMPL", "IMPL", "IMPL", "ZPGX", "ZPGX", "IMPL", "IMPL", "ABSY", "IMPL", "IMPL", "IMPL", "ABSX", "ABSX", "IMPL",
-            /* E */   "IMM", "INDX", "IMPL", "IMPL",  "ZPG",  "ZPG",  "ZPG", "IMPL", "IMPL",  "IMM", "IMPL", "IMPL",  "ABS",  "ABS",  "ABS", "IMPL",
-            /* F */   "REL", "INDY", "IMPL", "IMPL", "IMPL", "ZPGX", "ZPGX", "IMPL", "IMPL", "ABSY", "IMPL", "IMPL", "IMPL", "ABSX", "ABSX", "IMPL"
+            /* 0 */  "IMPL", "INDX", "IMPL", "INDX",  "ZPG",  "ZPG",  "ZPG",  "ZPG", "IMPL",  "IMM",  "ACC",  "IMM",  "ABS",  "ABS",  "ABS",  "ABS",
+            /* 1 */   "REL", "INDY", "IMPL", "INDY", "ZPGX", "ZPGX", "ZPGX", "ZPGX", "IMPL", "ABSY", "IMPL", "ABSY", "ABSX", "ABSX", "ABSX", "ABSX",
+            /* 2 */   "ABS", "INDX", "IMPL", "INDX",  "ZPG",  "ZPG",  "ZPG",  "ZPG", "IMPL",  "IMM",  "ACC",  "IMM",  "ABS",  "ABS",  "ABS",  "ABS",
+            /* 3 */   "REL", "INDY", "IMPL", "INDY", "ZPGX", "ZPGX", "ZPGX", "ZPGX", "IMPL", "ABSY", "IMPL", "ABSY", "ABSX", "ABSX", "ABSX", "ABSX",
+            /* 4 */  "IMPL", "INDX", "IMPL", "INDX",  "ZPG",  "ZPG",  "ZPG",  "ZPG", "IMPL",  "IMM",  "ACC",  "IMM",  "ABS",  "ABS",  "ABS",  "ABS",
+            /* 5 */   "REL", "INDY", "IMPL", "INDY", "ZPGX", "ZPGX", "ZPGX", "ZPGX", "IMPL", "ABSY", "IMPL", "ABSY", "ABSX", "ABSX", "ABSX", "ABSX",
+            /* 6 */  "IMPL", "INDX", "IMPL", "INDX",  "ZPG",  "ZPG",  "ZPG",  "ZPG", "IMPL",  "IMM",  "ACC",  "IMM",  "IND",  "ABS",  "ABS",  "ABS",
+            /* 7 */   "REL", "INDY", "IMPL", "INDY", "ZPGX", "ZPGX", "ZPGX", "ZPGX", "IMPL", "ABSY", "IMPL", "ABSY", "ABSX", "ABSX", "ABSX", "ABSX",
+            /* 8 */   "IMM", "INDX",  "IMM", "INDX",  "ZPG",  "ZPG",  "ZPG",  "ZPG", "IMPL",  "IMM", "IMPL",  "IMM",  "ABS",  "ABS",  "ABS",  "ABS",
+            /* 9 */   "REL", "INDY", "IMPL", "INDY", "ZPGX", "ZPGX", "ZPGY", "ZPGY", "IMPL", "ABSY", "IMPL", "ABSY", "ABSX", "ABSX", "ABSY", "ABSY",
+            /* A */   "IMM", "INDX",  "IMM", "INDX",  "ZPG",  "ZPG",  "ZPG",  "ZPG", "IMPL",  "IMM", "IMPL",  "IMM",  "ABS",  "ABS",  "ABS",  "ABS",
+            /* B */   "REL", "INDY", "IMPL", "INDY", "ZPGX", "ZPGX", "ZPGY", "ZPGY", "IMPL", "ABSY", "IMPL", "ABSY", "ABSX", "ABSX", "ABSY", "ABSY",
+            /* C */   "IMM", "INDX",  "IMM", "INDX",  "ZPG",  "ZPG",  "ZPG",  "ZPG", "IMPL",  "IMM", "IMPL",  "IMM",  "ABS",  "ABS",  "ABS",  "ABS",
+            /* D */   "REL", "INDY", "IMPL", "INDY", "ZPGX", "ZPGX", "ZPGX", "ZPGX", "IMPL", "ABSY", "IMPL", "ABSY", "ABSX", "ABSX", "ABSX", "ABSX",
+            /* E */   "IMM", "INDX",  "IMM", "INDX",  "ZPG",  "ZPG",  "ZPG",  "ZPG", "IMPL",  "IMM", "IMPL",  "IMM",  "ABS",  "ABS",  "ABS",  "ABS",
+            /* F */   "REL", "INDY", "IMPL", "INDY", "ZPGX", "ZPGX", "ZPGX", "ZPGX", "IMPL", "ABSY", "IMPL", "ABSY", "ABSX", "ABSX", "ABSX", "ABSX"
+        )
+
+        val ILLEGAL_INSTRUCTION_TABLE: Array<Boolean> = arrayOf(
+            /*     |   0   |   1   |   2   |   3   |   4   |   5   |   6   |   7   |   8   |   9   |   A   |   B   |   C   |   D   |   E   |   F   | */
+            /* 0 */  false,  false,   true,   true,   true,  false,  false,   true,  false,  false,  false,   true,   true,  false,  false,  true,
+            /* 1 */  false,  false,   true,   true,   true,  false,  false,   true,  false,  false,   true,   true,   true,  false,  false,  true,
+            /* 2 */  false,  false,   true,   true,  false,  false,  false,   true,  false,  false,  false,   true,  false,  false,  false,  true,
+            /* 3 */  false,  false,   true,   true,   true,  false,  false,   true,  false,  false,   true,   true,   true,  false,  false,  true,
+            /* 4 */  false,  false,   true,   true,   true,  false,  false,   true,  false,  false,  false,   true,  false,  false,  false,  true,
+            /* 5 */  false,  false,   true,   true,   true,  false,  false,   true,  false,  false,   true,   true,   true,  false,  false,  true,
+            /* 6 */  false,  false,   true,   true,   true,  false,  false,   true,  false,  false,  false,   true,  false,  false,  false,  true,
+            /* 7 */  false,  false,   true,   true,   true,  false,  false,   true,  false,  false,   true,   true,   true,  false,  false,  true,
+            /* 8 */   true,  false,   true,   true,  false,  false,  false,   true,  false,   true,  false,   true,  false,  false,  false,  true,
+            /* 9 */  false,  false,   true,   true,  false,  false,  false,   true,  false,  false,  false,   true,   true,  false,   true,  true,
+            /* A */  false,  false,  false,   true,  false,  false,  false,   true,  false,  false,  false,   true,  false,  false,  false,  true,
+            /* B */  false,  false,   true,   true,  false,  false,  false,   true,  false,  false,  false,   true,  false,  false,  false,  true,
+            /* C */  false,  false,   true,   true,  false,  false,  false,   true,  false,  false,  false,   true,  false,  false,  false,  true,
+            /* D */  false,  false,   true,   true,   true,  false,  false,   true,  false,  false,   true,   true,   true,  false,  false,  true,
+            /* E */  false,  false,   true,   true,  false,  false,  false,   true,  false,  false,  false,   true,  false,  false,  false,  true,
+            /* F */  false,  false,   true,   true,   true,  false,  false,   true,  false,  false,   true,   true,   true,  false,  false,  true
         )
     }
 }

@@ -9,7 +9,7 @@ import org.junit.Test
  *
  * See [testing documentation](http://d.android.com/tools/testing).
  */
-class CpuOpcodeTests {
+class LegalOpcodeTests {
 
     private object Verbosities {
         const val FAIL = CpuOpcodeTestRunner.Verbosity.BASIC_INFO or CpuOpcodeTestRunner.Verbosity.FAIL
@@ -98,7 +98,7 @@ class CpuOpcodeTests {
 
     @Test
     fun testBRK() {
-        testRunner.run("BRK Implied", 0x00)
+        testRunner.run("BRK Implicit", 0x00)
     }
 
     @Test
@@ -119,22 +119,22 @@ class CpuOpcodeTests {
 
     @Test
     fun testCLC() {
-        testRunner.run("CLC Implied", 0x18)
+        testRunner.run("CLC Implicit", 0x18)
     }
 
     @Test
     fun testCLD() {
-        testRunner.run("CLD Implied", 0xD8)
+        testRunner.run("CLD Implicit", 0xD8)
     }
 
     @Test
     fun testCLI() {
-        testRunner.run("CLI Implied", 0x58)
+        testRunner.run("CLI Implicit", 0x58)
     }
 
     @Test
     fun testCLV() {
-        testRunner.run("CLV Implied", 0xB8)
+        testRunner.run("CLV Implicit", 0xB8)
     }
 
     @Test
@@ -179,12 +179,12 @@ class CpuOpcodeTests {
 
     @Test
     fun testDEX() {
-        testRunner.run("DEX Implied", 0xCA)
+        testRunner.run("DEX Implicit", 0xCA)
     }
 
     @Test
     fun testDEY() {
-        testRunner.run("DEY Implied", 0x88)
+        testRunner.run("DEY Implicit", 0x88)
     }
 
     @Test
@@ -215,12 +215,12 @@ class CpuOpcodeTests {
 
     @Test
     fun testINX() {
-        testRunner.run("INX Implied", 0xE8)
+        testRunner.run("INX Implicit", 0xE8)
     }
 
     @Test
     fun testINY() {
-        testRunner.run("INY Implied", 0xC8)
+        testRunner.run("INY Implicit", 0xC8)
     }
 
     @Test
@@ -287,7 +287,7 @@ class CpuOpcodeTests {
 
     @Test
     fun testNOP() {
-        testRunner.run("NOP Implied", 0xEA)
+        testRunner.run("NOP Implicit", 0xEA)
     }
 
     @Test
@@ -307,22 +307,22 @@ class CpuOpcodeTests {
 
     @Test
     fun testPHA() {
-        testRunner.run("PHA Implied", 0x48)
+        testRunner.run("PHA Implicit", 0x48)
     }
 
     @Test
     fun testPHP() {
-        testRunner.run("PHP Implied", 0x08)
+        testRunner.run("PHP Implicit", 0x08)
     }
 
     @Test
     fun testPLA() {
-        testRunner.run("PLA Implied", 0x68)
+        testRunner.run("PLA Implicit", 0x68)
     }
 
     @Test
     fun testPLP() {
-        testRunner.run("PLP Implied", 0x28)
+        testRunner.run("PLP Implicit", 0x28)
     }
 
     @Test
@@ -351,12 +351,12 @@ class CpuOpcodeTests {
 
     @Test
     fun testRTI() {
-        testRunner.run("RTI Implied", 0x40)
+        testRunner.run("RTI Implicit", 0x40)
     }
 
     @Test
     fun testRTS() {
-        testRunner.run("RTS Implied", 0x60)
+        testRunner.run("RTS Implicit", 0x60)
     }
 
     @Test
@@ -376,17 +376,17 @@ class CpuOpcodeTests {
 
     @Test
     fun testSEC() {
-        testRunner.run("SEC Implied", 0x38)
+        testRunner.run("SEC Implicit", 0x38)
     }
 
     @Test
     fun testSED() {
-        testRunner.run("SED Implied", 0xF8)
+        testRunner.run("SED Implicit", 0xF8)
     }
 
     @Test
     fun testSEI() {
-        testRunner.run("SEI Implied", 0x78)
+        testRunner.run("SEI Implicit", 0x78)
     }
 
     @Test
@@ -419,31 +419,31 @@ class CpuOpcodeTests {
 
     @Test
     fun testTAX() {
-        testRunner.run("TAX Implied", 0xAA)
+        testRunner.run("TAX Implicit", 0xAA)
     }
 
     @Test
     fun testTAY() {
-        testRunner.run("TAY Implied", 0xA8)
+        testRunner.run("TAY Implicit", 0xA8)
     }
 
     @Test
     fun testTSX() {
-        testRunner.run("TSX Implied", 0xBA)
+        testRunner.run("TSX Implicit", 0xBA)
     }
 
     @Test
     fun testTXA() {
-        testRunner.run("TXA Implied", 0x8A)
+        testRunner.run("TXA Implicit", 0x8A)
     }
 
     @Test
     fun testTXS() {
-        testRunner.run("TXS Implied", 0x9A)
+        testRunner.run("TXS Implicit", 0x9A)
     }
 
     @Test
     fun testTYA() {
-        testRunner.run("TYA Implied", 0x98)
+        testRunner.run("TYA Implicit", 0x98)
     }
 }

@@ -199,7 +199,11 @@ class CpuOpcodeTestRunner(
             if (canPrint(Verbosity.OK)) println("PS: OK")
         } else {
             if (canPrint(Verbosity.FAIL)) {
-                println("PS: FAIL\tExpected: ${finalState.PS}, Got: ${cpuState.PS}")
+                val expectedPS = finalState.PS.toString(2).padStart(8, '0')
+                val gotPS = cpuState.PS.toString(2).padStart(8, '0')
+                println("PS: FAIL\t\t\t  NV BDIZC")
+                println("\t\t\tExpected: $expectedPS")
+                println("\t\t\t\t Got: $gotPS")
             }
             pass = false
         }
