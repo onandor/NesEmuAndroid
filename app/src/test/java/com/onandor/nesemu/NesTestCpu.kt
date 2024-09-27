@@ -26,7 +26,7 @@ class NesTestCpu {
     private val nes = Nes()
     private val traceList = mutableListOf<String>()
 
-    private fun createNesTestTrace(PC: Int, SP: Int, A: Int, X: Int, Y: Int, PS: Int) {
+    private fun createNesTestTrace(PC: Int, SP: Int, A: Int, X: Int, Y: Int, PS: Int, cycles: Int) {
         val pc = "${PC.toHexString(4)}  "
 
         val nextInstruction = nes.cpuReadMemory(PC)
@@ -172,7 +172,9 @@ class NesTestCpu {
             .add("SP:${SP.toHexString(2)}")
             .toString()
 
-        traceList.add(pc + opcodeHex + opcodeAsm + registerStatus)
+        val cpuCycles = " CYC:$cycles"
+
+        traceList.add(pc + opcodeHex + opcodeAsm + registerStatus + cpuCycles)
     }
 
     @Test

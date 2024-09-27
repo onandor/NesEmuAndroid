@@ -32,7 +32,7 @@ class Cpu(
         const val BIT_6: Int = OVERFLOW
     }
 
-    var debugCallback: (PC: Int, SP: Int, A: Int, X: Int, Y: Int, PS: Int) -> Unit =
+    var debugCallback: (PC: Int, SP: Int, A: Int, X: Int, Y: Int, PS: Int, cycles: Int) -> Unit =
         EMPTY_DEBUG_CALLBACK
 
     private var PC: Int = 0xFFFC            // Program Counter - 16 bits
@@ -45,10 +45,13 @@ class Cpu(
     private var instruction: Int = 0        // Currently executed instruction
     private var eaddress: Int = 0           // Effective address for the current instruction
 
+    // Set to true whenever the current addressing mode or instruction could result in a page boundary
+    // being crossed, resulting in an additional cycle. The bonus cycle occurs when both are set to
+    // true at the end of the execution.
     private var addressingCycle = false
     private var instructionCycle = false
 
-    private var totalCycles: Int = 0
+    private var totalCycles: Int = 7
 
     init {
         reset()
@@ -61,12 +64,12 @@ class Cpu(
         X = 0
         Y = 0
         PS = 0b00100100
-        totalCycles = 0
+        totalCycles = 7 // https://www.pagetable.com/?p=410
     }
 
     fun step(): Int {
         if (debugCallback !== EMPTY_DEBUG_CALLBACK) {
-            this.debugCallback(PC, SP, A, X, Y, PS)
+            this.debugCallback(PC, SP, A, X, Y, PS, totalCycles)
         }
 
         var stepCycles = 0
@@ -91,7 +94,7 @@ class Cpu(
         this.totalCycles = 0
         while (this.totalCycles < cycles) {
             if (debugCallback !== EMPTY_DEBUG_CALLBACK) {
-                this.debugCallback(PC, SP, A, X, Y, PS)
+                this.debugCallback(PC, SP, A, X, Y, PS, totalCycles)
             }
 
             addressingCycle = false
@@ -490,6 +493,7 @@ class Cpu(
     private fun LSR() {
         if (ADDRESS_HANDLER_TABLE[instruction] == ::acc) {
             LSR_A()
+            return
         }
         var data = readByte(eaddress)
         setFlag(Flags.CARRY, data and Flags.CARRY > 0)
@@ -498,7 +502,9 @@ class Cpu(
         setZNFlags(data)
     }
 
-    private fun NOP() {}
+    private fun NOP() {
+        instructionCycle = true
+    }
 
     private fun ORA() {
         val data = readByte(eaddress)
@@ -549,6 +555,7 @@ class Cpu(
     private fun ROR() {
         if (ADDRESS_HANDLER_TABLE[instruction] == ::acc) {
             ROR_A()
+            return
         }
         val oldCarry = PS and Flags.CARRY
         var data = readByte(eaddress)
@@ -780,8 +787,9 @@ class Cpu(
             A: Int,
             X: Int,
             Y: Int,
-            PS: Int
-        ) -> Unit = { _, _, _, _, _, _ -> }
+            PS: Int,
+            cycles: Int
+        ) -> Unit = { _, _, _, _, _, _, _ -> }
 
         val INSTRUCTION_NAME_TABLE: Array<String> = arrayOf(
             /*     |   0   |   1   |   2   |   3   |   4   |   5   |   6   |   7   |   8   |   9   |   A   |   B   |   C   |   D   |   E   |   F   | */
