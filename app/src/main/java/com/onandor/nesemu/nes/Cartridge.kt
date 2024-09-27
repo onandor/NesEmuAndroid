@@ -23,11 +23,6 @@ enum class Mirroring {
 
 class Cartridge {
 
-    class UnsupportedMapperException(val mapperId: Int) : Exception()
-    class ChrRamUnsupportedException : Exception()
-    class InvalidRomException : Exception()
-    class UnsupportedINesVersionException : Exception()
-
     companion object {
         private const val TAG = "Cartridge"
     }
@@ -79,12 +74,12 @@ class Cartridge {
 
         val prgRomBytes = ByteArray(header.numPrgBank * 16384)
         stream.read(prgRomBytes)
-        prgRom = prgRomBytes.toIntArray()
+        prgRom = prgRomBytes.toByteIntArray()
 
         if (header.numChrBank != 0) {
             val chrRomBytes = ByteArray(header.numChrBank * 8192)
             stream.read(chrRomBytes)
-            chrRom = chrRomBytes.toIntArray()
+            chrRom = chrRomBytes.toByteIntArray()
         } else {
             stream.close()
             throw RomParseException(TAG, "Cartridge uses CHR RAM")

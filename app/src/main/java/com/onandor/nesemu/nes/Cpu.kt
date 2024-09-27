@@ -10,10 +10,10 @@ data class CpuState(
     val PS: Int
 )
 
-@Suppress("FunctionName", "PrivatePropertyName")
+@Suppress("FunctionName", "PrivatePropertyName", "LocalVariableName")
 class Cpu(
-    private val onReadMemory: (Int) -> Int,
-    private val onWriteMemory: (Int, Int) -> Unit
+    private val readMemory: (address: Int) -> Int,
+    private val writeMemory: (address: Int, value: Int) -> Unit
 ) {
 
     private object Flags {
@@ -27,58 +27,95 @@ class Cpu(
         const val NEGATIVE: Int = 0b10000000
     }
 
+    var debugCallback: (PC: Int, SP: Int, A: Int, X: Int, Y: Int, PS: Int) -> Unit =
+        EMPTY_DEBUG_CALLBACK
+
     private var PC: Int = 0xFFFC            // Program Counter - 16 bits
     private var SP: Int = 0xFD              // Stack Pointer - 8 bits
     private var A: Int = 0                  // Accumulator - 8 bits
     private var X: Int = 0                  // Index Register X - 8 bits
     private var Y: Int = 0                  // Index Register Y - 8 bits
-    private var PS: Int = 0b00010100        // Processor Status - 8 bits (flags)
+    private var PS: Int = 0b00100100        // Processor Status - 8 bits (flags)
 
-    private var opcode: Int = 0             // Currently executed opcode
+    private var instruction: Int = 0        // Currently executed instruction
     private var eaddress: Int = 0           // Effective address for the current instruction
 
     private var addressingCycle = false
-    private var opcodeCycle = false
+    private var instructionCycle = false
 
-    private var cycles: Int = 0
+    private var totalCycles: Int = 0
 
     init {
         reset()
     }
 
     fun reset() {
+        PC = 0xFFFC
         SP = 0xFD
         A = 0
         X = 0
         Y = 0
-        cycles = 0
+        PS = 0b00100100
+        totalCycles = 0
     }
 
-    fun execute(cycles: Int): Int {
-        this.cycles = 0
-        while (this.cycles < cycles) {
+    fun step(): Int {
+        if (debugCallback !== EMPTY_DEBUG_CALLBACK) {
+            this.debugCallback(PC, SP, A, X, Y, PS)
+        }
+
+        var stepCycles = 0
+        addressingCycle = false
+        instructionCycle = false
+
+        instruction = readByte(PC)
+        PC = PC.plus16(1)
+        ADDRESS_HANDLER_TABLE[instruction]()
+        INSTRUCTION_HANDLER_TABLE[instruction]()
+
+        stepCycles += INSTRUCTION_CYCLES_TABLE[instruction]
+        if (addressingCycle && instructionCycle) {
+            stepCycles++
+        }
+
+        this.totalCycles += stepCycles
+        return stepCycles
+    }
+
+    fun executeCycles(cycles: Int): Int {
+        this.totalCycles = 0
+        while (this.totalCycles < cycles) {
+            if (debugCallback !== EMPTY_DEBUG_CALLBACK) {
+                this.debugCallback(PC, SP, A, X, Y, PS)
+            }
+
             addressingCycle = false
-            opcodeCycle = false
+            instructionCycle = false
 
-            opcode = readByte(PC)
+            instruction = readByte(PC)
             PC = PC.plus16(1)
-            addressHandlerTable[opcode]()
-            opcodeHandlerTable[opcode]()
+            ADDRESS_HANDLER_TABLE[instruction]()
+            INSTRUCTION_HANDLER_TABLE[instruction]()
 
-            this.cycles += opcodeCyclesTable[opcode]
-            if (addressingCycle && opcodeCycle) {
-                this.cycles++
+            this.totalCycles += INSTRUCTION_CYCLES_TABLE[instruction]
+            if (addressingCycle && instructionCycle) {
+                this.totalCycles++
             }
         }
-        return this.cycles
+        return this.totalCycles
     }
 
-    private fun readByte(address: Int): Int = onReadMemory(address and 0xFFFF)
+    // For testing only
+    fun setPC(PC: Int) {
+        this.PC = PC
+    }
+
+    private fun readByte(address: Int): Int = readMemory(address and 0xFFFF)
 
     private fun read2Bytes(address: Int): Int =
-        onReadMemory(address and 0xFFFF) or (onReadMemory((address + 1) and 0xFFFF) shl 8)
+        readMemory(address and 0xFFFF) or (readMemory((address and 0xFFFF).plus16(1)) shl 8)
 
-    fun writeByte(address: Int, value: Int) = onWriteMemory(address and 0xFFFF, value and 0xFF)
+    fun writeByte(address: Int, value: Int) = writeMemory(address and 0xFFFF, value and 0xFF)
 
     private fun setFlag(flag: Int, set: Boolean) {
         PS = if (set) PS or flag else PS and flag.inv()
@@ -165,7 +202,7 @@ class Cpu(
         PC = PC.plus16(1)
     }
 
-    // Implied
+    // Implicit
     private fun impl() {}
 
     // Indirect
@@ -211,7 +248,6 @@ class Cpu(
 
     // Zero Page,X
     private fun zpgx() {
-        //eaddress = (readByte(PC) + X) and 0xFF
         eaddress = readByte(PC).plus8(X)
         PC = PC.plus16(1)
     }
@@ -228,7 +264,7 @@ class Cpu(
         val offset = readByte(eaddress)
         val oldPC = PC
         PC = PC.plus16(offset.toSigned8())
-        cycles += 1 + ((PC and 0xFF00) != (oldPC and 0xFF00)).toInt()
+        totalCycles += 1 + ((PC and 0xFF00) != (oldPC and 0xFF00)).toInt()
     }
 
     private fun ADC_binary(operand: Int) {
@@ -256,12 +292,12 @@ class Cpu(
 
     private fun ADC(operand: Int) {
         if (getFlag(Flags.DECIMAL)) {
-            //ADC_decimal(operand)
-            throw RuntimeException("ADC in decimal mode is not supported")
+            ADC_binary(operand)
+            throw InvalidOperationException(TAG, "ADC in decimal mode is not supported")
         } else {
             ADC_binary(operand)
         }
-        opcodeCycle = true
+        instructionCycle = true
     }
 
     private fun ADC() {
@@ -272,11 +308,11 @@ class Cpu(
         val operand = readByte(eaddress)
         A = A and operand
         setZNFlags(A)
-        opcodeCycle = true
+        instructionCycle = true
     }
 
     private fun ASL() {
-        if (addressHandlerTable[opcode] == ::acc) {
+        if (ADDRESS_HANDLER_TABLE[instruction] == ::acc) {
             setFlag(Flags.CARRY, A and Flags.NEGATIVE > 0)
             A = (A shl 1) and 0xFF
             setZNFlags(A)
@@ -361,7 +397,7 @@ class Cpu(
 
     private fun CMP() {
         CMP(A)
-        opcodeCycle = true
+        instructionCycle = true
     }
 
     private fun CPX() {
@@ -392,7 +428,7 @@ class Cpu(
         val data = readByte(eaddress)
         A = A xor data
         setZNFlags(A)
-        opcodeCycle = true
+        instructionCycle = true
     }
 
     private fun INC() {
@@ -423,23 +459,23 @@ class Cpu(
     private fun LDA() {
         A = readByte(eaddress)
         setZNFlags(A)
-        opcodeCycle = true
+        instructionCycle = true
     }
 
     private fun LDX() {
         X = readByte(eaddress)
         setZNFlags(X)
-        opcodeCycle = true
+        instructionCycle = true
     }
 
     private fun LDY() {
         Y = readByte(eaddress)
         setZNFlags(Y)
-        opcodeCycle = true
+        instructionCycle = true
     }
 
     private fun LSR() {
-        if (addressHandlerTable[opcode] == ::acc) {
+        if (ADDRESS_HANDLER_TABLE[instruction] == ::acc) {
             setFlag(Flags.CARRY, A and Flags.CARRY > 0)
             A = A shr 1
             setZNFlags(A)
@@ -458,7 +494,7 @@ class Cpu(
         val data = readByte(eaddress)
         A = A or data
         setZNFlags(A)
-        opcodeCycle = true
+        instructionCycle = true
     }
 
     private fun PHA() {
@@ -480,7 +516,7 @@ class Cpu(
 
     private fun ROL() {
         val oldCarry = PS and Flags.CARRY
-        if (addressHandlerTable[opcode] == ::acc) {
+        if (ADDRESS_HANDLER_TABLE[instruction] == ::acc) {
             setFlag(Flags.CARRY, A and Flags.NEGATIVE > 0)
             A = ((A shl 1) and 0xFF) or oldCarry
             setZNFlags(A)
@@ -495,7 +531,7 @@ class Cpu(
 
     private fun ROR() {
         val oldCarry = PS and Flags.CARRY
-        if (addressHandlerTable[opcode] == ::acc) {
+        if (ADDRESS_HANDLER_TABLE[instruction] == ::acc) {
             setFlag(Flags.CARRY, A and Flags.CARRY > 0)
             A = (A shr 1) or (oldCarry shl 7)
             setZNFlags(A)
@@ -520,7 +556,8 @@ class Cpu(
     private fun SBC() {
         val data = readByte(eaddress)
         if (getFlag(Flags.DECIMAL)) {
-            throw RuntimeException("SBC in decimal mode is not supported")
+            ADC(data.inv() and 0xFF)
+            throw InvalidOperationException(TAG, "SBC in decimal mode is not supported")
         } else {
             ADC(data.inv() and 0xFF)
         }
@@ -579,7 +616,7 @@ class Cpu(
         setZNFlags(A)
     }
 
-    private val addressHandlerTable: Array<() -> Unit> = arrayOf(
+    private val ADDRESS_HANDLER_TABLE: Array<() -> Unit> = arrayOf(
         /*      |   0   |   1   |   2   |   3   |   4   |   5   |   6   |   7   |   8   |   9   |   A   |   B   |   C   |   D   |   E   |   F   */
         /* 0 */	 ::impl, ::indx, ::impl, ::impl, ::impl,  ::zpg,  ::zpg, ::impl, ::impl,  ::imm,  ::acc, ::impl, ::impl,  ::abs,  ::abs, ::impl,
         /* 1 */   ::rel, ::indy, ::impl, ::impl, ::impl, ::zpgx, ::zpgx, ::impl, ::impl, ::absy, ::impl, ::impl, ::impl, ::absx, ::absx, ::impl,
@@ -599,7 +636,7 @@ class Cpu(
         /* F */   ::rel, ::indy, ::impl, ::impl, ::impl, ::zpgx, ::zpgx, ::impl, ::impl, ::absy, ::impl, ::impl, ::impl, ::absx, ::absx, ::impl
     )
 
-    private val opcodeHandlerTable: Array<() -> Unit> = arrayOf(
+    private val INSTRUCTION_HANDLER_TABLE: Array<() -> Unit> = arrayOf(
         /*     |   0   |   1   |   2   |   3   |   4   |   5   |   6   |   7   |   8   |   9   |   A   |   B   |   C   |   D   |   E   |   F   | */
         /* 0 */  ::BRK,  ::ORA,  ::NOP,  ::NOP,  ::NOP,  ::ORA,  ::ASL,  ::NOP,  ::PHP,  ::ORA,  ::ASL,  ::NOP,  ::NOP,  ::ORA,  ::ASL,  ::NOP,
         /* 1 */  ::BPL,  ::ORA,  ::NOP,  ::NOP,  ::NOP,  ::ORA,  ::ASL,  ::NOP,  ::CLC,  ::ORA,  ::NOP,  ::NOP,  ::NOP,  ::ORA,  ::ASL,  ::NOP,
@@ -619,7 +656,7 @@ class Cpu(
         /* F */  ::BEQ,  ::SBC,  ::NOP,  ::NOP,  ::NOP,  ::SBC,  ::INC,  ::NOP,  ::SED,  ::SBC,  ::NOP,  ::NOP,  ::NOP,  ::SBC,  ::INC,  ::NOP
     )
 
-    private val opcodeCyclesTable: IntArray = intArrayOf(
+    private val INSTRUCTION_CYCLES_TABLE: IntArray = intArrayOf(
         /*     |  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  8  |  9  |  A  |  B  |  C  |  D  |  E  |  F  | */
         /* 0 */   7,    6,    2,    2,    2,    3,    5,    2,    3,    2,    2,    2,    2,    4,    6,    2,
         /* 1 */   2,    5,    2,    2,    2,    4,    6,    2,    2,    4,    2,    2,    2,    4,    7,    2,
@@ -638,4 +675,56 @@ class Cpu(
         /* E */   2,    6,    2,    2,    3,    3,    5,    2,    2,    2,    2,    2,    4,    4,    6,    2,
         /* F */   2,    5,    2,    2,    2,    4,    6,    2,    2,    4,    2,    2,    2,    4,    7,    2
     )
+
+    companion object {
+        private const val TAG = "Cpu"
+        private val EMPTY_DEBUG_CALLBACK: (
+            PC: Int,
+            SP: Int,
+            A: Int,
+            X: Int,
+            Y: Int,
+            PS: Int
+        ) -> Unit = { _, _, _, _, _, _ -> }
+
+        val INSTRUCTION_NAME_TABLE: Array<String> = arrayOf(
+            /*     |   0   |   1   |   2   |   3   |   4   |   5   |   6   |   7   |   8   |   9   |   A   |   B   |   C   |   D   |   E   |   F   | */
+            /* 0 */  "BRK",  "ORA",  "NOP",  "NOP",  "NOP",  "ORA",  "ASL",  "NOP",  "PHP",  "ORA",  "ASL",  "NOP",  "NOP",  "ORA",  "ASL",  "NOP",
+            /* 1 */  "BPL",  "ORA",  "NOP",  "NOP",  "NOP",  "ORA",  "ASL",  "NOP",  "CLC",  "ORA",  "NOP",  "NOP",  "NOP",  "ORA",  "ASL",  "NOP",
+            /* 2 */  "JSR",  "AND",  "NOP",  "NOP",  "BIT",  "AND",  "ROL",  "NOP",  "PLP",  "AND",  "ROL",  "NOP",  "BIT",  "AND",  "ROL",  "NOP",
+            /* 3 */  "BMI",  "AND",  "NOP",  "NOP",  "NOP",  "AND",  "ROL",  "NOP",  "SEC",  "AND",  "NOP",  "NOP",  "NOP",  "AND",  "ROL",  "NOP",
+            /* 4 */  "RTI",  "EOR",  "NOP",  "NOP",  "NOP",  "EOR",  "LSR",  "NOP",  "PHA",  "EOR",  "LSR",  "NOP",  "JMP",  "EOR",  "LSR",  "NOP",
+            /* 5 */  "BVC",  "EOR",  "NOP",  "NOP",  "NOP",  "EOR",  "LSR",  "NOP",  "CLI",  "EOR",  "NOP",  "NOP",  "NOP",  "EOR",  "LSR",  "NOP",
+            /* 6 */  "RTS",  "ADC",  "NOP",  "NOP",  "NOP",  "ADC",  "ROR",  "NOP",  "PLA",  "ADC",  "ROR",  "NOP",  "JMP",  "ADC",  "ROR",  "NOP",
+            /* 7 */  "BVS",  "ADC",  "NOP",  "NOP",  "NOP",  "ADC",  "ROR",  "NOP",  "SEI",  "ADC",  "NOP",  "NOP",  "NOP",  "ADC",  "ROR",  "NOP",
+            /* 8 */  "NOP",  "STA",  "NOP",  "NOP",  "STY",  "STA",  "STX",  "NOP",  "DEY",  "NOP",  "TXA",  "NOP",  "STY",  "STA",  "STX",  "NOP",
+            /* 9 */  "BCC",  "STA",  "NOP",  "NOP",  "STY",  "STA",  "STX",  "NOP",  "TYA",  "STA",  "TXS",  "NOP",  "NOP",  "STA",  "NOP",  "NOP",
+            /* A */  "LDY",  "LDA",  "LDX",  "NOP",  "LDY",  "LDA",  "LDX",  "NOP",  "TAY",  "LDA",  "TAX",  "NOP",  "LDY",  "LDA",  "LDX",  "NOP",
+            /* B */  "BCS",  "LDA",  "NOP",  "NOP",  "LDY",  "LDA",  "LDX",  "NOP",  "CLV",  "LDA",  "TSX",  "NOP",  "LDY",  "LDA",  "LDX",  "NOP",
+            /* C */  "CPY",  "CMP",  "NOP",  "NOP",  "CPY",  "CMP",  "DEC",  "NOP",  "INY",  "CMP",  "DEX",  "NOP",  "CPY",  "CMP",  "DEC",  "NOP",
+            /* D */  "BNE",  "CMP",  "NOP",  "NOP",  "NOP",  "CMP",  "DEC",  "NOP",  "CLD",  "CMP",  "NOP",  "NOP",  "NOP",  "CMP",  "DEC",  "NOP",
+            /* E */  "CPX",  "SBC",  "NOP",  "NOP",  "CPX",  "SBC",  "INC",  "NOP",  "INX",  "SBC",  "NOP",  "NOP",  "CPX",  "SBC",  "INC",  "NOP",
+            /* F */  "BEQ",  "SBC",  "NOP",  "NOP",  "NOP",  "SBC",  "INC",  "NOP",  "SED",  "SBC",  "NOP",  "NOP",  "NOP",  "SBC",  "INC",  "NOP"
+        )
+
+        val ADDRESSING_MODE_TABLE: Array<String> = arrayOf(
+            /*      |   0   |   1   |   2   |   3   |   4   |   5   |   6   |   7   |   8   |   9   |   A   |   B   |   C   |   D   |   E   |   F   */
+            /* 0 */	 "IMPL", "INDX", "IMPL", "IMPL", "IMPL",  "ZPG",  "ZPG", "IMPL", "IMPL",  "IMM",  "ACC", "IMPL", "IMPL",  "ABS",  "ABS", "IMPL",
+            /* 1 */   "REL", "INDY", "IMPL", "IMPL", "IMPL", "ZPGX", "ZPGX", "IMPL", "IMPL", "ABSY", "IMPL", "IMPL", "IMPL", "ABSX", "ABSX", "IMPL",
+            /* 2 */   "ABS", "INDX", "IMPL", "IMPL",  "ZPG",  "ZPG",  "ZPG", "IMPL", "IMPL",  "IMM",  "ACC", "IMPL",  "ABS",  "ABS",  "ABS", "IMPL",
+            /* 3 */   "REL", "INDY", "IMPL", "IMPL", "IMPL", "ZPGX", "ZPGX", "IMPL", "IMPL", "ABSY", "IMPL", "IMPL", "IMPL", "ABSX", "ABSX", "IMPL",
+            /* 4 */  "IMPL", "INDX", "IMPL", "IMPL", "IMPL",  "ZPG",  "ZPG", "IMPL", "IMPL",  "IMM",  "ACC", "IMPL",  "ABS",  "ABS",  "ABS", "IMPL",
+            /* 5 */   "REL", "INDY", "IMPL", "IMPL", "IMPL", "ZPGX", "ZPGX", "IMPL", "IMPL", "ABSY", "IMPL", "IMPL", "IMPL", "ABSX", "ABSX", "IMPL",
+            /* 6 */  "IMPL", "INDX", "IMPL", "IMPL", "IMPL",  "ZPG",  "ZPG", "IMPL", "IMPL",  "IMM",  "ACC", "IMPL",  "IND",  "ABS",  "ABS", "IMPL",
+            /* 7 */   "REL", "INDY", "IMPL", "IMPL", "IMPL", "ZPGX", "ZPGX", "IMPL", "IMPL", "ABSY", "IMPL", "IMPL", "IMPL", "ABSX", "ABSX", "IMPL",
+            /* 8 */  "IMPL", "INDX", "IMPL", "IMPL",  "ZPG",  "ZPG",  "ZPG", "IMPL", "IMPL", "IMPL", "IMPL", "IMPL",  "ABS",  "ABS",  "ABS", "IMPL",
+            /* 9 */   "REL", "INDY", "IMPL", "IMPL", "ZPGX", "ZPGX", "ZPGY", "IMPL", "IMPL", "ABSY", "IMPL", "IMPL", "IMPL", "ABSX", "IMPL", "IMPL",
+            /* A */   "IMM", "INDX",  "IMM", "IMPL",  "ZPG",  "ZPG",  "ZPG", "IMPL", "IMPL",  "IMM", "IMPL", "IMPL",  "ABS",  "ABS",  "ABS", "IMPL",
+            /* B */   "REL", "INDY", "IMPL", "IMPL", "ZPGX", "ZPGX", "ZPGY", "IMPL", "IMPL", "ABSY", "IMPL", "IMPL", "ABSX", "ABSX", "ABSY", "IMPL",
+            /* C */   "IMM", "INDX", "IMPL", "IMPL",  "ZPG",  "ZPG",  "ZPG", "IMPL", "IMPL",  "IMM", "IMPL", "IMPL",  "ABS",  "ABS",  "ABS", "IMPL",
+            /* D */   "REL", "INDY", "IMPL", "IMPL", "IMPL", "ZPGX", "ZPGX", "IMPL", "IMPL", "ABSY", "IMPL", "IMPL", "IMPL", "ABSX", "ABSX", "IMPL",
+            /* E */   "IMM", "INDX", "IMPL", "IMPL",  "ZPG",  "ZPG",  "ZPG", "IMPL", "IMPL",  "IMM", "IMPL", "IMPL",  "ABS",  "ABS",  "ABS", "IMPL",
+            /* F */   "REL", "INDY", "IMPL", "IMPL", "IMPL", "ZPGX", "ZPGX", "IMPL", "IMPL", "ABSY", "IMPL", "IMPL", "IMPL", "ABSX", "ABSX", "IMPL"
+        )
+    }
 }

@@ -84,7 +84,7 @@ class CpuOpcodeTestRunner(
             }
 
             val expectedCycles = opcodeTest.cycles.size
-            val actualCycles = cpu.execute(expectedCycles)
+            val actualCycles = cpu.executeCycles(expectedCycles)
 
             val passed = evaluateAndPrintResult(opcodeTest.finalState, expectedCycles, actualCycles)
             if (passed) {
