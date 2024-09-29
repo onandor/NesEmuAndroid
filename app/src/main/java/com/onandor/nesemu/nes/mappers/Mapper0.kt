@@ -17,6 +17,14 @@ class Mapper0(cartridge: Cartridge) : Mapper(cartridge) {
     }
 
     override fun writePrgRom(address: Int, value: Int) {
-        throw InvalidOperationException(TAG, "Invalid PRG ROM write at $address (value: $value)")
+        throw InvalidOperationException(TAG, "Forbidden PRG ROM write at $address (value: $value)")
+    }
+
+    override fun readChrRom(address: Int): Int {
+        return cartridge.chrRom[address]
+    }
+
+    override fun writeChrRom(address: Int, value: Int) {
+        throw InvalidOperationException(TAG, "Forbidden CHR ROM write at $address (value: $value)")
     }
 }

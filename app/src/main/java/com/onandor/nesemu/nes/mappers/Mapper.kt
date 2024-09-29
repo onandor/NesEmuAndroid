@@ -6,4 +6,6 @@ abstract class Mapper(open val cartridge: Cartridge) {
 
     abstract fun readPrgRom(address: Int): Int
     abstract fun writePrgRom(address: Int, value: Int)
+    abstract fun readChrRom(address: Int): Int
+    abstract fun writeChrRom(address: Int, value: Int)
 }

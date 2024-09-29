@@ -7,44 +7,90 @@ class Nes {
 
     private companion object {
         const val TAG = "Nes"
-        const val CPU_MEMORY_SIZE = 2048
+        const val MEMORY_SIZE = 2048
     }
 
-    var cpuMemory: IntArray = IntArray(CPU_MEMORY_SIZE)
+    var cpuMemory: IntArray = IntArray(MEMORY_SIZE)
         private set
+    private val vram: IntArray = IntArray(MEMORY_SIZE)
     val cpu: Cpu = Cpu(::cpuReadMemory, ::cpuWriteMemory)
+    val ppu: Ppu = Ppu(::ppuReadMemory, ::ppuWriteMemory)
     private var cartridge: Cartridge? = null
     private lateinit var mapper: Mapper
 
     fun cpuReadMemory(address: Int): Int {
         return when (address) {
-            in 0x0000 .. 0x1FFF -> cpuMemory[address and 0x07FF]   // 2 KB RAM with mirroring
-            in 0x2000 .. 0x2007 -> 0                               // I/O Registers
-            in 0x2008 .. 0x3FFF -> 0                               // Mirror of I/O Registers
-            in 0x4000 .. 0x4019 -> 0                               // Registers (Mostly APU)
-            in 0x4020 .. 0x5FFF -> {                               // Cartridge Expansion ROM
+            in 0x0000 .. 0x1FFF -> cpuMemory[address and 0x07FF]        // 2 KB RAM with mirroring
+            in 0x2000 .. 0x3FFF -> ppu.cpuReadRegister(address and 0x2007) // I/O Registers with mirroring
+            in 0x4000 .. 0x4019 -> 0                                    // Registers (Mostly APU)
+            in 0x4020 .. 0x5FFF -> {                                    // Cartridge Expansion ROM
                 throw InvalidOperationException(TAG,
                     "CPU read at $address: Cartridge Expansion ROM not supported")
             }
-            in 0x6000 .. 0x7FFF -> 0                               // SRAM
-            in 0x8000 .. 0xFFFF -> mapper.readPrgRom(address)      // PRG-ROM
+            in 0x6000 .. 0x7FFF -> 0                                    // SRAM
+            in 0x8000 .. 0xFFFF -> mapper.readPrgRom(address)           // PRG-ROM
             else -> throw InvalidOperationException(TAG, "Invalid CPU read at $address")
         }
     }
 
     fun cpuWriteMemory(address: Int, value: Int) {
         when (address) {
-            in 0x0000 .. 0x1FFF -> cpuMemory[address and 0x07FF] = value    // 2 KB RAM with mirroring
-            in 0x2000 .. 0x2007 -> 0                                        // I/O Registers
-            in 0x2008 .. 0x3FFF -> 0                                        // Mirror of I/O Registers
-            in 0x4000 .. 0x4019 -> 0                                        // Registers (Mostly APU)
-            in 0x4020 .. 0x5FFF -> {                                        // Cartridge Expansion ROM
+            in 0x0000 .. 0x1FFF -> cpuMemory[address and 0x07FF] = value        // 2 KB RAM with mirroring
+            in 0x2000 .. 0x3FFF -> ppu.cpuWriteRegister(address and 0x2007, value) // I/O Registers
+            0x4014 -> {
+                val oamData = cpuMemory
+                    .copyOfRange(value shl 8, (value shl 8) or 0x00FF)
+                ppu.loadOamData(oamData)
+                // TODO?: CPU suspend - https://www.nesdev.org/wiki/PPU_programmer_reference#OAM_DMA_($4014)_%3E_write
+            }
+            in 0x4000 .. 0x4019 -> 0                                            // Registers (Mostly APU)
+            in 0x4020 .. 0x5FFF -> {                                            // Cartridge Expansion ROM
                 throw InvalidOperationException(TAG,
                     "CPU write at $address: Cartridge Expansion ROM not supported")
             }
-            in 0x6000 .. 0x7FFF -> 0                                        // SRAM
-            in 0x8000 .. 0xFFFF -> mapper.writePrgRom(address, value)       // PRG-ROM
+            in 0x6000 .. 0x7FFF -> 0                                            // SRAM
+            in 0x8000 .. 0xFFFF -> mapper.writePrgRom(address, value)           // PRG-ROM
             else -> throw InvalidOperationException(TAG, "Invalid CPU write at $address")
+        }
+    }
+
+    fun ppuReadMemory(address: Int): Int {
+        val mirroredAddress = address and 0x3FFF
+        return when (mirroredAddress) {
+            in 0x0000 .. 0x1FFF -> mapper.readChrRom(address) // Pattern Table
+            in 0x2000 .. 0x23BF -> 0    // Name Table 0
+            in 0x23C0 .. 0x23FF -> 0    // Attribute Table 0
+            in 0x2400 .. 0x27BF -> 0    // Name Table 1
+            in 0x27C0 .. 0x27FF -> 0    // Attribute Table 1
+            in 0x2800 .. 0x2BBF -> 0    // Name Table 2
+            in 0x2BC0 .. 0x2BFF -> 0    // Attribute Table 2
+            in 0x2C00 .. 0x2FBF -> 0    // Name Table 3
+            in 0x2FC0 .. 0x2FFF -> 0    // Attribute Table 3
+            in 0x3000 .. 0x3EFF -> ppuReadMemory(address and 0x2EFF) // Mirror of 0x2000-0x2EFF
+            in 0x3F00 .. 0x3F0F -> 0    // Background Palette
+            in 0x3F10 .. 0x3F1F -> 0    // Sprite Palette
+            in 0x3F20 .. 0x3FFF -> ppuReadMemory(address and 0x3F1F) // Mirror of 0x3F00-0x3F1F
+            else -> throw InvalidOperationException(TAG, "Invalid PPU read at $address")
+        }
+    }
+
+    fun ppuWriteMemory(address: Int, value: Int) {
+        val mirroredAddress = address and 0x3FFF
+        when (mirroredAddress) {
+            in 0x0000 .. 0x1FFF -> mapper.writeChrRom(address, value) // Pattern Table
+            in 0x2000 .. 0x23BF -> 0    // Name Table 0
+            in 0x23C0 .. 0x23FF -> 0    // Attribute Table 0
+            in 0x2400 .. 0x27BF -> 0    // Name Table 1
+            in 0x27C0 .. 0x27FF -> 0    // Attribute Table 1
+            in 0x2800 .. 0x2BBF -> 0    // Name Table 2
+            in 0x2BC0 .. 0x2BFF -> 0    // Attribute Table 2
+            in 0x2C00 .. 0x2FBF -> 0    // Name Table 3
+            in 0x2FC0 .. 0x2FFF -> 0    // Attribute Table 3
+            in 0x3000 .. 0x3EFF -> ppuWriteMemory(address and 0x2EFF, value) // Mirror of 0x2000-0x2EFF
+            in 0x3F00 .. 0x3F0F -> 0    // Background Palette
+            in 0x3F10 .. 0x3F1F -> 0    // Sprite Palette
+            in 0x3F20 .. 0x3FFF -> ppuWriteMemory(address and 0x3F1F, value) // Mirror of 0x3F00-0x3F1F
+            else -> throw InvalidOperationException(TAG, "Invalid PPU write at $address")
         }
     }
 
