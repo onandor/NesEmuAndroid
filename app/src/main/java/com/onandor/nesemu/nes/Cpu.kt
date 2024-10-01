@@ -21,7 +21,7 @@ class Cpu(
     private object Flags {
         const val CARRY: Int = 0b00000001
         const val ZERO: Int = 0b00000010
-        const val INTERRUPT: Int = 0b00000100
+        const val INTERRUPT_DISABLE: Int = 0b00000100
         const val DECIMAL: Int = 0b00001000
         const val BREAK: Int = 0b00010000
         const val UNUSED: Int = 0b00100000
@@ -266,6 +266,27 @@ class Cpu(
         PC = PC.plus16(1)
     }
 
+    // ------- Interrupt handler functions -------
+
+    fun IRQ() {
+        if (getFlag(Flags.INTERRUPT_DISABLE)) {
+            return
+        }
+        push2Bytes(PC)
+        pushByte(PS)
+        PC = read2Bytes(0xFFFA)
+        setFlag(Flags.INTERRUPT_DISABLE, true)
+        // TODO: cycles(?)
+    }
+
+    fun NMI() {
+        push2Bytes(PC)
+        pushByte(PS)
+        PC = read2Bytes(0xFFFE)
+        setFlag(Flags.INTERRUPT_DISABLE, true)
+        // TODO: cycles(?)
+    }
+
     // ------ Instruction handler functions ------
 
     // ----------- Legal instructions ------------
@@ -371,7 +392,7 @@ class Cpu(
         push2Bytes(PC)
         pushByte(PS or Flags.BREAK)
         PC = read2Bytes(0xFFFE)
-        setFlag(Flags.INTERRUPT, true)
+        setFlag(Flags.INTERRUPT_DISABLE, true)
     }
 
     private fun BVC() {
@@ -391,7 +412,7 @@ class Cpu(
     }
 
     private fun CLI() {
-        setFlag(Flags.INTERRUPT, false)
+        setFlag(Flags.INTERRUPT_DISABLE, false)
     }
 
     private fun CLV() {
@@ -593,7 +614,7 @@ class Cpu(
     }
 
     private fun SEI() {
-        setFlag(Flags.INTERRUPT, true)
+        setFlag(Flags.INTERRUPT_DISABLE, true)
     }
 
     private fun STA() {

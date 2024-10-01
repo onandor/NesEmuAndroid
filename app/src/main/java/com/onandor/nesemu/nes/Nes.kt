@@ -14,9 +14,11 @@ class Nes {
         private set
     private val vram: IntArray = IntArray(MEMORY_SIZE)
     val cpu: Cpu = Cpu(::cpuReadMemory, ::cpuWriteMemory)
-    val ppu: Ppu = Ppu(::ppuReadMemory, ::ppuWriteMemory)
+    val ppu: Ppu = Ppu(::ppuReadMemory, ::ppuWriteMemory, cpu::NMI)
     private var cartridge: Cartridge? = null
     private lateinit var mapper: Mapper
+
+    var running: Boolean = true
 
     fun cpuReadMemory(address: Int): Int {
         return when (address) {
@@ -58,14 +60,7 @@ class Nes {
         val mirroredAddress = address and 0x3FFF
         return when (mirroredAddress) {
             in 0x0000 .. 0x1FFF -> mapper.readChrRom(address) // Pattern Table
-            in 0x2000 .. 0x23BF -> 0    // Name Table 0
-            in 0x23C0 .. 0x23FF -> 0    // Attribute Table 0
-            in 0x2400 .. 0x27BF -> 0    // Name Table 1
-            in 0x27C0 .. 0x27FF -> 0    // Attribute Table 1
-            in 0x2800 .. 0x2BBF -> 0    // Name Table 2
-            in 0x2BC0 .. 0x2BFF -> 0    // Attribute Table 2
-            in 0x2C00 .. 0x2FBF -> 0    // Name Table 3
-            in 0x2FC0 .. 0x2FFF -> 0    // Attribute Table 3
+            in 0x2000 .. 0x2FFF -> vram[mapper.mapNametableAddress(address)]    // Nametables
             in 0x3000 .. 0x3EFF -> ppuReadMemory(address and 0x2EFF) // Mirror of 0x2000-0x2EFF
             in 0x3F00 .. 0x3F0F -> 0    // Background Palette
             in 0x3F10 .. 0x3F1F -> 0    // Sprite Palette
@@ -78,14 +73,7 @@ class Nes {
         val mirroredAddress = address and 0x3FFF
         when (mirroredAddress) {
             in 0x0000 .. 0x1FFF -> mapper.writeChrRom(address, value) // Pattern Table
-            in 0x2000 .. 0x23BF -> 0    // Name Table 0
-            in 0x23C0 .. 0x23FF -> 0    // Attribute Table 0
-            in 0x2400 .. 0x27BF -> 0    // Name Table 1
-            in 0x27C0 .. 0x27FF -> 0    // Attribute Table 1
-            in 0x2800 .. 0x2BBF -> 0    // Name Table 2
-            in 0x2BC0 .. 0x2BFF -> 0    // Attribute Table 2
-            in 0x2C00 .. 0x2FBF -> 0    // Name Table 3
-            in 0x2FC0 .. 0x2FFF -> 0    // Attribute Table 3
+            in 0x2000 .. 0x2FFF -> vram[mapper.mapNametableAddress(address)]    // Nametables
             in 0x3000 .. 0x3EFF -> ppuWriteMemory(address and 0x2EFF, value) // Mirror of 0x2000-0x2EFF
             in 0x3F00 .. 0x3F0F -> 0    // Background Palette
             in 0x3F10 .. 0x3F1F -> 0    // Sprite Palette
@@ -100,9 +88,17 @@ class Nes {
             0 -> mapper = Mapper0(cartridge)
             else -> return
         }
+        ppu.mirroring = cartridge.mirroring
     }
 
     fun reset() {
         cpu.reset()
+        ppu.reset()
+        while (running) {
+            val cpuCycles = cpu.step()
+            for (i in 0 until cpuCycles) {
+                ppu.tick()
+            }
+        }
     }
 }
