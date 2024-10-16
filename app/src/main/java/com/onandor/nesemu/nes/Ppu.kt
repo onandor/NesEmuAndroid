@@ -1,5 +1,15 @@
 package com.onandor.nesemu.nes
 
+/*
+ - Pattern table: CHR ROM on the cartridge, defines the shapes (and colors) of the tiles that make
+   up the backgrounds and the sprites.
+ - Nametable: 1024 byte area in the vram, used to lay out backgrounds. Each byte controls one 8x8
+   pixel tile, and each nametable 30 rows of 32 tiles each. There are 4 logical nametables.
+ - Attribute table: 64 bytes at the end of each nametable that controls which color palette is
+   assigned to each part of the background.
+
+ */
+
 class Ppu(
     private val readMemory: (address: Int) -> Int,
     private val writeMemory: (address: Int, value: Int) -> Unit,
@@ -87,12 +97,11 @@ class Ppu(
     // - Byte 4: Sprite X coordinate
     private var oamData: IntArray = IntArray(256)
 
-
     /*
      Structure of v and t during rendering:
      yyy NN YYYYY XXXXX
-     ||| || ||||| +++++-- high 3 bits of coarse X (x/4)
-     ||| || +++++-------- high 3 bits of coarse Y (y/4)
+     ||| || ||||| +++++-- coarse X
+     ||| || +++++-------- coarse Y
      ||| ++-------------- nametable select
      +++----------------- fine Y scroll
     */
@@ -112,8 +121,12 @@ class Ppu(
 
     private var nametableByte: Int = 0
     private var attributeTableByte: Int = 0
-    private var patternTableTileLow: Int = 0
-    private var patternTableTileHigh: Int = 0
+
+    // https://www.nesdev.org/wiki/PPU_pattern_tables
+    // Tiles are 8x8 pixels
+    // These two combined store the color indices of a row from a tile being rendered during a scanline
+    private var patternTableTileLow: Int = 0    // First bit plane
+    private var patternTableTileHigh: Int = 0   // Second bit plane
 
     fun reset() {
         cycle = 0
@@ -176,8 +189,10 @@ class Ppu(
         }
 
         when (cycle) {
-            in 1 .. 256 -> {
-                // Fetch background tile data
+            in 1 .. 256,
+            in 321 .. 336-> {
+                // 1-256: Fetch background tile data
+                // 321-336: Prefetch data for the first 2 background tiles of the next scanline
                 when (cycle % 8) {
                     1 -> {
                         nametableByte = readMemory(0x2000 or (v and 0x0FFF))
@@ -188,16 +203,21 @@ class Ppu(
                         attributeTableByte = readMemory(address)
                     }
                     5 -> {
-                        val basePatternTable = 0x1000 * ((ppuctrl and PPUCTRLFlags.BG_TABLE_ADDRESS) shr 4)
+                        val basePatternTable = 0x1000 *
+                                ((ppuctrl and PPUCTRLFlags.BG_TABLE_ADDRESS) shr 4)
                         val fineY = (v ushr 12) and 0x07
                         val address = basePatternTable or (nametableByte shl 4) or fineY
                         patternTableTileLow = readMemory(address)
                     }
                     7 -> {
-                        val basePatternTable = 0x1000 * ((ppuctrl and PPUCTRLFlags.BG_TABLE_ADDRESS) shr 4)
+                        val basePatternTable = 0x1000 *
+                                ((ppuctrl and PPUCTRLFlags.BG_TABLE_ADDRESS) shr 4)
                         val fineY = (v ushr 12) and 0x07
                         val address = (basePatternTable or (nametableByte shl 4) or fineY) + 8
                         patternTableTileHigh = readMemory(address)
+                    }
+                    0 -> {
+                        // save data
                     }
                 }
             }
@@ -205,31 +225,22 @@ class Ppu(
                 // Prefetch tile data for the sprites on the next scanline
                 when (cycle % 8) {
                     1, 3 -> {
-                        // Garbage nametable byte
+                        // Garbage nametable byte reads
                         nametableByte = readMemory(0x2000 or (v and 0x0FFF))
                     }
                     5 -> {
-                        // Pattern table tile low
+                        val basePatternTable = 0x1000 *
+                                ((ppuctrl and PPUCTRLFlags.BG_TABLE_ADDRESS) shr 4)
+                        val fineY = (v ushr 12) and 0x07
+                        val address = basePatternTable or (nametableByte shl 4) or fineY
+                        patternTableTileLow = readMemory(address)
                     }
                     7 -> {
-                        // Pattern table tile high
-                    }
-                }
-            }
-            in 321 .. 336 -> {
-                // Prefetch data for the first 2 background tiles of the next scanline
-                when (cycle % 8) {
-                    1 -> {
-                        nametableByte = readMemory(0x2000 or (v and 0x0FFF))
-                    }
-                    3 -> {
-                        // Attribute table byte
-                    }
-                    5 -> {
-                        // Pattern table tile low
-                    }
-                    7 -> {
-                        // Pattern table tile high
+                        val basePatternTable = 0x1000 *
+                                ((ppuctrl and PPUCTRLFlags.BG_TABLE_ADDRESS) shr 4)
+                        val fineY = (v ushr 12) and 0x07
+                        val address = (basePatternTable or (nametableByte shl 4) or fineY) + 8
+                        patternTableTileHigh = readMemory(address)
                     }
                 }
             }
@@ -294,24 +305,6 @@ class Ppu(
                         v += 1                  // increment coarse X
                     }
                 }
-            }
-        }
-    }
-
-    // Cycles 321 - 336
-    private fun prefetchSprites() {
-        when (cycle % 8) {
-            1 -> {
-                // nametableByte = ?
-            }
-            3 -> {
-                // attributeTableByte = ?
-            }
-            5 -> {
-                // patterTableTileLow = ?
-            }
-            7 -> {
-                // patternTableTileHigh = ?
             }
         }
     }
