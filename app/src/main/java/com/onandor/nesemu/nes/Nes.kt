@@ -1,24 +1,33 @@
 package com.onandor.nesemu.nes
 
+import android.util.Log
 import com.onandor.nesemu.nes.mappers.Mapper
 import com.onandor.nesemu.nes.mappers.Mapper0
+import kotlinx.coroutines.delay
+import kotlin.math.roundToLong
+import kotlin.time.TimeSource
 
-class Nes {
+class Nes(val frameReady: (IntArray) -> Unit) {
 
     private companion object {
         const val TAG = "Nes"
         const val MEMORY_SIZE = 2048
+        private const val FPS = 60
     }
 
     var cpuMemory: IntArray = IntArray(MEMORY_SIZE)
         private set
     private val vram: IntArray = IntArray(MEMORY_SIZE)
     val cpu: Cpu = Cpu(::cpuReadMemory, ::cpuWriteMemory)
-    val ppu: Ppu = Ppu(::ppuReadMemory, ::ppuWriteMemory, cpu::NMI)
+    val ppu: Ppu = Ppu(::ppuReadMemory, ::ppuWriteMemory, cpu::NMI, ::ppuFrameReady)
     private var cartridge: Cartridge? = null
     private lateinit var mapper: Mapper
 
     var running: Boolean = true
+    private var isFrameReady: Boolean = false
+    private var numFrames: Int = 0
+    var fps: Float = 0f
+        private set
 
     fun cpuReadMemory(address: Int): Int {
         return when (address) {
@@ -91,13 +100,37 @@ class Nes {
         ppu.mirroring = cartridge.mirroring
     }
 
-    fun reset() {
+    private fun ppuFrameReady(frameData: IntArray) {
+        isFrameReady = true
+        frameReady(frameData)
+    }
+
+    suspend fun reset() {
+        val timeSource = TimeSource.Monotonic
         cpu.reset()
         ppu.reset()
+        var fpsMeasureStart = timeSource.markNow()
         while (running) {
-            val cpuCycles = cpu.step()
-            for (i in 0 until cpuCycles) {
-                ppu.tick()
+            val frameStart = timeSource.markNow()
+            while (!isFrameReady) {
+                val cpuCycles = cpu.step()
+                for (i in 0 until cpuCycles * 3) {
+                    ppu.tick()
+                }
+            }
+            isFrameReady = false
+            numFrames++
+
+            val now = timeSource.markNow()
+            // If we are lagging behind, the delta will be negative and the call to delay will
+            // return immediately
+            delay(1000 / FPS - (now - frameStart).inWholeMilliseconds)
+
+            if ((now - fpsMeasureStart).inWholeMilliseconds >= 3000) {
+                fps = numFrames / 3f
+                numFrames = 0
+                fpsMeasureStart = timeSource.markNow()
+                Log.i(TAG, "FPS: $fps")
             }
         }
     }

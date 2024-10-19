@@ -1,11 +1,14 @@
 package com.onandor.nesemu.ui.components
 
+import android.opengl.GLES11Ext.GL_BGRA
 import android.opengl.GLES30.*
 import android.opengl.GLSurfaceView
+import android.opengl.Matrix
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
+import java.nio.ShortBuffer
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
@@ -15,51 +18,90 @@ class NesRenderer : GLSurfaceView.Renderer {
     private var mShaderProgram: Int = 0
     private var mVao: Int = 0
     private var mVbo: Int = 0
+    private var mEbo: Int = 0
+    private var mTextureData: IntArray = IntArray(WIDTH * HEIGHT)
 
     override fun onSurfaceCreated(unused: GL10?, config: EGLConfig?) {
         createShaderProgram()
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
 
+        // Create the vertex attribute array
         val vao = IntArray(1)
         glGenVertexArrays(1, vao, 0)
         mVao = vao[0]
         glBindVertexArray(mVao)
 
+        // Create the vertex buffer object and buffer the vertices of the screen
         val vbo = IntArray(1)
         glGenBuffers(1, vbo, 0)
         mVbo = vbo[0]
         glBindBuffer(GL_ARRAY_BUFFER, mVbo)
         glBufferData(
             GL_ARRAY_BUFFER,
-            TEST_TRIANGLE_COORDS.size * SIZE_OF_FLOAT,
-            TEST_TRIANGLE_VERTEX_BUFFER,
+            SCREEN_VERTICES.size * SIZE_OF_FLOAT,
+            TEST_QUAD_VERTEX_BUFFER,
             GL_STATIC_DRAW
         )
 
-        glVertexAttribPointer(
-            0,
-            COORDS_PER_VERTEX,
-            GL_FLOAT,
-            false,
-            COORDS_PER_VERTEX * SIZE_OF_FLOAT,
-            0
+        // Create the element buffer object and buffer the index order of the screen
+        val ebo = IntArray(1)
+        glGenBuffers(1, ebo, 0)
+        mEbo = ebo[0]
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mEbo)
+        glBufferData(
+            GL_ELEMENT_ARRAY_BUFFER,
+            SCREEN_INDICES.size * SIZE_OF_SHORT,
+            QUAD_INDICES_BUFFER,
+            GL_STATIC_DRAW
         )
+
+        // Vertex position attribute
+        glVertexAttribPointer(0, 2, GL_FLOAT, false, 4 * SIZE_OF_FLOAT, 0)
         glEnableVertexAttribArray(0)
 
-        val color = floatArrayOf(0.0f, 1.0f, 0.0f, 1.0f)
-        glUniform4fv(0, 1, color, 0)
+        // Vertex texture attribute
+        glVertexAttribPointer(1, 2, GL_FLOAT, false, 4 * SIZE_OF_FLOAT, 2 * SIZE_OF_FLOAT)
+        glEnableVertexAttribArray(1)
 
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
+        // Create and bind texture
+        val texture = IntArray(1)
+        glGenTextures(1, texture, 0)
+        mTexture = texture[0]
+        glBindTexture(GL_TEXTURE_2D, mTexture)
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA, WIDTH, HEIGHT, 0, GL_BGRA, GL_UNSIGNED_BYTE, null)
     }
 
     override fun onSurfaceChanged(unused: GL10?, width: Int, height: Int) {
         // Resize viewport
         glViewport(0, 0, width, height)
+
+        val P = FloatArray(16)
+        val V = FloatArray(16)
+        val MVP = FloatArray(16)
+        val ratio: Float = width.toFloat() / height.toFloat()
+        if (ratio < 1f) {
+            Matrix.frustumM(P, 0, -1f, 1f, -(1f/ratio), (1f/ratio), 3f, 7f)
+        } else {
+            Matrix.frustumM(P, 0, -ratio, ratio, -1f, 1f, 3f, 7f)
+        }
+        Matrix.setLookAtM(V, 0, 0f, 0f, 3f, 0f, 0f, 0f, 0f, 1f, 0f)
+        Matrix.multiplyMM(MVP, 0, P, 0, V, 0)
+
+        glUniformMatrix4fv(2, 1, false, MVP, 0)
     }
 
     override fun onDrawFrame(unused: GL10?) {
-        // Redraw background color
+        // Redraw background color, update texture, draw quad
         glClear(GL_COLOR_BUFFER_BIT)
-        glDrawArrays(GL_TRIANGLES, 0, TEST_TRIANGLE_COORDS.size / COORDS_PER_VERTEX)
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WIDTH, HEIGHT,
+            GL_BGRA, GL_UNSIGNED_BYTE, IntBuffer.wrap(mTextureData))
+        glDrawElements(GL_TRIANGLES, SCREEN_INDICES.size, GL_UNSIGNED_SHORT, 0)
     }
 
     private fun createShaderProgram() {
@@ -98,11 +140,18 @@ class NesRenderer : GLSurfaceView.Renderer {
         return shader
     }
 
+    fun setTextureData(data: IntArray) {
+        mTextureData = data
+    }
+
     // TODO: call it from somewhere
     fun onDestroy() {
-        glDisableVertexAttribArray(mVao)
+        glDisableVertexAttribArray(0)
+        glDisableVertexAttribArray(1)
         glDeleteVertexArrays(1, IntBuffer.allocate(1).put(mVao))
         glDeleteBuffers(1, IntBuffer.allocate(1).put(mVbo))
+        glDeleteBuffers(1, IntBuffer.allocate(1).put(mEbo))
+        glDeleteTextures(1, IntBuffer.allocate(1).put(mTexture))
         glDeleteProgram(mShaderProgram)
     }
 
@@ -112,48 +161,63 @@ class NesRenderer : GLSurfaceView.Renderer {
                 #version 300 es
                 
                 layout (location = 0) in vec2 vPos;
+                layout (location = 1) in vec2 vTexCoord;
+                layout (location = 2) uniform mat4 MVP;
+                out vec2 TexCoord;
                 
                 void main() {
-                    gl_Position = vec4(vPos.x, vPos.y, 0.0, 1.0);
+                    gl_Position = MVP * vec4(vPos.x, vPos.y, 0.0, 1.0);
+                    TexCoord = vTexCoord;
                 }
             """
         private const val FRAGMENT_SHADER_SOURCE =
             """
                 #version 300 es
                 
-                layout (location = 0) uniform vec4 vColor;
+                in vec2 TexCoord;
                 out vec4 FragColor;
+                uniform sampler2D _texture;
                 
                 void main() {
-                    FragColor = vColor;
+                    FragColor = texture(_texture, TexCoord);
                 }
             """
 
         private const val WIDTH = 256
         private const val HEIGHT = 240
         private const val SIZE_OF_FLOAT = 4
-        private const val COORDS_PER_VERTEX = 2
+        private const val SIZE_OF_SHORT = 2
 
-        private val TEST_TRIANGLE_COORDS = floatArrayOf(
-             0.0f,  0.622008459f,
-            -0.5f, -0.311004243f,
-             0.5f, -0.311004243f
+        private val SCREEN_VERTICES = floatArrayOf(
+             // position   // color
+            -1f,  0.9375f, 0f, 1f,   // top left
+            -1f, -0.9375f, 0f, 0f,   // bottom left
+             1f, -0.9375f, 1f, 0f,   // bottom right
+             1f,  0.9375f, 1f, 1f    // top right
         )
-        private val TEST_TRIANGLE_VERTEX_BUFFER: FloatBuffer = ByteBuffer
-            .allocateDirect(TEST_TRIANGLE_COORDS.size * SIZE_OF_FLOAT)
+
+        private val TEST_QUAD_VERTEX_BUFFER: FloatBuffer = ByteBuffer
+            .allocateDirect(SCREEN_VERTICES.size * SIZE_OF_FLOAT)
             .run {
                 order(ByteOrder.nativeOrder())
                 asFloatBuffer().apply {
-                    put(TEST_TRIANGLE_COORDS)
+                    put(SCREEN_VERTICES)
                     position(0)
                 }
             }
 
-        private val QUAD_COORDS = floatArrayOf(
-            -1f,  1f,
-            -1f, -1f,
-             1f, -1f,
-             1f,  1f
+        private val SCREEN_INDICES = shortArrayOf(
+            0, 1, 2,
+            0, 2, 3
         )
+        private val QUAD_INDICES_BUFFER: ShortBuffer = ByteBuffer
+            .allocateDirect(SCREEN_INDICES.size * SIZE_OF_SHORT)
+            .run {
+                order(ByteOrder.nativeOrder())
+                asShortBuffer().apply {
+                    put(SCREEN_INDICES)
+                    position(0)
+                }
+            }
     }
 }

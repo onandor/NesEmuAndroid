@@ -4,13 +4,10 @@ import android.content.Context
 import android.opengl.GLSurfaceView
 import android.view.MotionEvent
 
-class NesSurfaceView(context: Context) : GLSurfaceView(context) {
-
-    private val renderer: NesRenderer
+class NesSurfaceView(context: Context, renderer: NesRenderer) : GLSurfaceView(context) {
 
     init {
-        setEGLContextClientVersion(2)
-        renderer = NesRenderer()
+        setEGLContextClientVersion(3)
         setRenderer(renderer)
         renderMode = RENDERMODE_WHEN_DIRTY
     }

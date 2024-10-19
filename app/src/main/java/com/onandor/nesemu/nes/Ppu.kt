@@ -1,5 +1,7 @@
 package com.onandor.nesemu.nes
 
+import kotlin.random.Random
+
 /*
  - Pattern table: CHR ROM on the cartridge, defines the shapes (and colors) of the tiles that make
    up the backgrounds and the sprites.
@@ -13,14 +15,15 @@ package com.onandor.nesemu.nes
 class Ppu(
     private val readMemory: (address: Int) -> Int,
     private val writeMemory: (address: Int, value: Int) -> Unit,
-    private val generateNmi: () -> Unit
+    private val generateNmi: () -> Unit,
+    private val frameReady: (IntArray) -> Unit
 ) {
 
     companion object {
         private const val TAG = "Ppu"
 
-        private const val SCREEN_HEIGHT = 256
-        private const val SCREEN_WIDTH = 240
+        private const val SCREEN_WIDTH = 256
+        private const val SCREEN_HEIGHT = 240
         private const val LAST_CYCLE = 340
         private const val POST_RENDER_SCANLINE = 240
         private const val VBLANK_START_SCANLINE = 241
@@ -173,6 +176,7 @@ class Ppu(
             if (scanline == VBLANK_START_SCANLINE && cycle == 1) {
                 // Start of vertical blank
                 ppustatus = ppustatus or PPUSTATUSFlags.IN_VBLANK
+                frameReady(generateNoise())
                 if (ppuctrl and PPUCTRLFlags.GENERATE_VBLANK_NMI > 0) {
                     generateNmi()
                 }
@@ -183,7 +187,10 @@ class Ppu(
 
             cycle = (cycle + 1) % LAST_CYCLE
             if (cycle == 0) {
-                scanline++
+                scanline = (scanline + 1) % PRE_RENDER_SCANLINE
+                if (scanline == 0) {
+                    frame++
+                }
             }
             return
         }
@@ -383,5 +390,13 @@ class Ppu(
 
     fun loadOamData(data: IntArray) {
         oamData = data.copyOf()
+    }
+
+    private fun generateNoise(): IntArray {
+        val array = IntArray(SCREEN_WIDTH * SCREEN_WIDTH)
+        for (i in 0 until SCREEN_WIDTH * SCREEN_HEIGHT) {
+            array[i] = COLOR_PALETTE[Random.nextInt(0, 64)]
+        }
+        return array;
     }
 }
