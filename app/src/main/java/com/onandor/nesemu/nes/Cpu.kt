@@ -35,8 +35,8 @@ class Cpu(
     var debugCallback: (PC: Int, SP: Int, A: Int, X: Int, Y: Int, PS: Int, cycles: Int) -> Unit =
         EMPTY_DEBUG_CALLBACK
 
-    private var PC: Int = 0xFFFC            // Program Counter - 16 bits
-    private var SP: Int = 0xFD              // Stack Pointer - 8 bits
+    private var PC: Int = 0                 // Program Counter - 16 bits
+    private var SP: Int = 0                 // Stack Pointer - 8 bits
     private var A: Int = 0                  // Accumulator - 8 bits
     private var X: Int = 0                  // Index Register X - 8 bits
     private var Y: Int = 0                  // Index Register Y - 8 bits
@@ -52,18 +52,15 @@ class Cpu(
     private var instructionCycle = false
 
     private var totalCycles: Int = 7
-
-    init {
-        reset()
-    }
+    private var interruptCycles: Int = 0
 
     fun reset() {
-        PC = 0xFFFC
+        PC = read2Bytes(0xFFFC)
         SP = 0xFD
         A = 0
         X = 0
         Y = 0
-        PS = 0b00100100
+        PS = 0b00000100
         totalCycles = 7 // https://www.pagetable.com/?p=410
     }
 
@@ -72,7 +69,7 @@ class Cpu(
             this.debugCallback(PC, SP, A, X, Y, PS, totalCycles)
         }
 
-        var stepCycles = 0
+        var stepCycles = interruptCycles
         addressingCycle = false
         instructionCycle = false
 
@@ -87,6 +84,7 @@ class Cpu(
         }
 
         this.totalCycles += stepCycles
+        interruptCycles = 0
         return stepCycles
     }
 
@@ -273,18 +271,18 @@ class Cpu(
             return
         }
         push2Bytes(PC)
-        pushByte(PS)
-        PC = read2Bytes(0xFFFA)
+        PHP()
+        PC = read2Bytes(0xFFFE)
         setFlag(Flags.INTERRUPT_DISABLE, true)
-        // TODO: cycles(?)
+        interruptCycles = 7
     }
 
     fun NMI() {
         push2Bytes(PC)
-        pushByte(PS)
-        PC = read2Bytes(0xFFFE)
+        PHP()
+        PC = read2Bytes(0xFFFA)
         setFlag(Flags.INTERRUPT_DISABLE, true)
-        // TODO: cycles(?)
+        interruptCycles = 7
     }
 
     // ------ Instruction handler functions ------

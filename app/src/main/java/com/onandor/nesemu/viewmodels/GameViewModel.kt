@@ -36,13 +36,14 @@ class GameViewModel @Inject constructor(
                 if (e is NesException) {
                     Log.e(e.tag, e.message.toString())
                     // TODO: display some kind of error message
+                } else {
+                    e.printStackTrace()
                 }
             }
         }
     }
 
     private fun onFrameReady(frameData: IntArray) {
-        //println("onFrameReady")
         renderer.setTextureData(frameData)
         requestRender()
     }

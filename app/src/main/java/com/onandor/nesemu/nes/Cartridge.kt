@@ -70,7 +70,10 @@ class Cartridge {
         // The mappers currently supported only use horizontal or vertical mirroring
         if (header.control1 and Bits.NAMETABLE == 0) {
             mirroring = Mirroring.VERTICAL
-        } // else horizontal
+            Log.i(TAG, "Using vertical nametable mirroring")
+        } else {
+            Log.i(TAG, "Using horizontal nametable mirroring")
+        }
 
         val prgRomBytes = ByteArray(header.numPrgBank * 16384)
         stream.read(prgRomBytes)
