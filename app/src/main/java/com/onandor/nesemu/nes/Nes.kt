@@ -4,7 +4,6 @@ import android.util.Log
 import com.onandor.nesemu.nes.mappers.Mapper
 import com.onandor.nesemu.nes.mappers.Mapper0
 import kotlinx.coroutines.delay
-import kotlin.math.roundToLong
 import kotlin.time.TimeSource
 
 class Nes(val frameReady: (IntArray) -> Unit) {
@@ -115,7 +114,7 @@ class Nes(val frameReady: (IntArray) -> Unit) {
             while (!isFrameReady) {
                 val cpuCycles = cpu.step()
                 for (i in 0 until cpuCycles * 3) {
-                    ppu.tick()
+                    ppu.tick2()
                 }
             }
             isFrameReady = false
@@ -132,6 +131,23 @@ class Nes(val frameReady: (IntArray) -> Unit) {
                 fpsMeasureStart = timeSource.markNow()
                 Log.i(TAG, "FPS: $fps")
             }
+        }
+    }
+
+    // Functions used for debugging
+
+    fun cpuReadMemory_dbg(address: Int): Int {
+        return when (address) {
+            in 0x0000 .. 0x1FFF -> cpuMemory[address and 0x07FF]        // 2 KB RAM with mirroring
+            in 0x2000 .. 0x3FFF -> ppu.cpuReadRegister_dbg(address and 0x2007) // I/O Registers with mirroring
+            in 0x4000 .. 0x4019 -> 0                                    // Registers (Mostly APU)
+            in 0x4020 .. 0x5FFF -> {                                    // Cartridge Expansion ROM
+                throw InvalidOperationException(TAG,
+                    "CPU read at $address: Cartridge Expansion ROM not supported")
+            }
+            in 0x6000 .. 0x7FFF -> 0                                    // SRAM
+            in 0x8000 .. 0xFFFF -> mapper.readPrgRom(address)           // PRG-ROM
+            else -> throw InvalidOperationException(TAG, "Invalid CPU read at $address")
         }
     }
 }

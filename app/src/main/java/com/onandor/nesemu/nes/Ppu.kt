@@ -1,5 +1,6 @@
 package com.onandor.nesemu.nes
 
+import java.nio.IntBuffer
 import kotlin.random.Random
 
 /*
@@ -83,12 +84,17 @@ class Ppu(
     // Registers
     private var ppuctrl: Int = 0
     private var ppumask: Int = 0
-    private var ppustatus: Int = 0b1010000
+    //private var ppustatus: Int = 0b1010000
+    private var ppustatus: Int = 0
     private var oamaddr: Int = 0
     private var oamdata: Int = 0
     private var ppuscroll: Int = 0
     private var ppuaddr: Int = 0
     private var ppudata: Int = 0    // = buffered VRAM data from previous read
+
+    // Internal data bus for communicating with the CPU, holds values of previous reads and writes
+    // https://www.nesdev.org/wiki/PPU_registers#MMIO_registers
+    private var busLatch: Int = 0
 
     // Color palette that the currently rendered frame uses
     private var framePalette: IntArray = IntArray(32)
@@ -117,7 +123,7 @@ class Ppu(
 
     private var cycle: Int = 0
     private var scanline: Int = PRE_RENDER_SCANLINE // Scanline 261 is the pre-render scanline
-    private var frame: Int = -1 // Pre-render frame
+    private var numFrames: Int = -1 // Pre-render frame
 
     var mirroring: Mirroring = Mirroring.HORIZONTAL
     private var isRenderingEnabled: Boolean = true
@@ -131,17 +137,20 @@ class Ppu(
     private var patternTableTileLow: Int = 0    // First bit plane
     private var patternTableTileHigh: Int = 0   // Second bit plane
 
+    private var frame: IntBuffer = IntBuffer.allocate(SCREEN_WIDTH * SCREEN_HEIGHT)
+
     fun reset() {
         cycle = 0
         scanline = PRE_RENDER_SCANLINE
-        frame = -1
+        numFrames = -1
         v = 0
         t = 0
         x = 0
         w = false
         ppuctrl = 0
         ppumask = 0
-        ppustatus = ppustatus and 0b1000000
+        //ppustatus = ppustatus and 0b1000000
+        ppustatus = 0
         ppuscroll = 0
         ppudata = 0
         oamData = IntArray(256)
@@ -154,16 +163,16 @@ class Ppu(
             if (cycle == 0) {
                 scanline = (scanline + 1) % PRE_RENDER_SCANLINE
                 if (scanline == 0) {
-                    frame++
+                    numFrames++
                 }
             }
             return
         }
-        if (scanline == PRE_RENDER_SCANLINE && cycle == LAST_CYCLE - 1 && frame % 2 == 1) {
+        if (scanline == PRE_RENDER_SCANLINE && cycle == LAST_CYCLE - 1 && numFrames % 2 == 1) {
             // Skipping the last cycle of odd frames
             cycle = 0
             scanline = 0
-            frame++
+            numFrames++
             return
         }
         if (cycle == 0) {
@@ -176,7 +185,9 @@ class Ppu(
             if (scanline == VBLANK_START_SCANLINE && cycle == 1) {
                 // Start of vertical blank
                 ppustatus = ppustatus or PPUSTATUSFlags.IN_VBLANK
-                frameReady(generateNoise())
+                println("Start vblank, ppustatus: ${ppustatus.toString(2)}")
+                frameReady(frame.array())
+                frame.clear()
                 if (ppuctrl and PPUCTRLFlags.GENERATE_VBLANK_NMI > 0) {
                     generateNmi()
                 }
@@ -189,16 +200,58 @@ class Ppu(
             if (cycle == 0) {
                 scanline = (scanline + 1) % PRE_RENDER_SCANLINE
                 if (scanline == 0) {
-                    frame++
+                    numFrames++
                 }
             }
             return
         }
 
         when (cycle) {
-            in 1 .. 256,
-            in 321 .. 336-> {
+            in 1 .. 256 -> {
                 // 1-256: Fetch background tile data
+                when (cycle % 8) {
+                    1 -> {
+                        nametableByte = readMemory(0x2000 or (v and 0x0FFF))
+                    }
+                    3 -> {
+                        val address = 0x23C0 or (v and 0x0C00) or ((v ushr 4) and 0x38) or
+                                ((v ushr 2) and 0x07)
+                        attributeTableByte = readMemory(address)
+                    }
+                    5 -> {
+                        val basePatternTable = 0x1000 *
+                                ((ppuctrl and PPUCTRLFlags.BG_TABLE_ADDRESS) shr 4)
+                        val fineY = (v ushr 12) and 0x07
+                        val address = basePatternTable or (nametableByte shl 4) or fineY
+                        //val address = basePatternTable or (nametableByte shl 4)
+                        patternTableTileLow = readMemory(address)
+                    }
+                    7 -> {
+                        val basePatternTable = 0x1000 *
+                                ((ppuctrl and PPUCTRLFlags.BG_TABLE_ADDRESS) shr 4)
+                        val fineY = (v ushr 12) and 0x07
+                        val address = (basePatternTable or (nametableByte shl 4) or fineY) + 8
+                        //val address = (basePatternTable or (nametableByte shl 4)) + 8
+                        patternTableTileHigh = readMemory(address)
+                    }
+                    0 -> {
+                        for (i in 0 until 8) {
+                            val high = (patternTableTileHigh and (0x80 shr i)) > 0
+                            val low = (patternTableTileLow and (0x80 shr i)) > 0
+                            if (high && low) {
+                                frame.put(0xfcba03)
+                            } else if (high) {
+                                frame.put(0x03fc1c)
+                            } else if (low) {
+                                frame.put(0x0373fc)
+                            } else {
+                                frame.put(0)
+                            }
+                        }
+                    }
+                }
+            }
+            in 321 .. 336 -> {
                 // 321-336: Prefetch data for the first 2 background tiles of the next scanline
                 when (cycle % 8) {
                     1 -> {
@@ -222,9 +275,6 @@ class Ppu(
                         val fineY = (v ushr 12) and 0x07
                         val address = (basePatternTable or (nametableByte shl 4) or fineY) + 8
                         patternTableTileHigh = readMemory(address)
-                    }
-                    0 -> {
-                        // save data
                     }
                 }
             }
@@ -252,6 +302,7 @@ class Ppu(
                 }
             }
             in 337 ..340 -> {
+                // Garbage nametable reads
                 if (cycle % 8 == 1 || cycle % 8 == 3) {
                     nametableByte = readMemory(0x2000 or (v and 0x0FFF))
                 }
@@ -264,7 +315,81 @@ class Ppu(
         if (cycle == 0) {
             scanline = (scanline + 1) % PRE_RENDER_SCANLINE
             if (scanline == 0) {
-                frame++
+                numFrames++
+            }
+        }
+    }
+
+    fun tick2() {
+        cycle++
+        if (cycle == LAST_CYCLE) {
+            cycle = 0
+            scanline++
+        }
+
+        if (scanline in 0 until POST_RENDER_SCANLINE) {
+            drawBackground()
+        } else if (scanline == VBLANK_START_SCANLINE && cycle == 1) {
+            // VBlank start
+            ppustatus = ppustatus or PPUSTATUSFlags.IN_VBLANK
+            frameReady(frame.array())
+            frame.clear()
+            if (ppuctrl and PPUCTRLFlags.GENERATE_VBLANK_NMI > 0) {
+                generateNmi()
+            }
+        } else if (scanline == PRE_RENDER_SCANLINE && cycle == 1) {
+            // VBlank end
+            ppustatus = ppustatus and PPUSTATUSFlags.IN_VBLANK.inv()
+            scanline = 0
+            numFrames++
+        }
+    }
+
+    private fun drawBackground() {
+        when (cycle) {
+            in 1 .. 256 -> {
+                // 1-256: Fetch background tile data
+                when (cycle % 8) {
+                    1 -> {
+                        nametableByte = readMemory(0x2000 or (v and 0x0FFF))
+                    }
+                    3 -> {
+                        val address = 0x23C0 or (v and 0x0C00) or ((v ushr 4) and 0x38) or
+                                ((v ushr 2) and 0x07)
+                        attributeTableByte = readMemory(address)
+                    }
+                    5 -> {
+                        val basePatternTable = 0x1000 *
+                                ((ppuctrl and PPUCTRLFlags.BG_TABLE_ADDRESS) shr 4)
+                        val fineY = (v ushr 12) and 0x07
+                        val address = basePatternTable or (nametableByte shl 4) or fineY
+                        //val address = basePatternTable or (nametableByte shl 4)
+                        patternTableTileLow = readMemory(address)
+                    }
+                    7 -> {
+                        val basePatternTable = 0x1000 *
+                                ((ppuctrl and PPUCTRLFlags.BG_TABLE_ADDRESS) shr 4)
+                        val fineY = (v ushr 12) and 0x07
+                        val address = (basePatternTable or (nametableByte shl 4) or fineY) + 8
+                        //val address = (basePatternTable or (nametableByte shl 4)) + 8
+                        patternTableTileHigh = readMemory(address)
+                    }
+                    0 -> {
+                        for (i in 0 until 8) {
+                            val high = (patternTableTileHigh and (0x80 shr i)) > 0
+                            val low = (patternTableTileLow and (0x80 shr i)) > 0
+                            if (high && low) {
+                                frame.put(0xfcba03)
+                            } else if (high) {
+                                frame.put(0x03fc1c)
+                            } else if (low) {
+                                frame.put(0x0373fc)
+                            } else {
+                                frame.put(0)
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -316,41 +441,49 @@ class Ppu(
         }
     }
 
-    // https://www.nesdev.org/wiki/PPU_scrolling#$2000_(PPUCTRL)_write
+    // https://www.nesdev.org/wiki/PPU_registers
+    // https://www.nesdev.org/wiki/PPU_scrolling#Register_controls
     fun cpuReadRegister(address: Int): Int {
-        val register = address - 0x2000
-        return when (register) {
+        return when (address) {
             Registers.PPUSTATUS -> {
                 w = false
                 val oldStatus = ppustatus
-                ppustatus = ppustatus and 0x7F
+                ppustatus = ppustatus and PPUSTATUSFlags.IN_VBLANK.inv()
+                busLatch = oldStatus
                 oldStatus
             }
-            Registers.OAMDATA -> oamData[oamaddr]
+            Registers.OAMDATA -> {
+                busLatch = oamData[oamaddr]
+                busLatch
+            }
             Registers.PPUDATA -> {
                 val oldValue = ppudata
                 ppudata = readMemory(v)
+                busLatch = oldValue
                 oldValue
             }
-            else -> throw InvalidOperationException(TAG,
-                "Attempting to read write-only PPU register at $address")
+            else -> busLatch
         }
     }
 
     // TODO (?): ignore writes to specific registers until X CPU cycles
     // https://www.nesdev.org/wiki/PPU_registers - second paragraph
     fun cpuWriteRegister(address: Int, value: Int) {
-        val valueByte =  value and 0xFF
+        val valueByte = value and 0xFF
+        busLatch = valueByte
         when (address) {
             Registers.PPUCTRL -> {
+                //println("PPUCTRL write: ${value.toString(2)}")
                 ppuctrl = value
                 t = (t and 0x73FF) or ((value and 0x03) shl 10)
                 if (ppuctrl and PPUCTRLFlags.GENERATE_VBLANK_NMI > 0 &&
                     ppustatus and PPUSTATUSFlags.IN_VBLANK > 0) {
+                    //println("PPUCTRL generate nmi")
                     generateNmi()
                 }
             }
             Registers.PPUMASK -> {
+                //println("PPUMASK write")
                 ppumask = valueByte
                 isRenderingEnabled = ppumask and
                         (PPUMASKFlags.SHOW_SPRITES or PPUMASKFlags.SHOW_BACKGROUND) > 0
@@ -383,13 +516,35 @@ class Ppu(
                 writeMemory(v, valueByte)
                 v += if (ppuctrl and PPUCTRLFlags.VRAM_ADDR_INCREMENT > 0) 32 else 1
             }
-            else -> throw InvalidOperationException(TAG,
-                "Attempting to write read-only PPU register at $address")
         }
     }
 
     fun loadOamData(data: IntArray) {
         oamData = data.copyOf()
+    }
+
+    // Functions used for debugging
+
+    fun cpuReadRegister_dbg(address: Int): Int {
+        return when (address) {
+            Registers.PPUSTATUS -> ppustatus
+            Registers.OAMDATA -> oamData[oamaddr]
+            Registers.PPUDATA -> ppudata
+            else -> busLatch
+        }
+    }
+
+    fun renderPatternTable(): IntArray {
+        val patternTableFrame = IntBuffer.allocate(256 * 128)
+        for (row in 0 ..< 256) {
+            for (col in 0 ..< 128) {
+                val address = (row / 8 * 0x100) + (row % 8) + (col / 8) * 0x10
+                val pixel = ((readMemory(address) shr (7 - (col % 8))) and 1) +
+                        ((readMemory(address + 8) shr (7 - (col % 8))) and 1) * 2
+                patternTableFrame.put(row * 128 + col, COLOR_PALETTE[pixel])
+            }
+        }
+        return patternTableFrame.array()
     }
 
     private fun generateNoise(): IntArray {

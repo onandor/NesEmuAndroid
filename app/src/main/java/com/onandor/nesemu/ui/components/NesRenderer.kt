@@ -187,13 +187,14 @@ class NesRenderer : GLSurfaceView.Renderer {
         private const val HEIGHT = 240
         private const val SIZE_OF_FLOAT = 4
         private const val SIZE_OF_SHORT = 2
+        private const val HW_RATIO = HEIGHT.toFloat() / WIDTH
 
         private val SCREEN_VERTICES = floatArrayOf(
-             // position   // color
-            -1f,  0.9375f, 0f, 1f,   // top left
-            -1f, -0.9375f, 0f, 0f,   // bottom left
-             1f, -0.9375f, 1f, 0f,   // bottom right
-             1f,  0.9375f, 1f, 1f    // top right
+            // position   // color
+            -1f,  HW_RATIO, 0f, 0f,   // top left
+            -1f, -HW_RATIO, 0f, 1f,   // bottom left
+            1f, -HW_RATIO, 1f, 1f,   // bottom right
+            1f,  HW_RATIO, 1f, 0f    // top right
         )
 
         private val TEST_QUAD_VERTEX_BUFFER: FloatBuffer = ByteBuffer
