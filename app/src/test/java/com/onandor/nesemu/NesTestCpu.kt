@@ -311,10 +311,6 @@ class NesTestCpu {
         logWriter.close()
     }
 
-    private fun dummyDebugCallback(PC: Int, SP: Int, A: Int, X: Int, Y: Int, PS: Int, cycles: Int) {
-        println("This is a dummy debug callback, cycles: $cycles")
-    }
-
     @Test
     fun runTest() {
         val rom = File(TEST_ROM_PATH).readBytes()

@@ -185,7 +185,6 @@ class Ppu(
             if (scanline == VBLANK_START_SCANLINE && cycle == 1) {
                 // Start of vertical blank
                 ppustatus = ppustatus or PPUSTATUSFlags.IN_VBLANK
-                println("Start vblank, ppustatus: ${ppustatus.toString(2)}")
                 frameReady(frame.array())
                 frame.clear()
                 if (ppuctrl and PPUCTRLFlags.GENERATE_VBLANK_NMI > 0) {
@@ -212,6 +211,7 @@ class Ppu(
                 when (cycle % 8) {
                     1 -> {
                         nametableByte = readMemory(0x2000 or (v and 0x0FFF))
+                        //println("nameTableByte: $nametableByte")
                     }
                     3 -> {
                         val address = 0x23C0 or (v and 0x0C00) or ((v ushr 4) and 0x38) or
@@ -223,7 +223,7 @@ class Ppu(
                                 ((ppuctrl and PPUCTRLFlags.BG_TABLE_ADDRESS) shr 4)
                         val fineY = (v ushr 12) and 0x07
                         val address = basePatternTable or (nametableByte shl 4) or fineY
-                        //val address = basePatternTable or (nametableByte shl 4)
+                        //println("pattern table tile low address: ${address.toHexString(4)}")
                         patternTableTileLow = readMemory(address)
                     }
                     7 -> {
@@ -231,7 +231,7 @@ class Ppu(
                                 ((ppuctrl and PPUCTRLFlags.BG_TABLE_ADDRESS) shr 4)
                         val fineY = (v ushr 12) and 0x07
                         val address = (basePatternTable or (nametableByte shl 4) or fineY) + 8
-                        //val address = (basePatternTable or (nametableByte shl 4)) + 8
+                        //println("pattern table tile high address: ${address.toHexString(4)}")
                         patternTableTileHigh = readMemory(address)
                     }
                     0 -> {
@@ -363,7 +363,7 @@ class Ppu(
                                 ((ppuctrl and PPUCTRLFlags.BG_TABLE_ADDRESS) shr 4)
                         val fineY = (v ushr 12) and 0x07
                         val address = basePatternTable or (nametableByte shl 4) or fineY
-                        //val address = basePatternTable or (nametableByte shl 4)
+                        //println("pattern table tile low address: ${address.toHexString(4)}")
                         patternTableTileLow = readMemory(address)
                     }
                     7 -> {
@@ -371,7 +371,7 @@ class Ppu(
                                 ((ppuctrl and PPUCTRLFlags.BG_TABLE_ADDRESS) shr 4)
                         val fineY = (v ushr 12) and 0x07
                         val address = (basePatternTable or (nametableByte shl 4) or fineY) + 8
-                        //val address = (basePatternTable or (nametableByte shl 4)) + 8
+                        //println("pattern table tile high address: ${address.toHexString(4)}")
                         patternTableTileHigh = readMemory(address)
                     }
                     0 -> {
@@ -447,20 +447,25 @@ class Ppu(
         return when (address) {
             Registers.PPUSTATUS -> {
                 w = false
-                val oldStatus = ppustatus
+                val status = ppustatus
                 ppustatus = ppustatus and PPUSTATUSFlags.IN_VBLANK.inv()
-                busLatch = oldStatus
-                oldStatus
+                busLatch = status
+                status
             }
             Registers.OAMDATA -> {
                 busLatch = oamData[oamaddr]
                 busLatch
             }
             Registers.PPUDATA -> {
-                val oldValue = ppudata
+                var data = ppudata
                 ppudata = readMemory(v)
-                busLatch = oldValue
-                oldValue
+                // Palette reads return values in the same cycle
+                if (v >= 0x3F00) {
+                    data = ppudata
+                }
+                v += if (ppuctrl and PPUCTRLFlags.VRAM_ADDR_INCREMENT > 0) 32 else 1
+                busLatch = data
+                data
             }
             else -> busLatch
         }
@@ -473,17 +478,16 @@ class Ppu(
         busLatch = valueByte
         when (address) {
             Registers.PPUCTRL -> {
-                //println("PPUCTRL write: ${value.toString(2)}")
                 ppuctrl = value
                 t = (t and 0x73FF) or ((value and 0x03) shl 10)
+                /*
                 if (ppuctrl and PPUCTRLFlags.GENERATE_VBLANK_NMI > 0 &&
                     ppustatus and PPUSTATUSFlags.IN_VBLANK > 0) {
-                    //println("PPUCTRL generate nmi")
                     generateNmi()
                 }
+                 */
             }
             Registers.PPUMASK -> {
-                //println("PPUMASK write")
                 ppumask = valueByte
                 isRenderingEnabled = ppumask and
                         (PPUMASKFlags.SHOW_SPRITES or PPUMASKFlags.SHOW_BACKGROUND) > 0

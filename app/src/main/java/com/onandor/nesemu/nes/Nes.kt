@@ -81,7 +81,7 @@ class Nes(val frameReady: (IntArray) -> Unit) {
         val mirroredAddress = address and 0x3FFF
         when (mirroredAddress) {
             in 0x0000 .. 0x1FFF -> mapper.writeChrRom(address, value) // Pattern Table
-            in 0x2000 .. 0x2FFF -> vram[mapper.mapNametableAddress(address)]    // Nametables
+            in 0x2000 .. 0x2FFF -> vram[mapper.mapNametableAddress(address)] = value    // Nametables
             in 0x3000 .. 0x3EFF -> ppuWriteMemory(address and 0x2EFF, value) // Mirror of 0x2000-0x2EFF
             in 0x3F00 .. 0x3F0F -> 0    // Background Palette
             in 0x3F10 .. 0x3F1F -> 0    // Sprite Palette
