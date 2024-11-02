@@ -42,55 +42,109 @@ class Ppu(
         )
     }
 
-    // https://www.nesdev.org/wiki/PPU_registers
-    private object Registers {
-        const val PPUCTRL = 0x2000
-        const val PPUMASK = 0x2001
-        const val PPUSTATUS = 0x2002
-        const val OAMADDR = 0x2003
-        const val OAMDATA = 0x2004
-        const val PPUSCROLL = 0x2005
-        const val PPUADDR = 0x2006
-        const val PPUDATA = 0x2007
-    }
-
-    private object PPUCTRLFlags {
-        const val BASE_NAMETABLE = 0b00000011
-        const val VRAM_ADDR_INCREMENT = 0b00000100
-        const val SPRITE_TABLE_ADDRESS = 0b00001000
-        const val BG_TABLE_ADDRESS = 0b00010000
-        const val SPRITE_SIZE = 0b00100000
-        const val PPU_MASTER_SLAVE = 0b01000000
-        const val GENERATE_VBLANK_NMI = 0b10000000
-    }
-
-    private object PPUMASKFlags {
-        const val GRAYSCALE = 0b00000001
-        const val SHOW_BG_IN_LEFT = 0b00000010
-        const val SHOW_SPRITES_IN_LEFT = 0b00000100
-        const val SHOW_BACKGROUND = 0b00001000
-        const val SHOW_SPRITES = 0b00010000
-        const val EMPHASIZE_RED = 0b00100000
-        const val EMPHASIZE_GREEN = 0b01000000
-        const val EMPHASIZE_BLUE = 0b10000000
-    }
-
-    private object PPUSTATUSFlags {
-        const val SPRITE_OVERFLOW = 0b00100000
-        const val SPRITE_0_HIT = 0b01000000
-        const val IN_VBLANK = 0b10000000
-    }
-
     // Registers
-    private var ppuctrl: Int = 0
-    private var ppumask: Int = 0
-    //private var ppustatus: Int = 0b1010000
-    private var ppustatus: Int = 0
-    private var oamaddr: Int = 0
-    private var oamdata: Int = 0
-    private var ppuscroll: Int = 0
-    private var ppuaddr: Int = 0
-    private var ppudata: Int = 0    // = buffered VRAM data from previous read
+    // https://www.nesdev.org/wiki/PPU_registers
+
+    private object Control {
+        const val ADDRESS = 0x2000
+        var register: Int = 0
+        var nametableAddrLow: Int
+            get() { return register and 0x01 }
+            set(value) { register = if (value > 0) register or 0x01 else register and 0x01.inv() }
+        var nametableAddrHigh: Int
+            get() { return (register and 0x02) shr 1 }
+            set(value) { register = if (value > 0) register or 0x02 else register and 0x02.inv() }
+        var vramAddrIncrement: Int
+            get() { return (register and 0x04) shr 2 }
+            set(value) { register = if (value > 0) register or 0x04 else register and 0x04.inv() }
+        var spritePatternTableAddr: Int
+            get() { return (register and 0x08) shr 3 }
+            set(value) { register = if (value > 0) register or 0x08 else register and 0x08.inv() }
+        var backgroundPatternTableAddr: Int
+            get() { return (register and 0x10) shr 4 }
+            set(value) { register = if (value > 0) register or 0x10 else register and 0x10.inv() }
+        var spriteSize: Int
+            get() { return (register and 0x20) shr 5 }
+            set(value) { register = if (value > 0) register or 0x20 else register and 0x20.inv() }
+        var masterSlaveSelect: Int
+            get() { return (register and 0x40) shr 6 }
+            set(value) { register = if (value > 0) register or 0x40 else register and 0x40.inv() }
+        var enableVBlankNmi: Int
+            get() { return (register and 0x80) shr 7 }
+            set(value) { register = if (value > 0) register or 0x80 else register and 0x80.inv() }
+    }
+
+    private object Mask {
+        const val ADDRESS = 0x2001
+        var register: Int = 0
+        var grayscale: Int
+            get() { return register and 0x01 }
+            set(value) { register = if (value > 0) register or 0x01 else register and 0x01.inv() }
+        var showBgInLeft: Int
+            get() { return (register and 0x02) shr 1 }
+            set(value) { register = if (value > 0) register or 0x02 else register and 0x02.inv() }
+        var showSpritesInLeft: Int
+            get() { return (register and 0x04) shr 2 }
+            set(value) { register = if (value > 0) register or 0x04 else register and 0x04.inv() }
+        var backgroundRenderingOn: Int
+            get() { return (register and 0x08) shr 3 }
+            set(value) { register = if (value > 0) register or 0x08 else register and 0x08.inv() }
+        var spriteRenderingOn: Int
+            get() { return (register and 0x10) shr 4 }
+            set(value) { register = if (value > 0) register or 0x10 else register and 0x10.inv() }
+        var emphasizeRed: Int
+            get() { return (register and 0x20) shr 5 }
+            set(value) { register = if (value > 0) register or 0x20 else register and 0x20.inv() }
+        var emphasizeGreen: Int
+            get() { return (register and 0x40) shr 6 }
+            set(value) { register = if (value > 0) register or 0x40 else register and 0x40.inv() }
+        var emphasizeBlue: Int
+            get() { return (register and 0x80) shr 7 }
+            set(value) { register = if (value > 0) register or 0x80 else register and 0x80.inv() }
+    }
+
+    private object Status {
+        const val ADDRESS = 0x2002
+        var register: Int = 0
+        var spriteOverflow: Int
+            get() { return (register and 0x20) shr 5 }
+            set(value) { register = if (value > 0) register or 0x20 else register and 0x20.inv() }
+        var spriteZeroHit: Int
+            get() { return (Mask.register and 0x40) shr 6 }
+            set(value) { register = if (value > 0) register or 0x40 else register and 0x40.inv() }
+        var vblank: Int
+            get() { return (Mask.register and 0x80) shr 7 }
+            set(value) { register = if (value > 0) register or 0x80 else register and 0x80.inv() }
+    }
+
+    private object OAMAddress {
+        const val ADDRESS = 0x2003
+        var register: Int = 0
+    }
+
+    // Information about sprites (64 * 4 bytes)
+    // - Byte 1: Sprite Y coordinate
+    // - Byte 2: Sprite tile number
+    // - Byte 3: Sprite attribute
+    // - Byte 4: Sprite X coordinate
+    private object OAMData {
+        const val ADDRESS = 0x2004
+        var data = IntArray(256)
+    }
+
+    private object Scroll {
+        const val ADDRESS = 0x2005
+        var register: Int = 0
+    }
+
+    private object Address {
+        const val ADDRESS = 0x2006
+    }
+
+    private object Data {
+        const val ADDRESS = 0x2007
+        var register: Int = 0
+    }
 
     // Internal data bus for communicating with the CPU, holds values of previous reads and writes
     // https://www.nesdev.org/wiki/PPU_registers#MMIO_registers
@@ -98,13 +152,6 @@ class Ppu(
 
     // Color palette that the currently rendered frame uses
     private var framePalette: IntArray = IntArray(32)
-
-    // Information about sprites (64 * 4 bytes)
-    // - Byte 1: Sprite Y coordinate
-    // - Byte 2: Sprite tile number
-    // - Byte 3: Sprite attribute
-    // - Byte 4: Sprite X coordinate
-    private var oamData: IntArray = IntArray(256)
 
     /*
      Structure of v and t during rendering:
@@ -147,13 +194,12 @@ class Ppu(
         t = 0
         x = 0
         w = false
-        ppuctrl = 0
-        ppumask = 0
-        //ppustatus = ppustatus and 0b1000000
-        ppustatus = 0
-        ppuscroll = 0
-        ppudata = 0
-        oamData = IntArray(256)
+        Control.register = 0
+        Mask.register = 0
+        Status.register = 0
+        Scroll.register = 0
+        Data.register = 0
+        OAMData.data = IntArray(256)
         isRenderingEnabled = true
     }
 
@@ -184,15 +230,15 @@ class Ppu(
         if (scanline >= POST_RENDER_SCANLINE) {
             if (scanline == VBLANK_START_SCANLINE && cycle == 1) {
                 // Start of vertical blank
-                ppustatus = ppustatus or PPUSTATUSFlags.IN_VBLANK
+                Status.vblank = 1
                 frameReady(frame.array())
                 frame.clear()
-                if (ppuctrl and PPUCTRLFlags.GENERATE_VBLANK_NMI > 0) {
+                if (Control.enableVBlankNmi > 0) {
                     generateNmi()
                 }
             } else if (scanline == PRE_RENDER_SCANLINE && cycle == 1) {
                 // End of vertical blank
-                ppustatus = ppustatus and PPUSTATUSFlags.IN_VBLANK.inv()
+                Status.vblank = 0
             }
 
             cycle = (cycle + 1) % LAST_CYCLE
@@ -219,16 +265,14 @@ class Ppu(
                         attributeTableByte = readMemory(address)
                     }
                     5 -> {
-                        val basePatternTable = 0x1000 *
-                                ((ppuctrl and PPUCTRLFlags.BG_TABLE_ADDRESS) shr 4)
+                        val basePatternTable = 0x1000 * Control.backgroundPatternTableAddr
                         val fineY = (v ushr 12) and 0x07
                         val address = basePatternTable or (nametableByte shl 4) or fineY
                         //println("pattern table tile low address: ${address.toHexString(4)}")
                         patternTableTileLow = readMemory(address)
                     }
                     7 -> {
-                        val basePatternTable = 0x1000 *
-                                ((ppuctrl and PPUCTRLFlags.BG_TABLE_ADDRESS) shr 4)
+                        val basePatternTable = 0x1000 * Control.backgroundPatternTableAddr
                         val fineY = (v ushr 12) and 0x07
                         val address = (basePatternTable or (nametableByte shl 4) or fineY) + 8
                         //println("pattern table tile high address: ${address.toHexString(4)}")
@@ -263,15 +307,13 @@ class Ppu(
                         attributeTableByte = readMemory(address)
                     }
                     5 -> {
-                        val basePatternTable = 0x1000 *
-                                ((ppuctrl and PPUCTRLFlags.BG_TABLE_ADDRESS) shr 4)
+                        val basePatternTable = 0x1000 * Control.backgroundPatternTableAddr
                         val fineY = (v ushr 12) and 0x07
                         val address = basePatternTable or (nametableByte shl 4) or fineY
                         patternTableTileLow = readMemory(address)
                     }
                     7 -> {
-                        val basePatternTable = 0x1000 *
-                                ((ppuctrl and PPUCTRLFlags.BG_TABLE_ADDRESS) shr 4)
+                        val basePatternTable = 0x1000 * Control.backgroundPatternTableAddr
                         val fineY = (v ushr 12) and 0x07
                         val address = (basePatternTable or (nametableByte shl 4) or fineY) + 8
                         patternTableTileHigh = readMemory(address)
@@ -286,15 +328,13 @@ class Ppu(
                         nametableByte = readMemory(0x2000 or (v and 0x0FFF))
                     }
                     5 -> {
-                        val basePatternTable = 0x1000 *
-                                ((ppuctrl and PPUCTRLFlags.BG_TABLE_ADDRESS) shr 4)
+                        val basePatternTable = 0x1000 * Control.backgroundPatternTableAddr
                         val fineY = (v ushr 12) and 0x07
                         val address = basePatternTable or (nametableByte shl 4) or fineY
                         patternTableTileLow = readMemory(address)
                     }
                     7 -> {
-                        val basePatternTable = 0x1000 *
-                                ((ppuctrl and PPUCTRLFlags.BG_TABLE_ADDRESS) shr 4)
+                        val basePatternTable = 0x1000 * Control.backgroundPatternTableAddr
                         val fineY = (v ushr 12) and 0x07
                         val address = (basePatternTable or (nametableByte shl 4) or fineY) + 8
                         patternTableTileHigh = readMemory(address)
@@ -331,15 +371,15 @@ class Ppu(
             drawBackground()
         } else if (scanline == VBLANK_START_SCANLINE && cycle == 1) {
             // VBlank start
-            ppustatus = ppustatus or PPUSTATUSFlags.IN_VBLANK
+            Status.vblank = 1
             frameReady(frame.array())
             frame.clear()
-            if (ppuctrl and PPUCTRLFlags.GENERATE_VBLANK_NMI > 0) {
+            if (Control.enableVBlankNmi > 0) {
                 generateNmi()
             }
         } else if (scanline == PRE_RENDER_SCANLINE && cycle == 1) {
             // VBlank end
-            ppustatus = ppustatus and PPUSTATUSFlags.IN_VBLANK.inv()
+            Status.vblank = 0
             scanline = 0
             numFrames++
         }
@@ -359,16 +399,14 @@ class Ppu(
                         attributeTableByte = readMemory(address)
                     }
                     5 -> {
-                        val basePatternTable = 0x1000 *
-                                ((ppuctrl and PPUCTRLFlags.BG_TABLE_ADDRESS) shr 4)
+                        val basePatternTable = 0x1000 * Control.backgroundPatternTableAddr
                         val fineY = (v ushr 12) and 0x07
                         val address = basePatternTable or (nametableByte shl 4) or fineY
                         //println("pattern table tile low address: ${address.toHexString(4)}")
                         patternTableTileLow = readMemory(address)
                     }
                     7 -> {
-                        val basePatternTable = 0x1000 *
-                                ((ppuctrl and PPUCTRLFlags.BG_TABLE_ADDRESS) shr 4)
+                        val basePatternTable = 0x1000 * Control.backgroundPatternTableAddr
                         val fineY = (v ushr 12) and 0x07
                         val address = (basePatternTable or (nametableByte shl 4) or fineY) + 8
                         //println("pattern table tile high address: ${address.toHexString(4)}")
@@ -445,25 +483,25 @@ class Ppu(
     // https://www.nesdev.org/wiki/PPU_scrolling#Register_controls
     fun cpuReadRegister(address: Int): Int {
         return when (address) {
-            Registers.PPUSTATUS -> {
+            Status.ADDRESS -> {
                 w = false
-                val status = ppustatus
-                ppustatus = ppustatus and PPUSTATUSFlags.IN_VBLANK.inv()
+                val status = Status.register
+                Status.vblank = 0
                 busLatch = status
                 status
             }
-            Registers.OAMDATA -> {
-                busLatch = oamData[oamaddr]
+            OAMData.ADDRESS -> {
+                busLatch = OAMData.data[OAMAddress.register]
                 busLatch
             }
-            Registers.PPUDATA -> {
-                var data = ppudata
-                ppudata = readMemory(v)
+            Data.ADDRESS -> {
+                var data = Data.register
+                Data.register = readMemory(v)
                 // Palette reads return values in the same cycle
                 if (v >= 0x3F00) {
-                    data = ppudata
+                    data = Data.register
                 }
-                v += if (ppuctrl and PPUCTRLFlags.VRAM_ADDR_INCREMENT > 0) 32 else 1
+                v += if (Control.vramAddrIncrement > 0) 32 else 1
                 busLatch = data
                 data
             }
@@ -477,8 +515,8 @@ class Ppu(
         val valueByte = value and 0xFF
         busLatch = valueByte
         when (address) {
-            Registers.PPUCTRL -> {
-                ppuctrl = value
+            Control.ADDRESS -> {
+                Control.register = value
                 t = (t and 0x73FF) or ((value and 0x03) shl 10)
                 /*
                 if (ppuctrl and PPUCTRLFlags.GENERATE_VBLANK_NMI > 0 &&
@@ -487,17 +525,16 @@ class Ppu(
                 }
                  */
             }
-            Registers.PPUMASK -> {
-                ppumask = valueByte
-                isRenderingEnabled = ppumask and
-                        (PPUMASKFlags.SHOW_SPRITES or PPUMASKFlags.SHOW_BACKGROUND) > 0
+            Mask.ADDRESS -> {
+                Mask.register = valueByte
+                isRenderingEnabled = Mask.spriteRenderingOn > 0 || Mask.backgroundRenderingOn > 0
             }
-            Registers.OAMADDR -> oamaddr = valueByte
-            Registers.OAMDATA -> {
-                oamData[oamaddr] = valueByte
-                oamaddr.plus8(1)
+            OAMAddress.ADDRESS -> OAMAddress.register = valueByte
+            OAMData.ADDRESS -> {
+                OAMData.data[OAMAddress.register] = valueByte
+                OAMAddress.register.plus8(1)
             }
-            Registers.PPUSCROLL -> {
+            Scroll.ADDRESS -> {
                 if (!w) {
                     t = (t and 0x7FE0) or ((valueByte and 0xF8) shr 3)
                     x = valueByte and 0x07
@@ -508,7 +545,7 @@ class Ppu(
                     w = false
                 }
             }
-            Registers.PPUADDR -> {
+            Address.ADDRESS -> {
                 if (!w) {
                     t = (t and 0xFF) or ((valueByte and 0x3F) shl 8)
                 } else {
@@ -516,24 +553,24 @@ class Ppu(
                 }
                 w = !w
             }
-            Registers.PPUDATA -> {
+            Data.ADDRESS -> {
                 writeMemory(v, valueByte)
-                v += if (ppuctrl and PPUCTRLFlags.VRAM_ADDR_INCREMENT > 0) 32 else 1
+                v += if (Control.vramAddrIncrement > 0) 32 else 1
             }
         }
     }
 
     fun loadOamData(data: IntArray) {
-        oamData = data.copyOf()
+        OAMData.data = data.copyOf()
     }
 
     // Functions used for debugging
 
     fun cpuReadRegister_dbg(address: Int): Int {
         return when (address) {
-            Registers.PPUSTATUS -> ppustatus
-            Registers.OAMDATA -> oamData[oamaddr]
-            Registers.PPUDATA -> ppudata
+            Status.ADDRESS -> Status.register
+            OAMData.ADDRESS -> OAMData.data[OAMAddress.register]
+            Data.ADDRESS -> Data.register
             else -> busLatch
         }
     }
