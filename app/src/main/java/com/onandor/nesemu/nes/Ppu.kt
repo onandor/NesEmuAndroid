@@ -162,18 +162,17 @@ class Ppu(
      +++----------------- fine Y scroll
     */
     private var v: Int = 0  // 15 bits, holds the VRAM address the PPU is about to access
-    private var t: Int = 0  // 15 bits, holds a "temporary" VRAM address shared by PPUSCROLL and
+    private var t: Int = 0  // 15 bits, holds a temporary VRAM address shared by PPUSCROLL and
                             // PPUADDR
     private var x: Int = 0  // 3 bits, holds the 3 bit X scroll position within a 8x8-pixel tile
     private var w: Boolean = false  // 1 bit flag, first or second write toggle for PPUSCROLL and
                                     // PPUADDR
 
     private var cycle: Int = 0
-    private var scanline: Int = PRE_RENDER_SCANLINE // Scanline 261 is the pre-render scanline
+    private var scanline: Int = PRE_RENDER_SCANLINE // Scanline -1 is the pre-render scanline
     private var numFrames: Int = -1 // Pre-render frame
 
     var mirroring: Mirroring = Mirroring.HORIZONTAL
-    private var isRenderingEnabled: Boolean = true
 
     private var nametableByte: Int = 0
     private var attributeTableByte: Int = 0
@@ -200,20 +199,9 @@ class Ppu(
         Scroll.register = 0
         Data.register = 0
         OAMData.data = IntArray(256)
-        isRenderingEnabled = true
     }
 
     fun tick() {
-        if (!isRenderingEnabled) {
-            cycle = (cycle + 1) % LAST_CYCLE
-            if (cycle == 0) {
-                scanline = (scanline + 1) % PRE_RENDER_SCANLINE
-                if (scanline == 0) {
-                    numFrames++
-                }
-            }
-            return
-        }
         if (scanline == PRE_RENDER_SCANLINE && cycle == LAST_CYCLE - 1 && numFrames % 2 == 1) {
             // Skipping the last cycle of odd frames
             cycle = 0
@@ -222,9 +210,8 @@ class Ppu(
             return
         }
         if (cycle == 0) {
-            // TODO: might not be necessary
             // Idle cycle
-            cycle++
+            cycle = 1
             return
         }
         if (scanline >= POST_RENDER_SCANLINE) {
@@ -257,7 +244,6 @@ class Ppu(
                 when (cycle % 8) {
                     1 -> {
                         nametableByte = readMemory(0x2000 or (v and 0x0FFF))
-                        //println("nameTableByte: $nametableByte")
                     }
                     3 -> {
                         val address = 0x23C0 or (v and 0x0C00) or ((v ushr 4) and 0x38) or
@@ -268,14 +254,12 @@ class Ppu(
                         val basePatternTable = 0x1000 * Control.backgroundPatternTableAddr
                         val fineY = (v ushr 12) and 0x07
                         val address = basePatternTable or (nametableByte shl 4) or fineY
-                        //println("pattern table tile low address: ${address.toHexString(4)}")
                         patternTableTileLow = readMemory(address)
                     }
                     7 -> {
                         val basePatternTable = 0x1000 * Control.backgroundPatternTableAddr
                         val fineY = (v ushr 12) and 0x07
                         val address = (basePatternTable or (nametableByte shl 4) or fineY) + 8
-                        //println("pattern table tile high address: ${address.toHexString(4)}")
                         patternTableTileHigh = readMemory(address)
                     }
                     0 -> {
@@ -349,7 +333,9 @@ class Ppu(
             }
         }
 
-        scroll()
+        if (Mask.spriteRenderingOn + Mask.backgroundRenderingOn > 0) {
+            scroll()
+        }
 
         cycle = (cycle + 1) % LAST_CYCLE
         if (cycle == 0) {
@@ -369,6 +355,9 @@ class Ppu(
 
         if (scanline in 0 until POST_RENDER_SCANLINE) {
             drawBackground()
+            if (Mask.spriteRenderingOn + Mask.backgroundRenderingOn > 0) {
+                scroll()
+            }
         } else if (scanline == VBLANK_START_SCANLINE && cycle == 1) {
             // VBlank start
             Status.vblank = 1
@@ -400,16 +389,14 @@ class Ppu(
                     }
                     5 -> {
                         val basePatternTable = 0x1000 * Control.backgroundPatternTableAddr
-                        val fineY = (v ushr 12) and 0x07
-                        val address = basePatternTable or (nametableByte shl 4) or fineY
-                        //println("pattern table tile low address: ${address.toHexString(4)}")
+                        val fineY = (v ushr 12) and 0b111
+                        val address = basePatternTable + (nametableByte shl 4) + fineY
                         patternTableTileLow = readMemory(address)
                     }
                     7 -> {
                         val basePatternTable = 0x1000 * Control.backgroundPatternTableAddr
-                        val fineY = (v ushr 12) and 0x07
-                        val address = (basePatternTable or (nametableByte shl 4) or fineY) + 8
-                        //println("pattern table tile high address: ${address.toHexString(4)}")
+                        val fineY = (v ushr 12) and 0b111
+                        val address = basePatternTable + (nametableByte shl 4) + fineY + 8
                         patternTableTileHigh = readMemory(address)
                     }
                     0 -> {
@@ -441,7 +428,7 @@ class Ppu(
                     v += 0x1000                                 // increment fine Y
                 } else {
                     v = v and 0x7000.inv()                      // fine Y = 0
-                    var coarseY = (v and 0x03E0) shr 5          // extract coarse Y position
+                    var coarseY = (v and 0x03E0) ushr 5          // extract coarse Y position
                     if (coarseY == 29) {                        // last row of current nametable
                         coarseY = 0                             // wrap back to 0
                         v = v xor 0x0800                        // switch vertical nametable
@@ -458,7 +445,6 @@ class Ppu(
                 v = (v and 0xFBE0) or (t and 0x041F)
             }
             in 280 .. 304 -> {
-                // TODO: might not be optimal
                 // Copy remaining bits from t into v
                 if (scanline == PRE_RENDER_SCANLINE) {
                     v = (v and 0x841F) or (t and 0x7BE0)
@@ -517,18 +503,13 @@ class Ppu(
         when (address) {
             Control.ADDRESS -> {
                 Control.register = value
-                t = (t and 0x73FF) or ((value and 0x03) shl 10)
-                /*
-                if (ppuctrl and PPUCTRLFlags.GENERATE_VBLANK_NMI > 0 &&
-                    ppustatus and PPUSTATUSFlags.IN_VBLANK > 0) {
+                // Transfer the nametable select bytes from Control into the temporary address
+                t = (t and 0x73FF) or ((Control.register and 0b11) shl 10)
+                if (Control.enableVBlankNmi > 0 && Status.vblank > 0) {
                     generateNmi()
                 }
-                 */
             }
-            Mask.ADDRESS -> {
-                Mask.register = valueByte
-                isRenderingEnabled = Mask.spriteRenderingOn > 0 || Mask.backgroundRenderingOn > 0
-            }
+            Mask.ADDRESS -> Mask.register = valueByte
             OAMAddress.ADDRESS -> OAMAddress.register = valueByte
             OAMData.ADDRESS -> {
                 OAMData.data[OAMAddress.register] = valueByte
@@ -538,18 +519,21 @@ class Ppu(
                 if (!w) {
                     t = (t and 0x7FE0) or ((valueByte and 0xF8) shr 3)
                     x = valueByte and 0x07
-                    w = true
                 } else {
                     t = (t and 0x73E0) or ((valueByte and 0x07) shl 12) or
                             ((valueByte and 0xF8) shl 2)
-                    w = false
                 }
+                w = !w
             }
             Address.ADDRESS -> {
                 if (!w) {
+                    // The first write sets the high byte of the temporary address register
                     t = (t and 0xFF) or ((valueByte and 0x3F) shl 8)
                 } else {
-                    v = t or (valueByte and 0xFF)
+                    // The seconds write sets the low byte and transfers the value into the address
+                    // register
+                    t = (t and 0xFF00) or (valueByte and 0xFF)
+                    v = t
                 }
                 w = !w
             }

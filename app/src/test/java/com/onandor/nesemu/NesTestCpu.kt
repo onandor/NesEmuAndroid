@@ -311,6 +311,18 @@ class NesTestCpu {
         logWriter.close()
     }
 
+    private fun dumpNametable(nes: Nes) {
+        val logWriter = FileWriter("src/test/res/nametabledump.log")
+        for (row in 0 ..< 30) {
+            for (col in 0 ..< 32) {
+                val id = nes.ppuReadMemory(0x2000 + row * 32 + col)
+                logWriter.write(id.toHexString(2) + " ")
+            }
+            logWriter.write("\n")
+        }
+        logWriter.close()
+    }
+
     @Test
     fun runTest() {
         val rom = File(TEST_ROM_PATH).readBytes()
@@ -366,5 +378,7 @@ class NesTestCpu {
             logWriter.write(trace + "\n")
         }
         logWriter.close()
+
+        //dumpNametable(nes)
     }
 }

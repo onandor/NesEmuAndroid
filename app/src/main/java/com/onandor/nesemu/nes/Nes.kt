@@ -114,7 +114,7 @@ class Nes(val frameReady: (IntArray) -> Unit) {
             while (!isFrameReady) {
                 val cpuCycles = cpu.step()
                 for (i in 0 until cpuCycles * 3) {
-                    ppu.tick2()
+                    ppu.tick()
                 }
             }
             isFrameReady = false
