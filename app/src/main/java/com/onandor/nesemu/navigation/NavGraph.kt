@@ -15,6 +15,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.onandor.nesemu.ui.screens.DebugScreen
 import com.onandor.nesemu.ui.screens.GameScreen
 import com.onandor.nesemu.ui.screens.MainScreen
 import com.onandor.nesemu.viewmodels.NavigationViewModel
@@ -59,6 +60,9 @@ fun NavGraph(
             }
             composable(NavDestinations.GAME_SCREEN) {
                 GameScreen()
+            }
+            composable(NavDestinations.DEBUG_SCREEN) {
+                DebugScreen()
             }
         }
     }

@@ -80,12 +80,8 @@ class GameViewModel @Inject constructor(
         navManager.navigateTo(NavActions.debugScreen())
     }
 
-    fun enableDebugFeature(feature: DebugFeature) {
-        nes.enableDebugFeature(feature)
-    }
-
-    fun disableDebugFeature(feature: DebugFeature) {
-        nes.disableDebugFeature(feature)
+    fun navigateBack() {
+        navManager.navigateBack()
     }
 
     override fun onCleared() {

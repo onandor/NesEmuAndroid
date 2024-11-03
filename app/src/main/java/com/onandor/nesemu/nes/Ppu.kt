@@ -186,7 +186,7 @@ class Ppu(
 
     // Debug variables
     var drawPatternTable: Boolean = false
-    var patternTable: IntArray = IntArray(256 * 128)
+    var patternTableFrame: IntArray = IntArray(128 * 256)
         private set
 
     fun reset() {
@@ -225,7 +225,7 @@ class Ppu(
                 // Start of vertical blank
                 Status.vblank = 1
                 if (drawPatternTable) {
-                    patternTable = renderPatternTable()
+                    patternTableFrame = renderPatternTable()
                 }
                 frame = frameBuffer.array().copyOf()
                 frameBuffer.clear()
@@ -605,9 +605,9 @@ class Ppu(
         val patternTableFrame = IntBuffer.allocate(256 * 128)
         for (row in 0 ..< 256) {
             for (col in 0 ..< 128) {
-                val address = (row / 8 * 0x100) + (row % 8) + (col / 8) * 0x10
+                val address = (row / 8 * 256) + (row % 8) + (col / 8) * 16
                 val pixel = ((readMemory(address) shr (7 - (col % 8))) and 1) +
-                        ((readMemory(address + 8) shr (7 - (col % 8))) and 1) * 2
+                        ((readMemory(address + 8) shr (7 - (col % 8))) and 1) shl 1
                 patternTableFrame.put(row * 128 + col, COLOR_PALETTE[pixel])
             }
         }

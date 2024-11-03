@@ -1,6 +1,7 @@
 package com.onandor.nesemu.ui.screens
 
 import android.content.res.Configuration
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,7 +24,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.onandor.nesemu.ui.components.NesRenderer
 import com.onandor.nesemu.ui.components.NesSurfaceView
@@ -44,24 +44,15 @@ fun GameScreen(
                 renderer = viewModel.renderer,
                 setRenderCallback = viewModel::setRenderCallback,
                 onShowSettingsOverlay = viewModel::showSettingsOverlay,
-                onQuit = viewModel::quit
+                onQuit = viewModel::quit,
+                onNavigateToDebugScreen = viewModel::navigateToDebugScreen
             )
         }
     }
-}
 
-@Composable
-private fun NesSurfaceView(
-    modifier: Modifier,
-    renderer: NesRenderer,
-    setRenderCallback: (() -> Unit) -> Unit
-) {
-    AndroidView(
-        modifier = modifier,
-        factory = {
-            NesSurfaceView(it, renderer).apply { setRenderCallback(this::requestRender) }
-        }
-    )
+    BackHandler {
+        viewModel.navigateBack()
+    }
 }
 
 @Composable
@@ -77,7 +68,8 @@ private fun Game(
     renderer: NesRenderer,
     setRenderCallback: (() -> Unit) -> Unit,
     onShowSettingsOverlay: () -> Unit,
-    onQuit: () -> Unit
+    onQuit: () -> Unit,
+    onNavigateToDebugScreen: () -> Unit
 ) {
     val configuration = LocalConfiguration.current
 
@@ -89,7 +81,10 @@ private fun Game(
                 setRenderCallback = setRenderCallback
             )
             Button(onClick = onShowSettingsOverlay) {
-                Text("Show debug overlay")
+                Text("Show settings overlay")
+            }
+            Button(onClick = onNavigateToDebugScreen) {
+                Text("Navigate to debug screen")
             }
         }
     } else {
