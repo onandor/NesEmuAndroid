@@ -171,6 +171,9 @@ class Nes {
             DebugFeature.PPU_RENDER_PATTERN_TABLE -> {
                 ppu.drawPatternTable = true
             }
+            DebugFeature.PPU_RENDER_NAMETABLE -> {
+                ppu.drawNametable = true
+            }
         }
     }
 
@@ -178,6 +181,9 @@ class Nes {
         when (feature) {
             DebugFeature.PPU_RENDER_PATTERN_TABLE -> {
                 ppu.drawPatternTable = false
+            }
+            DebugFeature.PPU_RENDER_NAMETABLE -> {
+                ppu.drawNametable = false
             }
         }
     }

@@ -18,10 +18,16 @@ class DebugViewModel @Inject constructor(
     val patternTableRenderer: NesRenderer = NesRenderer(256, 128)
     private var requestPatternTableRender: () -> Unit = {}
 
+    val nametableRenderer: NesRenderer = NesRenderer(512, 480)
+    private var requestNametableRender: () -> Unit = {}
+
     private val nesListener = object : NesListener {
         override fun onFrameReady() {
             patternTableRenderer.setTextureData(nes.ppu.patternTableFrame)
             requestPatternTableRender()
+
+            nametableRenderer.setTextureData(nes.ppu.nametableFrame)
+            requestNametableRender()
         }
     }
 
@@ -31,6 +37,10 @@ class DebugViewModel @Inject constructor(
 
     fun setPatternTableRenderCallback(requestRender: () -> Unit) {
         this.requestPatternTableRender = requestRender
+    }
+
+    fun setNametableRenderCallback(requestRender: () -> Unit) {
+        this.requestNametableRender = requestRender
     }
 
     fun enableDebugFeature(feature: DebugFeature) {

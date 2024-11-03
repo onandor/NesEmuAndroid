@@ -21,7 +21,7 @@ fun DebugScreen(
     Scaffold { padding ->
         Column {
             NesSurfaceView(
-                modifier = Modifier.padding(padding).fillMaxWidth().aspectRatio(256F / 128F),
+                modifier = Modifier.padding(padding).fillMaxWidth().aspectRatio(256f / 128f),
                 renderer = viewModel.patternTableRenderer,
                 setRenderCallback = viewModel::setPatternTableRenderCallback
             )
@@ -34,6 +34,22 @@ fun DebugScreen(
                 onClick = { viewModel.disableDebugFeature(DebugFeature.PPU_RENDER_PATTERN_TABLE) }
             ) {
                 Text("Disable pattern table rendering")
+            }
+
+            NesSurfaceView(
+                modifier = Modifier.padding(padding).fillMaxWidth().aspectRatio(512f / 480f),
+                renderer = viewModel.nametableRenderer,
+                setRenderCallback = viewModel::setNametableRenderCallback
+            )
+            Button(
+                onClick = { viewModel.enableDebugFeature(DebugFeature.PPU_RENDER_NAMETABLE) }
+            ) {
+                Text("Enable nametable rendering")
+            }
+            Button(
+                onClick = { viewModel.disableDebugFeature(DebugFeature.PPU_RENDER_NAMETABLE) }
+            ) {
+                Text("Disable nametable rendering")
             }
         }
     }

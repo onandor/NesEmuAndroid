@@ -1,7 +1,6 @@
 package com.onandor.nesemu.nes
 
 import java.nio.IntBuffer
-import kotlin.random.Random
 
 /*
  - Pattern table: CHR ROM on the cartridge, defines the shapes (and colors) of the tiles that make
@@ -194,6 +193,10 @@ class Ppu(
     var patternTableFrame: IntArray = IntArray(128 * 256)
         private set
 
+    var drawNametable: Boolean = false
+    var nametableFrame: IntArray = IntArray(512 * 480)
+        private set
+
     fun reset() {
         cycle = 0
         scanline = 261
@@ -230,8 +233,10 @@ class Ppu(
                 // Start of vertical blank
                 Status.vblank = 1
                 if (drawPatternTable) {
-                    //patternTableFrame = renderPatternTable()
-                    patternTableFrame = renderPatternTable2()
+                    patternTableFrame = renderPatternTable()
+                }
+                if (drawNametable) {
+                    nametableFrame = renderNametables()
                 }
                 frame = frameBuffer.array().copyOf()
                 frameBuffer.clear()
@@ -607,7 +612,7 @@ class Ppu(
         }
     }
 
-    fun renderPatternTable2(): IntArray {
+    private fun renderPatternTable(): IntArray {
         val patternTable = IntArray(256 * 128)
         // Left grid (0x0000 - 0x0FFF)
         for (tileRow in 0 until GRID_SIZE) {
@@ -624,7 +629,7 @@ class Ppu(
         return patternTable
     }
 
-    fun renderPatternTableTile(
+    private fun renderPatternTableTile(
         grid: IntArray,
         tileRow: Int,
         tileCol: Int,
@@ -644,6 +649,49 @@ class Ppu(
                 val pixelIdx = (tileRow * TILE_SIZE + y) * (GRID_SIZE * TILE_SIZE * 2) +
                         (tileCol * TILE_SIZE + x)
                 grid[pixelIdx] = COLOR_PALETTE[pixel]
+            }
+        }
+    }
+
+    private fun renderNametables(): IntArray {
+        val frame = IntArray(512 * 480)
+        renderNametable(frame, 0, 0, 0)     // Nametable 1 - Top left
+        renderNametable(frame, 1, 0, 256)   // Nametable 2 - Top right
+        renderNametable(frame, 2, 240, 0)   // Nametable 3 - Bottom left
+        renderNametable(frame, 3, 240, 256) // Nametable 4 - Bottom right
+        return frame
+    }
+
+    private fun renderNametable(frame: IntArray, nametableIdx: Int, rowOffset: Int, colOffset: Int) {
+        val baseAddress = 0x2000 + nametableIdx * 0x400
+        for (tileIdx in 0 until 960) {
+            val tileIndex = readMemory(baseAddress + tileIdx)
+            val tileAddress = tileIndex * TILE_BYTES + 0x1000 * Control.backgroundPatternTableAddr
+
+            val tileRow = tileIdx / 32
+            val tileCol = tileIdx % 32
+            renderNametableTile(frame, tileAddress, tileRow, tileCol, rowOffset, colOffset)
+        }
+    }
+
+    private fun renderNametableTile(
+        frame: IntArray,
+        tileAddress: Int,
+        tileRow: Int,
+        tileCol: Int,
+        rowOffset: Int,
+        colOffset: Int
+    ) {
+        for (y in 0 until TILE_SIZE) {
+            val lowByte = readMemory(tileAddress + y)
+            val highByte = readMemory(tileAddress + y + 8)
+            for (x in 0 until TILE_SIZE) {
+                val pixel = (lowByte shr (7 - x) and 1) or
+                        ((highByte shr (7 - x) and 1) shl 1)
+
+                val pixelIdx = (rowOffset + tileRow * TILE_SIZE + y) * 512 +
+                        (colOffset + tileCol * TILE_SIZE + x)
+                frame[pixelIdx] = COLOR_PALETTE[pixel]
             }
         }
     }
