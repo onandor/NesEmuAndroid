@@ -6,7 +6,7 @@ import com.onandor.nesemu.nes.mappers.Mapper0
 import kotlinx.coroutines.delay
 import kotlin.time.TimeSource
 
-class Nes(val frameReady: (IntArray) -> Unit) {
+class Nes(val frameReady: (frame: IntArray, patternTable: IntArray?) -> Unit) {
 
     private companion object {
         const val TAG = "Nes"
@@ -100,7 +100,8 @@ class Nes(val frameReady: (IntArray) -> Unit) {
 
     private fun ppuFrameReady(frameData: IntArray) {
         isFrameReady = true
-        frameReady(frameData)
+        val patternTable = if (ppu.drawPatternTable) ppu.patternTable else null
+        frameReady(frameData, patternTable)
     }
 
     suspend fun reset() {
@@ -152,6 +153,22 @@ class Nes(val frameReady: (IntArray) -> Unit) {
             in 0x6000 .. 0x7FFF -> 0                                    // SRAM
             in 0x8000 .. 0xFFFF -> mapper.readPrgRom(address)           // PRG-ROM
             else -> throw InvalidOperationException(TAG, "Invalid CPU read at $address")
+        }
+    }
+
+    fun enableDebugFeature(feature: DebugFeature) {
+        when (feature) {
+            DebugFeature.PPU_RENDER_PATTERN_TABLE -> {
+                ppu.drawPatternTable = true
+            }
+        }
+    }
+
+    fun disableDebugFeature(feature: DebugFeature) {
+        when (feature) {
+            DebugFeature.PPU_RENDER_PATTERN_TABLE -> {
+                ppu.drawPatternTable = false
+            }
         }
     }
 }

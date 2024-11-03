@@ -182,6 +182,11 @@ class Ppu(
     private var frame: IntBuffer = IntBuffer.allocate(SCREEN_WIDTH * SCREEN_HEIGHT)
     private var prefetchedTiles: IntBuffer = IntBuffer.allocate(16)
 
+    // Debug variables
+    var drawPatternTable: Boolean = false
+    var patternTable: IntArray = IntArray(256 * 128)
+        private set
+
     fun reset() {
         cycle = 0
         scanline = 261
@@ -217,6 +222,9 @@ class Ppu(
             if (scanline == 241 && cycle == 1) {
                 // Start of vertical blank
                 Status.vblank = 1
+                if (drawPatternTable) {
+                    patternTable = renderPatternTable()
+                }
                 frameReady(frame.array())
                 frame.clear()
                 if (Control.enableVBlankNmi > 0) {

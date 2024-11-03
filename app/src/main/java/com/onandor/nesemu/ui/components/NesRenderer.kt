@@ -12,14 +12,14 @@ import java.nio.ShortBuffer
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
-class NesRenderer : GLSurfaceView.Renderer {
+class NesRenderer(private val width: Int, private val height: Int) : GLSurfaceView.Renderer {
 
     private var mTexture: Int = 0
     private var mShaderProgram: Int = 0
     private var mVao: Int = 0
     private var mVbo: Int = 0
     private var mEbo: Int = 0
-    private var mTextureData: IntArray = IntArray(WIDTH * HEIGHT)
+    private var mTextureData: IntArray = IntArray(width * height)
 
     override fun onSurfaceCreated(unused: GL10?, config: EGLConfig?) {
         createShaderProgram()
@@ -74,32 +74,18 @@ class NesRenderer : GLSurfaceView.Renderer {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
 
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA, WIDTH, HEIGHT, 0, GL_BGRA, GL_UNSIGNED_BYTE, null)
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, null)
     }
 
     override fun onSurfaceChanged(unused: GL10?, width: Int, height: Int) {
         // Resize viewport
         glViewport(0, 0, width, height)
-
-        val P = FloatArray(16)
-        val V = FloatArray(16)
-        val MVP = FloatArray(16)
-        val ratio: Float = width.toFloat() / height.toFloat()
-        if (ratio < 1f) {
-            Matrix.frustumM(P, 0, -1f, 1f, -(1f/ratio), (1f/ratio), 3f, 7f)
-        } else {
-            Matrix.frustumM(P, 0, -ratio, ratio, -1f, 1f, 3f, 7f)
-        }
-        Matrix.setLookAtM(V, 0, 0f, 0f, 3f, 0f, 0f, 0f, 0f, 1f, 0f)
-        Matrix.multiplyMM(MVP, 0, P, 0, V, 0)
-
-        glUniformMatrix4fv(2, 1, false, MVP, 0)
     }
 
     override fun onDrawFrame(unused: GL10?) {
         // Redraw background color, update texture, draw quad
         glClear(GL_COLOR_BUFFER_BIT)
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WIDTH, HEIGHT,
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,
             GL_BGRA, GL_UNSIGNED_BYTE, IntBuffer.wrap(mTextureData))
         glDrawElements(GL_TRIANGLES, SCREEN_INDICES.size, GL_UNSIGNED_SHORT, 0)
     }
@@ -166,7 +152,7 @@ class NesRenderer : GLSurfaceView.Renderer {
                 out vec2 TexCoord;
                 
                 void main() {
-                    gl_Position = MVP * vec4(vPos.x, vPos.y, 0.0, 1.0);
+                    gl_Position = vec4(vPos.x, vPos.y, 0.0, 1.0);
                     TexCoord = vTexCoord;
                 }
             """
@@ -183,18 +169,15 @@ class NesRenderer : GLSurfaceView.Renderer {
                 }
             """
 
-        private const val WIDTH = 256
-        private const val HEIGHT = 240
         private const val SIZE_OF_FLOAT = 4
         private const val SIZE_OF_SHORT = 2
-        private const val HW_RATIO = HEIGHT.toFloat() / WIDTH
 
         private val SCREEN_VERTICES = floatArrayOf(
             // position   // color
-            -1f,  HW_RATIO, 0f, 0f,   // top left
-            -1f, -HW_RATIO, 0f, 1f,   // bottom left
-            1f, -HW_RATIO, 1f, 1f,   // bottom right
-            1f,  HW_RATIO, 1f, 0f    // top right
+            -1f,  1f, 0f, 0f,   // top left
+            -1f, -1f, 0f, 1f,   // bottom left
+            1f, -1f, 1f, 1f,   // bottom right
+            1f,  1f, 1f, 0f    // top right
         )
 
         private val TEST_QUAD_VERTEX_BUFFER: FloatBuffer = ByteBuffer
