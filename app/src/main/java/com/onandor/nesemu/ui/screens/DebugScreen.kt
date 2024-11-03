@@ -21,7 +21,7 @@ fun DebugScreen(
     Scaffold { padding ->
         Column {
             NesSurfaceView(
-                modifier = Modifier.padding(padding).fillMaxWidth(0.5f).aspectRatio(128f / 256f),
+                modifier = Modifier.padding(padding).fillMaxWidth().aspectRatio(256F / 128F),
                 renderer = viewModel.patternTableRenderer,
                 setRenderCallback = viewModel::setPatternTableRenderCallback
             )

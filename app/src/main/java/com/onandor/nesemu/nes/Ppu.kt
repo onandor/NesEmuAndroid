@@ -36,6 +36,11 @@ class Ppu(
             0xEEEEEE, 0x5586F8, 0xAAAAFA, 0xB69AF9, 0xD49CFA, 0xE39DDA, 0xE5ADAB, 0xE7BD9D,
             0xEBDE91, 0xC1DC90, 0xA6DB9F, 0xA6DBBD, 0xA7DBEC, 0xAAAAAA, 0x080808, 0x080808
         )
+
+        // Pattern table constants
+        const val TILE_SIZE = 8
+        const val GRID_SIZE = 16
+        const val TILE_BYTES = 16
     }
 
     // Registers
@@ -225,7 +230,8 @@ class Ppu(
                 // Start of vertical blank
                 Status.vblank = 1
                 if (drawPatternTable) {
-                    patternTableFrame = renderPatternTable()
+                    //patternTableFrame = renderPatternTable()
+                    patternTableFrame = renderPatternTable2()
                 }
                 frame = frameBuffer.array().copyOf()
                 frameBuffer.clear()
@@ -601,24 +607,44 @@ class Ppu(
         }
     }
 
-    fun renderPatternTable(): IntArray {
-        val patternTableFrame = IntBuffer.allocate(256 * 128)
-        for (row in 0 ..< 256) {
-            for (col in 0 ..< 128) {
-                val address = (row / 8 * 256) + (row % 8) + (col / 8) * 16
-                val pixel = ((readMemory(address) shr (7 - (col % 8))) and 1) +
-                        ((readMemory(address + 8) shr (7 - (col % 8))) and 1) shl 1
-                patternTableFrame.put(row * 128 + col, COLOR_PALETTE[pixel])
+    fun renderPatternTable2(): IntArray {
+        val patternTable = IntArray(256 * 128)
+        // Left grid (0x0000 - 0x0FFF)
+        for (tileRow in 0 until GRID_SIZE) {
+            for (tileCol in 0 until GRID_SIZE) {
+                renderPatternTableTile(patternTable, tileRow, tileCol, 0x0000)
             }
         }
-        return patternTableFrame.array()
+        // Right grid (0x1000 - 0x1FFF)
+        for (tileRow in 0 until GRID_SIZE) {
+            for (tileCol in 0 until GRID_SIZE) {
+                renderPatternTableTile(patternTable, tileRow, tileCol + GRID_SIZE, 0x1000)
+            }
+        }
+        return patternTable
     }
 
-    private fun generateNoise(): IntArray {
-        val array = IntArray(SCREEN_WIDTH * SCREEN_WIDTH)
-        for (i in 0 until SCREEN_WIDTH * SCREEN_HEIGHT) {
-            array[i] = COLOR_PALETTE[Random.nextInt(0, 64)]
+    fun renderPatternTableTile(
+        grid: IntArray,
+        tileRow: Int,
+        tileCol: Int,
+        gridBaseAddress: Int
+    ) {
+        val tileIndex = tileRow * GRID_SIZE + tileCol % GRID_SIZE
+        val tileAddress = gridBaseAddress + tileIndex * TILE_BYTES
+
+        for (y in 0 until TILE_SIZE) {
+            val lowByte = readMemory(tileAddress + y)
+            val highByte = readMemory(tileAddress + y + 8)
+
+            for (x in 0 until TILE_SIZE) {
+                val pixel = (lowByte shr (7 - x) and 1) or
+                        ((highByte shr (7 - x) and 1) shl 1)
+
+                val pixelIdx = (tileRow * TILE_SIZE + y) * (GRID_SIZE * TILE_SIZE * 2) +
+                        (tileCol * TILE_SIZE + x)
+                grid[pixelIdx] = COLOR_PALETTE[pixel]
+            }
         }
-        return array;
     }
 }

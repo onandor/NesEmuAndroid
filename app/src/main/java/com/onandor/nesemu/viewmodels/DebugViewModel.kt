@@ -15,7 +15,7 @@ class DebugViewModel @Inject constructor(
     private val nes: Nes
 ) : ViewModel() {
 
-    val patternTableRenderer: NesRenderer = NesRenderer(128, 256)
+    val patternTableRenderer: NesRenderer = NesRenderer(256, 128)
     private var requestPatternTableRender: () -> Unit = {}
 
     private val nesListener = object : NesListener {
