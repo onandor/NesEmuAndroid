@@ -25,10 +25,6 @@ class Ppu(
 
         private const val SCREEN_WIDTH = 256
         private const val SCREEN_HEIGHT = 240
-        private const val LAST_CYCLE = 340
-        private const val POST_RENDER_SCANLINE = 240
-        private const val VBLANK_START_SCANLINE = 241
-        private const val PRE_RENDER_SCANLINE = 261
 
         private val COLOR_PALETTE = arrayOf(
             0x59595F, 0x03008A, 0x17008A, 0x3A0673, 0x4E0B52, 0x4E0C12, 0x4E0C03, 0x402405,
@@ -169,7 +165,7 @@ class Ppu(
                                     // PPUADDR
 
     private var cycle: Int = 0
-    private var scanline: Int = PRE_RENDER_SCANLINE // Scanline -1 is the pre-render scanline
+    private var scanline: Int = 261 // Scanline 261 is the pre-render scanline
     private var numFrames: Int = -1 // Pre-render frame
 
     var mirroring: Mirroring = Mirroring.HORIZONTAL
@@ -184,25 +180,28 @@ class Ppu(
     private var patternTableTileHigh: Int = 0   // Second bit plane
 
     private var frame: IntBuffer = IntBuffer.allocate(SCREEN_WIDTH * SCREEN_HEIGHT)
+    private var prefetchedTiles: IntBuffer = IntBuffer.allocate(16)
 
     fun reset() {
         cycle = 0
-        scanline = PRE_RENDER_SCANLINE
+        scanline = 261
         numFrames = -1
         v = 0
         t = 0
         x = 0
         w = false
+        busLatch = 0
         Control.register = 0
         Mask.register = 0
         Status.register = 0
         Scroll.register = 0
         Data.register = 0
         OAMData.data = IntArray(256)
+        frame.clear()
     }
 
     fun tick() {
-        if (scanline == PRE_RENDER_SCANLINE && cycle == LAST_CYCLE - 1 && numFrames % 2 == 1) {
+        if (scanline == 261 && cycle == 339 && numFrames % 2 == 1) {
             // Skipping the last cycle of odd frames
             cycle = 0
             scanline = 0
@@ -214,8 +213,8 @@ class Ppu(
             cycle = 1
             return
         }
-        if (scanline >= POST_RENDER_SCANLINE) {
-            if (scanline == VBLANK_START_SCANLINE && cycle == 1) {
+        if (scanline >= 240) {
+            if (scanline == 241 && cycle == 1) {
                 // Start of vertical blank
                 Status.vblank = 1
                 frameReady(frame.array())
@@ -223,15 +222,17 @@ class Ppu(
                 if (Control.enableVBlankNmi > 0) {
                     generateNmi()
                 }
-            } else if (scanline == PRE_RENDER_SCANLINE && cycle == 1) {
+            } else if (scanline == 261 && cycle == 1) {
                 // End of vertical blank
                 Status.vblank = 0
             }
 
-            cycle = (cycle + 1) % LAST_CYCLE
-            if (cycle == 0) {
-                scanline = (scanline + 1) % PRE_RENDER_SCANLINE
-                if (scanline == 0) {
+            cycle++
+            if (cycle == 341) {
+                cycle = 0
+                scanline++
+                if (scanline == 262) {
+                    scanline = 0
                     numFrames++
                 }
             }
@@ -241,6 +242,13 @@ class Ppu(
         when (cycle) {
             in 1 .. 256 -> {
                 // 1-256: Fetch background tile data
+                /*
+                if (cycle == 1) {
+                    // Load the 2 prefetched tiles
+                    frame.put(prefetchedTiles)
+                    prefetchedTiles.clear()
+                }
+                 */
                 when (cycle % 8) {
                     1 -> {
                         nametableByte = readMemory(0x2000 or (v and 0x0FFF))
@@ -264,6 +272,12 @@ class Ppu(
                     }
                     0 -> {
                         for (i in 0 until 8) {
+                            /*
+                            if (!frame.hasRemaining()) {
+                                println("frame full, scanline: $scanline")
+                                break
+                            }
+                             */
                             val high = (patternTableTileHigh and (0x80 shr i)) > 0
                             val low = (patternTableTileLow and (0x80 shr i)) > 0
                             if (high && low) {
@@ -302,6 +316,23 @@ class Ppu(
                         val address = (basePatternTable or (nametableByte shl 4) or fineY) + 8
                         patternTableTileHigh = readMemory(address)
                     }
+                    /*
+                    0 -> {
+                        for (i in 0 until 8) {
+                            val high = (patternTableTileHigh and (0x80 shr i)) > 0
+                            val low = (patternTableTileLow and (0x80 shr i)) > 0
+                            if (high && low) {
+                                prefetchedTiles.put(0xfcba03)
+                            } else if (high) {
+                                prefetchedTiles.put(0x03fc1c)
+                            } else if (low) {
+                                prefetchedTiles.put(0x0373fc)
+                            } else {
+                                prefetchedTiles.put(0)
+                            }
+                        }
+                    }
+                     */
                 }
             }
             in 257 .. 320 -> {
@@ -337,10 +368,12 @@ class Ppu(
             scroll()
         }
 
-        cycle = (cycle + 1) % LAST_CYCLE
-        if (cycle == 0) {
-            scanline = (scanline + 1) % PRE_RENDER_SCANLINE
-            if (scanline == 0) {
+        cycle++
+        if (cycle == 341) {
+            cycle = 0
+            scanline++
+            if (scanline == 262) {
+                scanline = 0
                 numFrames++
             }
         }
@@ -348,17 +381,17 @@ class Ppu(
 
     fun tick2() {
         cycle++
-        if (cycle == LAST_CYCLE) {
+        if (cycle == 340) {
             cycle = 0
             scanline++
         }
 
-        if (scanline in 0 until POST_RENDER_SCANLINE) {
+        if (scanline in 0 until 240) {
             drawBackground()
             if (Mask.spriteRenderingOn + Mask.backgroundRenderingOn > 0) {
                 scroll()
             }
-        } else if (scanline == VBLANK_START_SCANLINE && cycle == 1) {
+        } else if (scanline == 241 && cycle == 1) {
             // VBlank start
             Status.vblank = 1
             frameReady(frame.array())
@@ -366,7 +399,7 @@ class Ppu(
             if (Control.enableVBlankNmi > 0) {
                 generateNmi()
             }
-        } else if (scanline == PRE_RENDER_SCANLINE && cycle == 1) {
+        } else if (scanline == 261 && cycle == 1) {
             // VBlank end
             Status.vblank = 0
             scanline = 0
@@ -420,46 +453,43 @@ class Ppu(
     }
 
     private fun scroll() {
-        when (cycle) {
-            256 -> {
-                // Increment the vertical position (fine Y) in v, overflowing to coarse Y if necessary
-                // https://www.nesdev.org/wiki/PPU_scrolling#Y_increment
-                if ((v and 0x7000) != 0x7000) {                 // if fine Y < 7
-                    v += 0x1000                                 // increment fine Y
+        if (cycle == 256) {
+            // Increment the vertical position (fine Y) in v, overflowing to coarse Y if necessary
+            // https://www.nesdev.org/wiki/PPU_scrolling#Y_increment
+            if ((v and 0x7000) != 0x7000) {                 // if fine Y < 7
+                v += 0x1000                                 // increment fine Y
+            } else {
+                v = v and 0x7000.inv()                      // fine Y = 0
+                var coarseY = (v and 0x03E0) ushr 5          // extract coarse Y position
+                if (coarseY == 29) {                        // last row of current nametable
+                    coarseY = 0                             // wrap back to 0
+                    v = v xor 0x0800                        // switch vertical nametable
+                } else if (coarseY == 31) {
+                    coarseY = 0                             // when out of bounds, only wrap around
                 } else {
-                    v = v and 0x7000.inv()                      // fine Y = 0
-                    var coarseY = (v and 0x03E0) ushr 5          // extract coarse Y position
-                    if (coarseY == 29) {                        // last row of current nametable
-                        coarseY = 0                             // wrap back to 0
-                        v = v xor 0x0800                        // switch vertical nametable
-                    } else if (coarseY == 31) {
-                        coarseY = 0                             // when out of bounds, only wrap around
-                    } else {
-                        coarseY += 1                            // else increment by one
-                    }
-                    v = (v and 0x03E0.inv()) or (coarseY shl 5) // put coarseY back into v
+                    coarseY += 1                            // else increment by one
                 }
+                v = (v and 0x03E0.inv()) or (coarseY shl 5) // put coarseY back into v
             }
-            257 -> {
-                // Copy all bits related to horizontal position from t into v
-                v = (v and 0xFBE0) or (t and 0x041F)
-            }
-            in 280 .. 304 -> {
-                // Copy remaining bits from t into v
-                if (scanline == PRE_RENDER_SCANLINE) {
-                    v = (v and 0x841F) or (t and 0x7BE0)
-                }
-            }
-            // Cycle 328 of current scanline - cycle 256 of next scanline
-            !in 257 .. 327 -> {
-                if (cycle % 8 == 0) {
-                    // Increment the horizontal position (coarse X) in v every 8 cycles
-                    if ((v and 0x1F) == 31) {   // if coarse X == 31
-                        v = v and 0x1F.inv()    // coarse X = 0
-                        v = v xor 0x0400        // switch horizontal nametable
-                    } else {
-                        v += 1                  // increment coarse X
-                    }
+        } else if (cycle == 257) {
+            // Copy all bits related to horizontal position from t into v
+            v = (v and 0xFBE0) or (t and 0x041F)
+        }
+
+        // Copy remaining bits from t into v
+        if (scanline == 261 && cycle in 280 .. 304) {
+            v = (v and 0x841F) or (t and 0x7BE0)
+        }
+
+        // Cycle 328 of current scanline - cycle 256 of next scanline
+        if (cycle !in 257 .. 327) {
+            if (cycle % 8 == 0) {
+                // Increment the horizontal position (coarse X) in v every 8 cycles
+                if ((v and 0x1F) == 31) {   // if coarse X == 31
+                    v = v and 0x1F.inv()    // coarse X = 0
+                    v = v xor 0x0400        // switch horizontal nametable
+                } else {
+                    v += 1                  // increment coarse X
                 }
             }
         }
@@ -517,7 +547,7 @@ class Ppu(
             }
             Scroll.ADDRESS -> {
                 if (!w) {
-                    t = (t and 0x7FE0) or ((valueByte and 0xF8) shr 3)
+                    t = (t and 0x7FE0) or ((valueByte and 0xF8) ushr 3)
                     x = valueByte and 0x07
                 } else {
                     t = (t and 0x73E0) or ((valueByte and 0x07) shl 12) or

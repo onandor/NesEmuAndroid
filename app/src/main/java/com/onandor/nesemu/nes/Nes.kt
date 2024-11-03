@@ -14,9 +14,8 @@ class Nes(val frameReady: (IntArray) -> Unit) {
         private const val FPS = 60
     }
 
-    var cpuMemory: IntArray = IntArray(MEMORY_SIZE)
-        private set
-    private val vram: IntArray = IntArray(MEMORY_SIZE)
+    private var cpuMemory: IntArray = IntArray(MEMORY_SIZE)
+    private var vram: IntArray = IntArray(MEMORY_SIZE)
     val cpu: Cpu = Cpu(::cpuReadMemory, ::cpuWriteMemory)
     val ppu: Ppu = Ppu(::ppuReadMemory, ::ppuWriteMemory, cpu::NMI, ::ppuFrameReady)
     private var cartridge: Cartridge? = null
@@ -105,9 +104,14 @@ class Nes(val frameReady: (IntArray) -> Unit) {
     }
 
     suspend fun reset() {
-        val timeSource = TimeSource.Monotonic
+        cpuMemory = IntArray(MEMORY_SIZE)
+        vram = IntArray(MEMORY_SIZE)
+        numFrames = 0
+        isFrameReady = false
         cpu.reset()
         ppu.reset()
+
+        val timeSource = TimeSource.Monotonic
         var fpsMeasureStart = timeSource.markNow()
         while (running) {
             val frameStart = timeSource.markNow()

@@ -62,6 +62,7 @@ class Cpu(
         Y = 0
         PS = 0b00000100
         totalCycles = 7 // https://www.pagetable.com/?p=410
+        interruptCycles = 0
     }
 
     fun step(): Int {
