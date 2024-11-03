@@ -6,7 +6,7 @@ import com.onandor.nesemu.nes.mappers.Mapper0
 import kotlinx.coroutines.delay
 import kotlin.time.TimeSource
 
-class Nes(val frameReady: (frame: IntArray, patternTable: IntArray?) -> Unit) {
+class Nes {
 
     private companion object {
         const val TAG = "Nes"
@@ -26,6 +26,8 @@ class Nes(val frameReady: (frame: IntArray, patternTable: IntArray?) -> Unit) {
     private var numFrames: Int = 0
     var fps: Float = 0f
         private set
+
+    private val listeners = mutableListOf<NesListener>()
 
     fun cpuReadMemory(address: Int): Int {
         return when (address) {
@@ -98,10 +100,9 @@ class Nes(val frameReady: (frame: IntArray, patternTable: IntArray?) -> Unit) {
         ppu.mirroring = cartridge.mirroring
     }
 
-    private fun ppuFrameReady(frameData: IntArray) {
+    private fun ppuFrameReady() {
         isFrameReady = true
-        val patternTable = if (ppu.drawPatternTable) ppu.patternTable else null
-        frameReady(frameData, patternTable)
+        listeners.forEach { it.onFrameReady() }
     }
 
     suspend fun reset() {
@@ -109,6 +110,7 @@ class Nes(val frameReady: (frame: IntArray, patternTable: IntArray?) -> Unit) {
         vram = IntArray(MEMORY_SIZE)
         numFrames = 0
         isFrameReady = false
+        running = true
         cpu.reset()
         ppu.reset()
 
@@ -137,6 +139,14 @@ class Nes(val frameReady: (frame: IntArray, patternTable: IntArray?) -> Unit) {
                 Log.i(TAG, "FPS: $fps")
             }
         }
+    }
+
+    fun registerListener(listener: NesListener) {
+        this.listeners.add(listener)
+    }
+
+    fun unregisterListener(listener: NesListener) {
+        this.listeners.remove(listener)
     }
 
     // Functions used for debugging

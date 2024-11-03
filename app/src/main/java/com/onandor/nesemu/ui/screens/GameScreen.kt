@@ -43,8 +43,8 @@ fun GameScreen(
             Game(
                 renderer = viewModel.renderer,
                 setRenderCallback = viewModel::setRenderCallback,
-                onShowSettingsOverlay = viewModel::onShowSettingsOverlay,
-                onQuit = viewModel::onQuit
+                onShowSettingsOverlay = viewModel::showSettingsOverlay,
+                onQuit = viewModel::quit
             )
         }
     }

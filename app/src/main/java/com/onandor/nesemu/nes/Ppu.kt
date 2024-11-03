@@ -17,7 +17,7 @@ class Ppu(
     private val readMemory: (address: Int) -> Int,
     private val writeMemory: (address: Int, value: Int) -> Unit,
     private val generateNmi: () -> Unit,
-    private val frameReady: (IntArray) -> Unit
+    private val frameReady: () -> Unit
 ) {
 
     companion object {
@@ -179,7 +179,9 @@ class Ppu(
     private var patternTableTileLow: Int = 0    // First bit plane
     private var patternTableTileHigh: Int = 0   // Second bit plane
 
-    private var frame: IntBuffer = IntBuffer.allocate(SCREEN_WIDTH * SCREEN_HEIGHT)
+    lateinit var frame: IntArray
+        private set
+    private var frameBuffer: IntBuffer = IntBuffer.allocate(SCREEN_WIDTH * SCREEN_HEIGHT)
     private var prefetchedTiles: IntBuffer = IntBuffer.allocate(16)
 
     // Debug variables
@@ -202,7 +204,7 @@ class Ppu(
         Scroll.register = 0
         Data.register = 0
         OAMData.data = IntArray(256)
-        frame.clear()
+        frameBuffer.clear()
     }
 
     fun tick() {
@@ -225,8 +227,9 @@ class Ppu(
                 if (drawPatternTable) {
                     patternTable = renderPatternTable()
                 }
-                frameReady(frame.array())
-                frame.clear()
+                frame = frameBuffer.array().copyOf()
+                frameBuffer.clear()
+                frameReady()
                 if (Control.enableVBlankNmi > 0) {
                     generateNmi()
                 }
@@ -289,13 +292,13 @@ class Ppu(
                             val high = (patternTableTileHigh and (0x80 shr i)) > 0
                             val low = (patternTableTileLow and (0x80 shr i)) > 0
                             if (high && low) {
-                                frame.put(0xfcba03)
+                                frameBuffer.put(0xfcba03)
                             } else if (high) {
-                                frame.put(0x03fc1c)
+                                frameBuffer.put(0x03fc1c)
                             } else if (low) {
-                                frame.put(0x0373fc)
+                                frameBuffer.put(0x0373fc)
                             } else {
-                                frame.put(0)
+                                frameBuffer.put(0)
                             }
                         }
                     }
@@ -402,8 +405,9 @@ class Ppu(
         } else if (scanline == 241 && cycle == 1) {
             // VBlank start
             Status.vblank = 1
-            frameReady(frame.array())
-            frame.clear()
+            frame = frameBuffer.array().copyOf()
+            frameBuffer.clear()
+            frameReady()
             if (Control.enableVBlankNmi > 0) {
                 generateNmi()
             }
@@ -445,13 +449,13 @@ class Ppu(
                             val high = (patternTableTileHigh and (0x80 shr i)) > 0
                             val low = (patternTableTileLow and (0x80 shr i)) > 0
                             if (high && low) {
-                                frame.put(0xfcba03)
+                                frameBuffer.put(0xfcba03)
                             } else if (high) {
-                                frame.put(0x03fc1c)
+                                frameBuffer.put(0x03fc1c)
                             } else if (low) {
-                                frame.put(0x0373fc)
+                                frameBuffer.put(0x0373fc)
                             } else {
-                                frame.put(0)
+                                frameBuffer.put(0)
                             }
                         }
                     }
