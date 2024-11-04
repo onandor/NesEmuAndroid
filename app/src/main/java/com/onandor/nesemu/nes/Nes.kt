@@ -71,8 +71,7 @@ class Nes {
             in 0x0000 .. 0x1FFF -> mapper.readChrRom(address) // Pattern Table
             in 0x2000 .. 0x2FFF -> vram[mapper.mapNametableAddress(address)]    // Nametables
             in 0x3000 .. 0x3EFF -> ppuReadMemory(address and 0x2EFF) // Mirror of 0x2000-0x2EFF
-            in 0x3F00 .. 0x3F0F -> 0    // Background Palette
-            in 0x3F10 .. 0x3F1F -> 0    // Sprite Palette
+            in 0x3F00 .. 0x3F1F -> 0    // Palette (access handled by PPU internally)
             in 0x3F20 .. 0x3FFF -> ppuReadMemory(address and 0x3F1F) // Mirror of 0x3F00-0x3F1F
             else -> throw InvalidOperationException(TAG, "Invalid PPU read at $address")
         }
@@ -84,8 +83,7 @@ class Nes {
             in 0x0000 .. 0x1FFF -> mapper.writeChrRom(address, value) // Pattern Table
             in 0x2000 .. 0x2FFF -> vram[mapper.mapNametableAddress(address)] = value    // Nametables
             in 0x3000 .. 0x3EFF -> ppuWriteMemory(address and 0x2EFF, value) // Mirror of 0x2000-0x2EFF
-            in 0x3F00 .. 0x3F0F -> 0    // Background Palette
-            in 0x3F10 .. 0x3F1F -> 0    // Sprite Palette
+            in 0x3F00 .. 0x3F1F -> 0    // Palette (access handled by PPU internally)
             in 0x3F20 .. 0x3FFF -> ppuWriteMemory(address and 0x3F1F, value) // Mirror of 0x3F00-0x3F1F
             else -> throw InvalidOperationException(TAG, "Invalid PPU write at $address")
         }
