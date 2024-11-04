@@ -236,7 +236,7 @@ class Ppu(
             return
         }
 
-        if (scanline >= 240) {
+        if (scanline != 261 && scanline >= 240) {
             if (scanline == 241 && cycle == 1) {
                 // Start of vertical blank
                 Status.vblank = 1
@@ -252,9 +252,6 @@ class Ppu(
                 if (Control.enableVBlankNmi > 0) {
                     generateNmi()
                 }
-            } else if (scanline == 261 && cycle == 1) {
-                // End of vertical blank
-                Status.vblank = 0
             }
 
             cycle++
@@ -269,6 +266,11 @@ class Ppu(
             return
         }
 
+        if (scanline == 261 && cycle == 1) {
+            // End of vertical blank
+            Status.vblank = 0
+        }
+
         fetchTileData()
         if (Mask.spriteRenderingOn + Mask.backgroundRenderingOn > 0) {
             scroll()
@@ -276,7 +278,7 @@ class Ppu(
 
         //
         // return palScreen[ppuRead(0x3F00 + (palette << 2) + pixel) & 0x3F];
-        if (cycle in 1 .. 256 && Mask.backgroundRenderingOn > 0) {
+        if (scanline != 261 && cycle in 1 .. 256 && Mask.backgroundRenderingOn > 0) {
             val bitMux = 0x8000 shr fineX
 
             val patternLow = ((bgPatternShifterLow and bitMux) > 0).toInt()
@@ -284,7 +286,7 @@ class Ppu(
             val pixelId = (patternHigh shl 1) or patternLow
 
             if (numFrames == 10) {
-                print("$pixelId ")
+                //print("$pixelId ")
             }
 
             val paletteLow = ((bgAttributeShifterLow and bitMux) > 0).toInt()
@@ -311,7 +313,7 @@ class Ppu(
             cycle = 0
             scanline++
             if (numFrames == 10) {
-                println()
+                //println()
             }
             if (scanline == 262) {
                 scanline = 0
@@ -591,7 +593,7 @@ class Ppu(
                     t = (t and 0x7FE0) or ((valueByte and 0xF8) ushr 3)
                     fineX = valueByte and 0x07
                 } else {
-                    t = (t and 0x73E0) or ((valueByte and 0x07) shl 12) or
+                    t = (t and 0x8C1F) or ((valueByte and 0x07) shl 12) or
                             ((valueByte and 0xF8) shl 2)
                 }
                 w = !w
@@ -601,7 +603,7 @@ class Ppu(
                     // The first write sets the high byte of the temporary address register
                     t = (t and 0xFF) or ((valueByte and 0x3F) shl 8)
                 } else {
-                    // The seconds write sets the low byte and transfers the value into the address
+                    // The second write sets the low byte and transfers the value into the address
                     // register
                     t = (t and 0xFF00) or (valueByte and 0xFF)
                     v = t
