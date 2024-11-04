@@ -285,7 +285,7 @@ class Ppu(
             val patternHigh = ((bgPatternShifterHigh and bitMux) > 0).toInt()
             val pixelId = (patternHigh shl 1) or patternLow
 
-            if (numFrames == 10) {
+            if (numFrames == 30) {
                 //print("$pixelId ")
             }
 
@@ -295,24 +295,13 @@ class Ppu(
 
             val color = COLOR_PALETTE[readMemory(0x3F00 + (paletteId shl 2) or pixelId)]
             frameBuffer.put(color)
-            /*
-            if (high && low) {
-                frameBuffer.put(0xfcba03)
-            } else if (high) {
-                frameBuffer.put(0x03fc1c)
-            } else if (low) {
-                frameBuffer.put(0x0373fc)
-            } else {
-                frameBuffer.put(0)
-            }
-             */
         }
 
         cycle++
         if (cycle == 341) {
             cycle = 0
             scanline++
-            if (numFrames == 10) {
+            if (numFrames == 30) {
                 //println()
             }
             if (scanline == 262) {
@@ -333,7 +322,7 @@ class Ppu(
 
                 when (cycle % 8) {
                     1 -> {
-                        bgPatternShifterLow = (bgPatternShifterHigh and 0xFF00) or patternTableTileLow
+                        bgPatternShifterLow = (bgPatternShifterLow and 0xFF00) or patternTableTileLow
                         bgPatternShifterHigh = (bgPatternShifterHigh and 0xFF00) or patternTableTileHigh
 
                         val attributeShifterLow = if (attributeTableByte and 0b01 > 0) 0xFF else 0x00
@@ -346,15 +335,16 @@ class Ppu(
                     3 -> {
                         val address = 0x23C0 or (v and 0x0C00) or ((v ushr 4) and 0x38) or
                                 ((v ushr 2) and 0x07)
+
                         attributeTableByte = readMemory(address)
 
                         val coarseX = (v and 0x001F)
                         val coarseY = (v and 0x03E0) ushr 5
                         if (coarseX and 0x02 > 0) {
-                            attributeTableByte ushr 2
+                            attributeTableByte = attributeTableByte ushr 2
                         }
                         if (coarseY and 0x02 > 0) {
-                            attributeTableByte ushr 4
+                            attributeTableByte = attributeTableByte ushr 4
                         }
 
                         attributeTableByte = attributeTableByte and 0b111
@@ -391,88 +381,6 @@ class Ppu(
                         val fineY = (v ushr 12) and 0x07
                         val address = (basePatternTable or (nametableByte shl 4) or fineY) + 8
                         patternTableTileHigh = readMemory(address)
-                    }
-                }
-            }
-            in 337 ..340 -> {
-                // Garbage nametable reads
-                /*
-                if (cycle % 8 == 1 || cycle % 8 == 3) {
-                    nametableByte = readMemory(0x2000 or (v and 0x0FFF))
-                }
-                 */
-            }
-        }
-    }
-
-    fun tick2() {
-        cycle++
-        if (cycle == 340) {
-            cycle = 0
-            scanline++
-        }
-
-        if (scanline in 0 until 240) {
-            drawBackground()
-            if (Mask.spriteRenderingOn + Mask.backgroundRenderingOn > 0) {
-                scroll()
-            }
-        } else if (scanline == 241 && cycle == 1) {
-            // VBlank start
-            Status.vblank = 1
-            frame = frameBuffer.array().copyOf()
-            frameBuffer.clear()
-            frameReady()
-            if (Control.enableVBlankNmi > 0) {
-                generateNmi()
-            }
-        } else if (scanline == 261 && cycle == 1) {
-            // VBlank end
-            Status.vblank = 0
-            scanline = 0
-            numFrames++
-        }
-    }
-
-    private fun drawBackground() {
-        when (cycle) {
-            in 1 .. 256 -> {
-                // 1-256: Fetch background tile data
-                when (cycle % 8) {
-                    1 -> {
-                        nametableByte = readMemory(0x2000 or (v and 0x0FFF))
-                    }
-                    3 -> {
-                        val address = 0x23C0 or (v and 0x0C00) or ((v ushr 4) and 0x38) or
-                                ((v ushr 2) and 0x07)
-                        attributeTableByte = readMemory(address)
-                    }
-                    5 -> {
-                        val basePatternTable = 0x1000 * Control.backgroundPatternTableAddr
-                        val fineY = (v ushr 12) and 0b111
-                        val address = basePatternTable + (nametableByte shl 4) + fineY
-                        patternTableTileLow = readMemory(address)
-                    }
-                    7 -> {
-                        val basePatternTable = 0x1000 * Control.backgroundPatternTableAddr
-                        val fineY = (v ushr 12) and 0b111
-                        val address = basePatternTable + (nametableByte shl 4) + fineY + 8
-                        patternTableTileHigh = readMemory(address)
-                    }
-                    0 -> {
-                        for (i in 0 until 8) {
-                            val high = (patternTableTileHigh and (0x80 shr i)) > 0
-                            val low = (patternTableTileLow and (0x80 shr i)) > 0
-                            if (high && low) {
-                                frameBuffer.put(0xfcba03)
-                            } else if (high) {
-                                frameBuffer.put(0x03fc1c)
-                            } else if (low) {
-                                frameBuffer.put(0x0373fc)
-                            } else {
-                                frameBuffer.put(0)
-                            }
-                        }
                     }
                 }
             }
