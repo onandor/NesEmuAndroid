@@ -220,6 +220,7 @@ class Ppu(
         frameBuffer.clear()
         patternTableFrame = IntArray(128 * 256)
         nametableFrame = IntArray(512 * 480)
+        palette = IntArray(32)
     }
 
     fun tick() {
@@ -285,10 +286,6 @@ class Ppu(
             val patternHigh = ((bgPatternShifterHigh and bitMux) > 0).toInt()
             val pixelId = (patternHigh shl 1) or patternLow
 
-            if (numFrames == 30) {
-                //print("$pixelId ")
-            }
-
             val paletteLow = ((bgAttributeShifterLow and bitMux) > 0).toInt()
             val paletteHigh = ((bgAttributeShifterHigh and bitMux) > 0).toInt()
             val paletteId = (paletteHigh shl 1) or paletteLow
@@ -301,9 +298,6 @@ class Ppu(
         if (cycle == 341) {
             cycle = 0
             scanline++
-            if (numFrames == 30) {
-                //println()
-            }
             if (scanline == 262) {
                 scanline = 0
                 numFrames++
@@ -432,7 +426,11 @@ class Ppu(
 
     private fun readMemory(address: Int): Int {
         return if (address >= 0x3F00) {
-            palette[address and 0x1F]
+            var paletteAddress = address and 0x1F
+            if (paletteAddress >= 0x10 && paletteAddress % 4 == 0) {
+                paletteAddress -= 0x10
+            }
+            palette[paletteAddress]
         } else {
             readExternalMemory(address)
         }
@@ -440,7 +438,11 @@ class Ppu(
 
     private fun writeMemory(address: Int, value: Int) {
         if (address >= 0x3F00) {
-            palette[address and 0x1F] = value and 0xFF
+            var paletteAddress = address and 0x1F
+            if (paletteAddress >= 16 && paletteAddress % 4 == 0) {
+                paletteAddress -= 16
+            }
+            palette[paletteAddress] = value
         } else {
             writeExternalMemory(address, value)
         }

@@ -16,9 +16,8 @@ class MainViewModel @Inject constructor(
     private val navManager: NavigationManager
 ) : ViewModel() {
 
-    private var cartridge: Cartridge = Cartridge()
-
     fun onRomSelected(stream: InputStream) {
+        val cartridge: Cartridge = Cartridge()
         val rom = stream.readBytes()
         stream.close()
 

@@ -68,7 +68,7 @@ class Cartridge {
         }
 
         // The mappers currently supported only use horizontal or vertical mirroring
-        if (header.control1 and Bits.NAMETABLE == 0) {
+        if (header.control1 and Bits.NAMETABLE > 0) {
             mirroring = Mirroring.VERTICAL
             Log.i(TAG, "Using vertical nametable mirroring")
         } else {
