@@ -29,7 +29,7 @@ class NesTestCpu {
     private fun createNesTestTrace(PC: Int, SP: Int, A: Int, X: Int, Y: Int, PS: Int, cycles: Int) {
         val pc = "${PC.toHexString(4)}  "
 
-        val nextInstruction = nes.cpuReadMemory_dbg(PC)
+        val nextInstruction = nes.dbgCpuReadMemory(PC)
         val nextInstructionName = Cpu.INSTRUCTION_NAME_TABLE[nextInstruction]
 
         val opcodeHexJoiner = StringJoiner(" ").add(nextInstruction.toHexString(2))
@@ -40,72 +40,72 @@ class NesTestCpu {
                 opcodeAsmJoiner.add("A")
             }
             "ABS" -> {
-                val low = nes.cpuReadMemory_dbg(PC.plus16(1))
-                val high = nes.cpuReadMemory_dbg(PC.plus16(2))
+                val low = nes.dbgCpuReadMemory(PC.plus16(1))
+                val high = nes.dbgCpuReadMemory(PC.plus16(2))
                 opcodeHexJoiner
                     .add(low.toHexString(2))
                     .add(high.toHexString(2))
-                val valueAtLocation = nes.cpuReadMemory_dbg(low or (high shl 8))
+                val valueAtLocation = nes.dbgCpuReadMemory(low or (high shl 8))
                 opcodeAsmJoiner.add("$${high.toHexString(2)}${low.toHexString(2)}")
                 if (nextInstructionName != "JMP" && nextInstructionName != "JSR") {
                     opcodeAsmJoiner.add("= ${valueAtLocation.toHexString(2)}")
                 }
             }
             "ABSX" -> {
-                val low = nes.cpuReadMemory_dbg(PC.plus16(1))
-                val high = nes.cpuReadMemory_dbg(PC.plus16(2))
+                val low = nes.dbgCpuReadMemory(PC.plus16(1))
+                val high = nes.dbgCpuReadMemory(PC.plus16(2))
                 opcodeHexJoiner
                     .add(low.toHexString(2))
                     .add(high.toHexString(2))
                 val eaddress = (low or (high shl 8)).plus16(X)
-                val valueAtLocation = nes.cpuReadMemory_dbg(eaddress)
+                val valueAtLocation = nes.dbgCpuReadMemory(eaddress)
                 opcodeAsmJoiner
                     .add("$${high.toHexString(2)}${low.toHexString(2)},X")
                     .add("@ ${eaddress.toHexString(4)}")
                     .add("= ${valueAtLocation.toHexString(2)}")
             }
             "ABSY" -> {
-                val low = nes.cpuReadMemory_dbg(PC.plus16(1))
-                val high = nes.cpuReadMemory_dbg(PC.plus16(2))
+                val low = nes.dbgCpuReadMemory(PC.plus16(1))
+                val high = nes.dbgCpuReadMemory(PC.plus16(2))
                 opcodeHexJoiner
                     .add(low.toHexString(2))
                     .add(high.toHexString(2))
                 val eaddress = (low or (high shl 8)).plus16(Y)
-                val valueAtLocation = nes.cpuReadMemory_dbg(eaddress)
+                val valueAtLocation = nes.dbgCpuReadMemory(eaddress)
                 opcodeAsmJoiner
                     .add("$${high.toHexString(2)}${low.toHexString(2)},Y")
                     .add("@ ${eaddress.toHexString(4)}")
                     .add("= ${valueAtLocation.toHexString(2)}")
             }
             "IMM" -> {
-                val operand = nes.cpuReadMemory_dbg(PC.plus16(1))
+                val operand = nes.dbgCpuReadMemory(PC.plus16(1))
                 opcodeHexJoiner.add(operand.toHexString(2))
                 opcodeAsmJoiner.add("#$${operand.toHexString(2)}")
             }
             "IMPL" -> {}
             "IND" -> {
-                val high = nes.cpuReadMemory_dbg(PC.plus16(2))
-                val low = nes.cpuReadMemory_dbg(PC.plus16(1))
+                val high = nes.dbgCpuReadMemory(PC.plus16(2))
+                val low = nes.dbgCpuReadMemory(PC.plus16(1))
                 opcodeHexJoiner
                     .add(low.toHexString(2))
                     .add(high.toHexString(2))
                 val address = low or (high shl 8)
                 val eaddress = if ((address and 0xFF) == 0xFF) {
-                    nes.cpuReadMemory_dbg(address) or (nes.cpuReadMemory_dbg(address and 0xFF00) shl 8)
+                    nes.dbgCpuReadMemory(address) or (nes.dbgCpuReadMemory(address and 0xFF00) shl 8)
                 } else {
-                    nes.cpuReadMemory_dbg(address) or (nes.cpuReadMemory_dbg(address.plus16(1)) shl 8)
+                    nes.dbgCpuReadMemory(address) or (nes.dbgCpuReadMemory(address.plus16(1)) shl 8)
                 }
                 opcodeAsmJoiner
                     .add("($${high.toHexString(2)}${low.toHexString(2)})")
                     .add("= ${eaddress.toHexString(4)}")
             }
             "INDX" -> {
-                val operand = nes.cpuReadMemory_dbg(PC.plus16(1))
+                val operand = nes.dbgCpuReadMemory(PC.plus16(1))
                 opcodeHexJoiner.add(operand.toHexString(2))
                 val pageZeroAddress = operand.plus8(X)
-                val eaddress = nes.cpuReadMemory_dbg(pageZeroAddress) or
-                        (nes.cpuReadMemory_dbg(pageZeroAddress.plus8(1)) shl 8)
-                val valueAtAddress = nes.cpuReadMemory_dbg(eaddress)
+                val eaddress = nes.dbgCpuReadMemory(pageZeroAddress) or
+                        (nes.dbgCpuReadMemory(pageZeroAddress.plus8(1)) shl 8)
+                val valueAtAddress = nes.dbgCpuReadMemory(eaddress)
                 opcodeAsmJoiner
                     .add("($${operand.toHexString(2)},X)")
                     .add("@ ${pageZeroAddress.toHexString(2)}")
@@ -113,10 +113,10 @@ class NesTestCpu {
                     .add("= ${valueAtAddress.toHexString(2)}")
             }
             "INDY" -> {
-                val operand = nes.cpuReadMemory_dbg(PC.plus16(1))
+                val operand = nes.dbgCpuReadMemory(PC.plus16(1))
                 opcodeHexJoiner.add(operand.toHexString(2))
-                val pageZeroAddress = nes.cpuReadMemory_dbg(operand) or (nes.cpuReadMemory_dbg(operand.plus8(1)) shl 8)
-                val valueAtAddress = nes.cpuReadMemory_dbg(pageZeroAddress.plus16(Y))
+                val pageZeroAddress = nes.dbgCpuReadMemory(operand) or (nes.dbgCpuReadMemory(operand.plus8(1)) shl 8)
+                val valueAtAddress = nes.dbgCpuReadMemory(pageZeroAddress.plus16(Y))
                 opcodeAsmJoiner
                     .add("($${operand.toHexString(2)}),Y")
                     .add("= ${pageZeroAddress.toHexString(4)}")
@@ -124,32 +124,32 @@ class NesTestCpu {
                     .add("= ${valueAtAddress.toHexString(2)}")
             }
             "REL" -> {
-                val operand = nes.cpuReadMemory_dbg(PC.plus16(1))
+                val operand = nes.dbgCpuReadMemory(PC.plus16(1))
                 opcodeHexJoiner.add(operand.toHexString(2))
                 opcodeAsmJoiner.add("$${PC.plus16(2 + operand.toSigned8()).toHexString(2)}")
             }
             "ZPG" -> {
-                val operand = nes.cpuReadMemory_dbg(PC.plus16(1))
+                val operand = nes.dbgCpuReadMemory(PC.plus16(1))
                 opcodeHexJoiner.add(operand.toHexString(2))
                 opcodeAsmJoiner
                     .add("$${operand.toHexString(2)}")
-                    .add("= ${nes.cpuReadMemory_dbg(operand).toHexString(2)}")
+                    .add("= ${nes.dbgCpuReadMemory(operand).toHexString(2)}")
             }
             "ZPGX" -> {
-                val operand = nes.cpuReadMemory_dbg(PC.plus16(1))
+                val operand = nes.dbgCpuReadMemory(PC.plus16(1))
                 opcodeHexJoiner.add(operand.toHexString(2))
                 val eaddress = operand.plus8(X)
-                val valueAtLocation = nes.cpuReadMemory_dbg(eaddress)
+                val valueAtLocation = nes.dbgCpuReadMemory(eaddress)
                 opcodeAsmJoiner
                     .add("$${operand.toHexString(2)},X")
                     .add("@ ${eaddress.toHexString(2)}")
                     .add("= ${valueAtLocation.toHexString(2)}")
             }
             "ZPGY" -> {
-                val operand = nes.cpuReadMemory_dbg(PC.plus16(1))
+                val operand = nes.dbgCpuReadMemory(PC.plus16(1))
                 opcodeHexJoiner.add(operand.toHexString(2))
                 val eaddress = operand.plus8(Y)
-                val valueAtLocation = nes.cpuReadMemory_dbg(eaddress)
+                val valueAtLocation = nes.dbgCpuReadMemory(eaddress)
                 opcodeAsmJoiner
                     .add("$${operand.toHexString(2)},Y")
                     .add("@ ${eaddress.toHexString(2)}")
@@ -180,7 +180,7 @@ class NesTestCpu {
     private fun createMesenTrace(PC: Int, SP: Int, A: Int, X: Int, Y: Int, PS: Int, cycles: Int) {
         val pc = "${PC.toHexString(4)}  "
 
-        val nextInstruction = nes.cpuReadMemory_dbg(PC)
+        val nextInstruction = nes.dbgCpuReadMemory(PC)
         val nextInstructionName = Cpu.INSTRUCTION_NAME_TABLE[nextInstruction]
 
         val opcodeAsmJoiner = StringJoiner(" ").add(nextInstructionName)
@@ -190,58 +190,58 @@ class NesTestCpu {
                 opcodeAsmJoiner.add("A")
             }
             "ABS" -> {
-                val low = nes.cpuReadMemory_dbg(PC.plus16(1))
-                val high = nes.cpuReadMemory_dbg(PC.plus16(2))
-                val valueAtLocation = nes.cpuReadMemory_dbg(low or (high shl 8))
+                val low = nes.dbgCpuReadMemory(PC.plus16(1))
+                val high = nes.dbgCpuReadMemory(PC.plus16(2))
+                val valueAtLocation = nes.dbgCpuReadMemory(low or (high shl 8))
                 opcodeAsmJoiner.add("$${high.toHexString(2)}${low.toHexString(2)}")
                 if (nextInstructionName != "JMP" && nextInstructionName != "JSR") {
                     opcodeAsmJoiner.add("= $${valueAtLocation.toHexString(4)}")
                 }
             }
             "ABSX" -> {
-                val low = nes.cpuReadMemory_dbg(PC.plus16(1))
-                val high = nes.cpuReadMemory_dbg(PC.plus16(2))
+                val low = nes.dbgCpuReadMemory(PC.plus16(1))
+                val high = nes.dbgCpuReadMemory(PC.plus16(2))
                 val eaddress = (low or (high shl 8)).plus16(X)
-                val valueAtLocation = nes.cpuReadMemory_dbg(eaddress)
+                val valueAtLocation = nes.dbgCpuReadMemory(eaddress)
                 opcodeAsmJoiner
                     .add("$${high.toHexString(2)}${low.toHexString(2)},X")
                     .add("@ ${eaddress.toHexString(4)}")
                     .add("= ${valueAtLocation.toHexString(2)}")
             }
             "ABSY" -> {
-                val low = nes.cpuReadMemory_dbg(PC.plus16(1))
-                val high = nes.cpuReadMemory_dbg(PC.plus16(2))
+                val low = nes.dbgCpuReadMemory(PC.plus16(1))
+                val high = nes.dbgCpuReadMemory(PC.plus16(2))
                 val eaddress = (low or (high shl 8)).plus16(Y)
-                val valueAtLocation = nes.cpuReadMemory_dbg(eaddress)
+                val valueAtLocation = nes.dbgCpuReadMemory(eaddress)
                 opcodeAsmJoiner
                     .add("$${high.toHexString(2)}${low.toHexString(2)},Y")
                     .add("@ ${eaddress.toHexString(4)}")
                     .add("= ${valueAtLocation.toHexString(2)}")
             }
             "IMM" -> {
-                val operand = nes.cpuReadMemory_dbg(PC.plus16(1))
+                val operand = nes.dbgCpuReadMemory(PC.plus16(1))
                 opcodeAsmJoiner.add("#$${operand.toHexString(2)}")
             }
             "IMPL" -> {}
             "IND" -> {
-                val high = nes.cpuReadMemory_dbg(PC.plus16(2))
-                val low = nes.cpuReadMemory_dbg(PC.plus16(1))
+                val high = nes.dbgCpuReadMemory(PC.plus16(2))
+                val low = nes.dbgCpuReadMemory(PC.plus16(1))
                 val address = low or (high shl 8)
                 val eaddress = if ((address and 0xFF) == 0xFF) {
-                    nes.cpuReadMemory_dbg(address) or (nes.cpuReadMemory_dbg(address and 0xFF00) shl 8)
+                    nes.dbgCpuReadMemory(address) or (nes.dbgCpuReadMemory(address and 0xFF00) shl 8)
                 } else {
-                    nes.cpuReadMemory_dbg(address) or (nes.cpuReadMemory_dbg(address.plus16(1)) shl 8)
+                    nes.dbgCpuReadMemory(address) or (nes.dbgCpuReadMemory(address.plus16(1)) shl 8)
                 }
                 opcodeAsmJoiner
                     .add("($${high.toHexString(2)}${low.toHexString(2)})")
                     .add("= $${eaddress.toHexString(4)}")
             }
             "INDX" -> {
-                val operand = nes.cpuReadMemory_dbg(PC.plus16(1))
+                val operand = nes.dbgCpuReadMemory(PC.plus16(1))
                 val pageZeroAddress = operand.plus8(X)
-                val eaddress = nes.cpuReadMemory_dbg(pageZeroAddress) or
-                        (nes.cpuReadMemory_dbg(pageZeroAddress.plus8(1)) shl 8)
-                val valueAtAddress = nes.cpuReadMemory_dbg(eaddress)
+                val eaddress = nes.dbgCpuReadMemory(pageZeroAddress) or
+                        (nes.dbgCpuReadMemory(pageZeroAddress.plus8(1)) shl 8)
+                val valueAtAddress = nes.dbgCpuReadMemory(eaddress)
                 opcodeAsmJoiner
                     .add("($${operand.toHexString(2)},X)")
                     .add("@ ${pageZeroAddress.toHexString(2)}")
@@ -249,37 +249,37 @@ class NesTestCpu {
                     .add("= $${valueAtAddress.toHexString(4)}")
             }
             "INDY" -> {
-                val operand = nes.cpuReadMemory_dbg(PC.plus16(1))
-                val pageZeroAddress = nes.cpuReadMemory_dbg(operand) or (nes.cpuReadMemory_dbg(operand.plus8(1)) shl 8)
-                val valueAtAddress = nes.cpuReadMemory_dbg(pageZeroAddress.plus16(Y))
+                val operand = nes.dbgCpuReadMemory(PC.plus16(1))
+                val pageZeroAddress = nes.dbgCpuReadMemory(operand) or (nes.dbgCpuReadMemory(operand.plus8(1)) shl 8)
+                val valueAtAddress = nes.dbgCpuReadMemory(pageZeroAddress.plus16(Y))
                 opcodeAsmJoiner
                     .add("($${operand.toHexString(2)}),Y")
                     .add("[$${pageZeroAddress.plus16(Y).toHexString(4)}]")
                     .add("= $${valueAtAddress.toHexString(4)}")
             }
             "REL" -> {
-                val operand = nes.cpuReadMemory_dbg(PC.plus16(1))
+                val operand = nes.dbgCpuReadMemory(PC.plus16(1))
                 opcodeAsmJoiner.add("$${PC.plus16(2 + operand.toSigned8()).toHexString(2)}")
             }
             "ZPG" -> {
-                val operand = nes.cpuReadMemory_dbg(PC.plus16(1))
+                val operand = nes.dbgCpuReadMemory(PC.plus16(1))
                 opcodeAsmJoiner
                     .add("$${operand.toHexString(2)}")
-                    .add("= $${nes.cpuReadMemory_dbg(operand).toHexString(4)}")
+                    .add("= $${nes.dbgCpuReadMemory(operand).toHexString(4)}")
             }
             "ZPGX" -> {
-                val operand = nes.cpuReadMemory_dbg(PC.plus16(1))
+                val operand = nes.dbgCpuReadMemory(PC.plus16(1))
                 val eaddress = operand.plus8(X)
-                val valueAtLocation = nes.cpuReadMemory_dbg(eaddress)
+                val valueAtLocation = nes.dbgCpuReadMemory(eaddress)
                 opcodeAsmJoiner
                     .add("$${operand.toHexString(2)},X")
                     .add("@ ${eaddress.toHexString(2)}")
                     .add("= $${valueAtLocation.toHexString(4)}")
             }
             "ZPGY" -> {
-                val operand = nes.cpuReadMemory_dbg(PC.plus16(1))
+                val operand = nes.dbgCpuReadMemory(PC.plus16(1))
                 val eaddress = operand.plus8(Y)
-                val valueAtLocation = nes.cpuReadMemory_dbg(eaddress)
+                val valueAtLocation = nes.dbgCpuReadMemory(eaddress)
                 opcodeAsmJoiner
                     .add("$${operand.toHexString(2)},Y")
                     .add("@ ${eaddress.toHexString(2)}")

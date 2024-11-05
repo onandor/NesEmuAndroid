@@ -21,13 +21,21 @@ class DebugViewModel @Inject constructor(
     val nametableRenderer: NesRenderer = NesRenderer(512, 480)
     private var requestNametableRender: () -> Unit = {}
 
+    val colorPaletteRenderers = Array(8) { NesRenderer(60, 15) }
+    private var requestColorPaletteRender = Array(8) { {} }
+
     private val nesListener = object : NesListener {
         override fun onFrameReady() {
-            patternTableRenderer.setTextureData(nes.ppu.patternTableFrame)
+            patternTableRenderer.setTextureData(nes.ppu.dbgPatternTableFrame)
             requestPatternTableRender()
 
-            nametableRenderer.setTextureData(nes.ppu.nametableFrame)
+            nametableRenderer.setTextureData(nes.ppu.dbgNametableFrame)
             requestNametableRender()
+
+            for (i in 0 ..< 8) {
+                colorPaletteRenderers[i].setTextureData(nes.ppu.dbgColorPalettes[i])
+                requestColorPaletteRender[i]()
+            }
         }
     }
 
@@ -43,6 +51,10 @@ class DebugViewModel @Inject constructor(
         this.requestNametableRender = requestRender
     }
 
+    fun setColorPaletteRenderCallback(idx: Int, requestRender: () -> Unit) {
+        this.requestColorPaletteRender[idx] = requestRender
+    }
+
     fun enableDebugFeature(feature: DebugFeature) {
         nes.enableDebugFeature(feature)
     }
@@ -53,5 +65,9 @@ class DebugViewModel @Inject constructor(
 
     fun navigateBack() {
         navManager.navigateBack()
+    }
+
+    override fun onCleared() {
+        nes.unregisterListener(nesListener)
     }
 }

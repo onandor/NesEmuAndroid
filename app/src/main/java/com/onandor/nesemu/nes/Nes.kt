@@ -149,10 +149,10 @@ class Nes {
 
     // Functions used for debugging
 
-    fun cpuReadMemory_dbg(address: Int): Int {
+    fun dbgCpuReadMemory(address: Int): Int {
         return when (address) {
             in 0x0000 .. 0x1FFF -> cpuMemory[address and 0x07FF]        // 2 KB RAM with mirroring
-            in 0x2000 .. 0x3FFF -> ppu.cpuReadRegister_dbg(address and 0x2007) // I/O Registers with mirroring
+            in 0x2000 .. 0x3FFF -> ppu.dbgCpuReadRegister(address and 0x2007) // I/O Registers with mirroring
             in 0x4000 .. 0x4019 -> 0                                    // Registers (Mostly APU)
             in 0x4020 .. 0x5FFF -> {                                    // Cartridge Expansion ROM
                 throw InvalidOperationException(TAG,
@@ -167,10 +167,13 @@ class Nes {
     fun enableDebugFeature(feature: DebugFeature) {
         when (feature) {
             DebugFeature.PPU_RENDER_PATTERN_TABLE -> {
-                ppu.drawPatternTable = true
+                ppu.dbgDrawPatternTable = true
             }
             DebugFeature.PPU_RENDER_NAMETABLE -> {
-                ppu.drawNametable = true
+                ppu.dbgDrawNametable = true
+            }
+            DebugFeature.PPU_RENDER_COLOR_PALETTES -> {
+                ppu.dbgDrawColorPalettes = true
             }
         }
     }
@@ -178,10 +181,13 @@ class Nes {
     fun disableDebugFeature(feature: DebugFeature) {
         when (feature) {
             DebugFeature.PPU_RENDER_PATTERN_TABLE -> {
-                ppu.drawPatternTable = false
+                ppu.dbgDrawPatternTable = false
             }
             DebugFeature.PPU_RENDER_NAMETABLE -> {
-                ppu.drawNametable = false
+                ppu.dbgDrawNametable = false
+            }
+            DebugFeature.PPU_RENDER_COLOR_PALETTES -> {
+                ppu.dbgDrawColorPalettes = false
             }
         }
     }
