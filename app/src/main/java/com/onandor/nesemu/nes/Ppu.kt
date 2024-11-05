@@ -175,23 +175,35 @@ class Ppu(
     var mirroring: Mirroring = Mirroring.HORIZONTAL
 
     // https://www.nesdev.org/wiki/PPU_scrolling#Tile_and_attribute_fetching
-    private var nametableByte: Int = 0
-    private var attributeTableByte: Int = 0
+    private var nametableId: Int = 0
+    private var attributeId: Int = 0
 
     // https://www.nesdev.org/wiki/PPU_pattern_tables
     // Tiles are 8x8 pixels
-    // These two combined store the color indices of a row from a tile being rendered during a scanline
-    private var patternTableTileLow: Int = 0    // First bit plane
-    private var patternTableTileHigh: Int = 0   // Second bit plane
+    // These two combined store the color indices of a row of pixels of a tile being rendered
+    private var tilePatternLow: Int = 0    // First bit plane
+    private var tilePatternHigh: Int = 0   // Second bit plane
 
     lateinit var frame: IntArray
         private set
     private var frameBuffer: IntBuffer = IntBuffer.allocate(SCREEN_WIDTH * SCREEN_HEIGHT)
 
-    var bgPatternShifterLow: Int = 0
-    var bgPatternShifterHigh: Int = 0
-    var bgAttributeShifterLow: Int = 0
-    var bgAttributeShifterHigh: Int = 0
+    /*
+    16 bit shifters that store the pattern and attribute select bits during rendering for the
+    current and next tile.
+    They are shifted left by one in each cycle during the data fetching phase.
+    Every 8 cycles the data for the next tile on the scanline (8 pixels) are loaded into the lower
+    8 bits.
+
+    AAAA AAAA BBBB BBBB
+    |||| |||| |||| ||||
+    |||| |||| ++++-++++-- Next tile
+    ++++-++++------------ Currently rendered tile
+     */
+    var bgPatternDataLow: Int = 0
+    var bgPatternDataHigh: Int = 0
+    var bgAttributeDataLow: Int = 0
+    var bgAttributeDataHigh: Int = 0
 
     // Debug variables
     var drawPatternTable: Boolean = false
@@ -277,19 +289,23 @@ class Ppu(
             scroll()
         }
 
-        //
-        // return palScreen[ppuRead(0x3F00 + (palette << 2) + pixel) & 0x3F];
         if (scanline != 261 && cycle in 1 .. 256 && Mask.backgroundRenderingOn > 0) {
-            val bitMux = 0x8000 shr fineX
+            val bitSelect = 0x8000 shr fineX
+            val offset = 15 - fineX
 
-            val patternLow = ((bgPatternShifterLow and bitMux) > 0).toInt()
-            val patternHigh = ((bgPatternShifterHigh and bitMux) > 0).toInt()
-            val pixelId = (patternHigh shl 1) or patternLow
+            val pixelIdLow = (bgPatternDataLow and bitSelect) ushr offset
+            val pixelIdHigh = (bgPatternDataHigh and bitSelect) ushr offset
+            val pixelId = (pixelIdHigh shl 1) or pixelIdLow
 
-            val paletteLow = ((bgAttributeShifterLow and bitMux) > 0).toInt()
-            val paletteHigh = ((bgAttributeShifterHigh and bitMux) > 0).toInt()
-            val paletteId = (paletteHigh shl 1) or paletteLow
+            val paletteIdLow = (bgAttributeDataLow and bitSelect) ushr offset
+            val paletteIdHigh = (bgAttributeDataHigh and bitSelect) ushr offset
+            val paletteId = (paletteIdHigh shl 1) or paletteIdLow
 
+            // SAAPP
+            // |||||
+            // |||++- Pixel value from tile pattern data
+            // |++--- Palette number from attributes
+            // +----- Background/Sprite select
             val color = COLOR_PALETTE[readMemory(0x3F00 + (paletteId shl 2) or pixelId)]
             frameBuffer.put(color)
         }
@@ -305,55 +321,56 @@ class Ppu(
         }
     }
 
-    fun fetchTileData() {
+    private fun fetchTileData() {
         when (cycle) {
             in 1 .. 256,
             in 321 .. 336 -> {
-                bgPatternShifterLow = bgPatternShifterLow shl 1
-                bgPatternShifterHigh = bgPatternShifterHigh shl 1
-                bgAttributeShifterLow = bgAttributeShifterLow shl 1
-                bgAttributeShifterHigh = bgAttributeShifterHigh shl 1
+                bgPatternDataLow = bgPatternDataLow shl 1
+                bgPatternDataHigh = bgPatternDataHigh shl 1
+                bgAttributeDataLow = bgAttributeDataLow shl 1
+                bgAttributeDataHigh = bgAttributeDataHigh shl 1
 
                 when (cycle % 8) {
                     1 -> {
-                        bgPatternShifterLow = (bgPatternShifterLow and 0xFF00) or patternTableTileLow
-                        bgPatternShifterHigh = (bgPatternShifterHigh and 0xFF00) or patternTableTileHigh
+                        bgPatternDataLow = (bgPatternDataLow and 0xFF00) or tilePatternLow
+                        bgPatternDataHigh = (bgPatternDataHigh and 0xFF00) or tilePatternHigh
 
-                        val attributeShifterLow = if (attributeTableByte and 0b01 > 0) 0xFF else 0x00
-                        bgAttributeShifterLow = (bgAttributeShifterLow and 0xFF00) or attributeShifterLow
-                        val attributeShifterHigh = if (attributeTableByte and 0b10 > 0) 0xFF else 0x00
-                        bgAttributeShifterHigh = (bgAttributeShifterHigh and 0xFF00) or attributeShifterHigh
+                        // Extrapolate the attribute bits to cover the whole tile
+                        val attributeDataLow = if (attributeId and 0b01 > 0) 0xFF else 0x00
+                        bgAttributeDataLow = (bgAttributeDataLow and 0xFF00) or attributeDataLow
+                        val attributeDataHigh = if (attributeId and 0b10 > 0) 0xFF else 0x00
+                        bgAttributeDataHigh = (bgAttributeDataHigh and 0xFF00) or attributeDataHigh
 
-                        nametableByte = readMemory(0x2000 or (v and 0x0FFF))
+                        nametableId = readMemory(0x2000 or (v and 0x0FFF))
                     }
                     3 -> {
                         val address = 0x23C0 or (v and 0x0C00) or ((v ushr 4) and 0x38) or
                                 ((v ushr 2) and 0x07)
 
-                        attributeTableByte = readMemory(address)
+                        attributeId = readMemory(address)
 
                         val coarseX = (v and 0x001F)
                         val coarseY = (v and 0x03E0) ushr 5
                         if (coarseX and 0x02 > 0) {
-                            attributeTableByte = attributeTableByte ushr 2
+                            attributeId = attributeId ushr 2
                         }
                         if (coarseY and 0x02 > 0) {
-                            attributeTableByte = attributeTableByte ushr 4
+                            attributeId = attributeId ushr 4
                         }
 
-                        attributeTableByte = attributeTableByte and 0b111
+                        attributeId = attributeId and 0b111
                     }
                     5 -> {
                         val basePatternTable = 0x1000 * Control.backgroundPatternTableAddr
                         val fineY = (v ushr 12) and 0x07
-                        val address = basePatternTable or (nametableByte shl 4) or fineY
-                        patternTableTileLow = readMemory(address)
+                        val address = basePatternTable or (nametableId shl 4) or fineY
+                        tilePatternLow = readMemory(address)
                     }
                     7 -> {
                         val basePatternTable = 0x1000 * Control.backgroundPatternTableAddr
                         val fineY = (v ushr 12) and 0x07
-                        val address = (basePatternTable or (nametableByte shl 4) or fineY) + 8
-                        patternTableTileHigh = readMemory(address)
+                        val address = (basePatternTable or (nametableId shl 4) or fineY) + 8
+                        tilePatternHigh = readMemory(address)
                     }
                 }
             }
@@ -362,19 +379,19 @@ class Ppu(
                 when (cycle % 8) {
                     1, 3 -> {
                         // Garbage nametable byte reads
-                        nametableByte = readMemory(0x2000 or (v and 0x0FFF))
+                        nametableId = readMemory(0x2000 or (v and 0x0FFF))
                     }
                     5 -> {
                         val basePatternTable = 0x1000 * Control.backgroundPatternTableAddr
                         val fineY = (v ushr 12) and 0x07
-                        val address = basePatternTable or (nametableByte shl 4) or fineY
-                        patternTableTileLow = readMemory(address)
+                        val address = basePatternTable or (nametableId shl 4) or fineY
+                        tilePatternLow = readMemory(address)
                     }
                     7 -> {
                         val basePatternTable = 0x1000 * Control.backgroundPatternTableAddr
                         val fineY = (v ushr 12) and 0x07
-                        val address = (basePatternTable or (nametableByte shl 4) or fineY) + 8
-                        patternTableTileHigh = readMemory(address)
+                        val address = (basePatternTable or (nametableId shl 4) or fineY) + 8
+                        tilePatternHigh = readMemory(address)
                     }
                 }
             }
@@ -427,6 +444,8 @@ class Ppu(
     private fun readMemory(address: Int): Int {
         return if (address >= 0x3F00) {
             var paletteAddress = address and 0x1F
+            // Mirror 0x3F10 -> 0x3F00, 0x3F14 -> 0x3F04, 0x3F18 -> 0x3F08, 0x3F1C -> 0x3F0C
+            // https://forums.nesdev.org/viewtopic.php?t=892
             if (paletteAddress >= 0x10 && paletteAddress % 4 == 0) {
                 paletteAddress -= 0x10
             }
