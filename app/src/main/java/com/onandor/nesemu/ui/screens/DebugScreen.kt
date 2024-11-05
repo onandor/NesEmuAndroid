@@ -1,10 +1,10 @@
 package com.onandor.nesemu.ui.screens
 
+import android.view.MotionEvent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -30,17 +30,21 @@ fun DebugScreen(
         LazyColumn(modifier = Modifier.padding(padding)) {
             item {
                 ColorPalettes(
-                    onSelectPalette = { println("select palette: $it") },
                     renderers = viewModel.colorPaletteRenderers,
-                    setRenderCallback = viewModel::setColorPaletteRenderCallback
+                    setRenderCallback = viewModel::setColorPaletteRenderCallback,
+                    onColorPaletteTouchEvent = viewModel::onColorPaletteTouchEvent
                 )
                 Button(
-                    onClick = { viewModel.enableDebugFeature(DebugFeature.PPU_RENDER_COLOR_PALETTES) }
+                    onClick = {
+                        viewModel.setDebugFeatureBool(DebugFeature.PPU_RENDER_COLOR_PALETTES, true)
+                    }
                 ) {
                     Text("Enable color palette rendering")
                 }
                 Button(
-                    onClick = { viewModel.disableDebugFeature(DebugFeature.PPU_RENDER_COLOR_PALETTES) }
+                    onClick = {
+                        viewModel.setDebugFeatureBool(DebugFeature.PPU_RENDER_COLOR_PALETTES, false)
+                    }
                 ) {
                     Text("Disable color palette rendering")
                 }
@@ -53,12 +57,16 @@ fun DebugScreen(
                     setRenderCallback = viewModel::setPatternTableRenderCallback
                 )
                 Button(
-                    onClick = { viewModel.enableDebugFeature(DebugFeature.PPU_RENDER_PATTERN_TABLE) }
+                    onClick = {
+                        viewModel.setDebugFeatureBool(DebugFeature.PPU_RENDER_PATTERN_TABLE, true)
+                    }
                 ) {
                     Text("Enable pattern table rendering")
                 }
                 Button(
-                    onClick = { viewModel.disableDebugFeature(DebugFeature.PPU_RENDER_PATTERN_TABLE) }
+                    onClick = {
+                        viewModel.setDebugFeatureBool(DebugFeature.PPU_RENDER_PATTERN_TABLE, false)
+                    }
                 ) {
                     Text("Disable pattern table rendering")
                 }
@@ -71,12 +79,16 @@ fun DebugScreen(
                     setRenderCallback = viewModel::setNametableRenderCallback
                 )
                 Button(
-                    onClick = { viewModel.enableDebugFeature(DebugFeature.PPU_RENDER_NAMETABLE) }
+                    onClick = {
+                        viewModel.setDebugFeatureBool(DebugFeature.PPU_RENDER_NAMETABLE, true)
+                    }
                 ) {
                     Text("Enable nametable rendering")
                 }
                 Button(
-                    onClick = { viewModel.disableDebugFeature(DebugFeature.PPU_RENDER_NAMETABLE) }
+                    onClick = {
+                        viewModel.setDebugFeatureBool(DebugFeature.PPU_RENDER_NAMETABLE, false)
+                    }
                 ) {
                     Text("Disable nametable rendering")
                 }
@@ -87,9 +99,9 @@ fun DebugScreen(
 
 @Composable
 private fun ColorPalettes(
-    onSelectPalette: (Int) -> Unit,
     renderers: Array<NesRenderer>,
-    setRenderCallback: (Int, () -> Unit) -> Unit
+    setRenderCallback: (Int, () -> Unit) -> Unit,
+    onColorPaletteTouchEvent: (Int, MotionEvent) -> Unit
  ) {
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
@@ -102,7 +114,8 @@ private fun ColorPalettes(
                 NesSurfaceView(
                     modifier = Modifier.width(screenWidth / 4.5f).aspectRatio(60f / 15f),
                     renderer = renderers[i],
-                    setRenderCallback = { setRenderCallback(i, it) }
+                    setRenderCallback = { setRenderCallback(i, it) },
+                    onTouchEvent = { onColorPaletteTouchEvent(i, it) }
                 )
             }
         }
@@ -114,7 +127,8 @@ private fun ColorPalettes(
                 NesSurfaceView(
                     modifier = Modifier.width(screenWidth / 4.5f).aspectRatio(60f / 15f),
                     renderer = renderers[i],
-                    setRenderCallback = { setRenderCallback(i, it) }
+                    setRenderCallback = { setRenderCallback(i, it) },
+                    onTouchEvent = { onColorPaletteTouchEvent(i, it) }
                 )
             }
         }

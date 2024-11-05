@@ -1,5 +1,6 @@
 package com.onandor.nesemu.ui.components
 
+import android.view.MotionEvent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
@@ -8,12 +9,15 @@ import androidx.compose.ui.viewinterop.AndroidView
 fun NesSurfaceView(
     modifier: Modifier,
     renderer: NesRenderer,
-    setRenderCallback: (() -> Unit) -> Unit
+    setRenderCallback: (() -> Unit) -> Unit,
+    onTouchEvent: (MotionEvent) -> Unit = {}
 ) {
     AndroidView(
         modifier = modifier,
         factory = {
-            NesSurfaceView(it, renderer).apply { setRenderCallback(this::requestRender) }
+            NesSurfaceView(it, renderer, onTouchEvent).apply {
+                setRenderCallback(this::requestRender)
+            }
         }
     )
 }

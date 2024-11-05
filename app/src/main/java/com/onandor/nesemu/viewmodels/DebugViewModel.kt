@@ -1,5 +1,6 @@
 package com.onandor.nesemu.viewmodels
 
+import android.view.MotionEvent
 import androidx.lifecycle.ViewModel
 import com.onandor.nesemu.navigation.NavigationManager
 import com.onandor.nesemu.nes.DebugFeature
@@ -55,12 +56,14 @@ class DebugViewModel @Inject constructor(
         this.requestColorPaletteRender[idx] = requestRender
     }
 
-    fun enableDebugFeature(feature: DebugFeature) {
-        nes.enableDebugFeature(feature)
+    fun onColorPaletteTouchEvent(idx: Int, event: MotionEvent) {
+        if (event.action == MotionEvent.ACTION_DOWN) {
+            nes.setDebugFeatureInt(DebugFeature.PPU_SET_COLOR_PALETTE, idx)
+        }
     }
 
-    fun disableDebugFeature(feature: DebugFeature) {
-        nes.disableDebugFeature(feature)
+    fun setDebugFeatureBool(feature: DebugFeature, value: Boolean) {
+        nes.setDebugFeatureBool(feature, value)
     }
 
     fun navigateBack() {

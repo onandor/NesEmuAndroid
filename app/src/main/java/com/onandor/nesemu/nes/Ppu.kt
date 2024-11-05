@@ -214,7 +214,7 @@ class Ppu(
     var dbgNametableFrame: IntArray = IntArray(512 * 480)
         private set
 
-    var dbgPaletteId: Int = 0
+    var dbgColorPaletteId: Int = 0
     var dbgDrawColorPalettes: Boolean = false
     var dbgColorPalettes = Array(8) { IntArray(4 * 225) }
         private set
@@ -612,7 +612,8 @@ class Ppu(
 
                 val pixelIdx = (tileRow * TILE_SIZE + y) * (GRID_SIZE * TILE_SIZE * 2) +
                         (tileCol * TILE_SIZE + x)
-                grid[pixelIdx] = COLOR_PALETTE[readMemory(0x3F00 + ((dbgPaletteId shl 2) or pixel))]
+                grid[pixelIdx] =
+                    COLOR_PALETTE[readMemory(0x3F00 + ((dbgColorPaletteId shl 2) or pixel))]
             }
         }
     }
@@ -655,7 +656,8 @@ class Ppu(
 
                 val pixelIdx = (rowOffset + tileRow * TILE_SIZE + y) * 512 +
                         (colOffset + tileCol * TILE_SIZE + x)
-                frame[pixelIdx] = COLOR_PALETTE[readMemory(0x3F00 + ((dbgPaletteId shl 2) or pixel))]
+                frame[pixelIdx] =
+                    COLOR_PALETTE[readMemory(0x3F00 + ((dbgColorPaletteId shl 2) or pixel))]
             }
         }
     }

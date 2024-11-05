@@ -164,31 +164,27 @@ class Nes {
         }
     }
 
-    fun enableDebugFeature(feature: DebugFeature) {
+    fun setDebugFeatureBool(feature: DebugFeature, value: Boolean) {
         when (feature) {
             DebugFeature.PPU_RENDER_PATTERN_TABLE -> {
-                ppu.dbgDrawPatternTable = true
+                ppu.dbgDrawPatternTable = value
             }
             DebugFeature.PPU_RENDER_NAMETABLE -> {
-                ppu.dbgDrawNametable = true
+                ppu.dbgDrawNametable = value
             }
             DebugFeature.PPU_RENDER_COLOR_PALETTES -> {
-                ppu.dbgDrawColorPalettes = true
+                ppu.dbgDrawColorPalettes = value
             }
+            else -> {}
         }
     }
 
-    fun disableDebugFeature(feature: DebugFeature) {
+    fun setDebugFeatureInt(feature: DebugFeature, value: Int) {
         when (feature) {
-            DebugFeature.PPU_RENDER_PATTERN_TABLE -> {
-                ppu.dbgDrawPatternTable = false
+            DebugFeature.PPU_SET_COLOR_PALETTE -> {
+                ppu.dbgColorPaletteId = value
             }
-            DebugFeature.PPU_RENDER_NAMETABLE -> {
-                ppu.dbgDrawNametable = false
-            }
-            DebugFeature.PPU_RENDER_COLOR_PALETTES -> {
-                ppu.dbgDrawColorPalettes = false
-            }
+            else -> {}
         }
     }
 }

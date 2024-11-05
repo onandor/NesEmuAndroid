@@ -4,7 +4,11 @@ import android.content.Context
 import android.opengl.GLSurfaceView
 import android.view.MotionEvent
 
-class NesSurfaceView(context: Context, renderer: NesRenderer) : GLSurfaceView(context) {
+class NesSurfaceView(
+    context: Context,
+    renderer: NesRenderer,
+    private val touchEventCallback: (MotionEvent) -> Unit = {}
+): GLSurfaceView(context) {
 
     init {
         setEGLContextClientVersion(3)
@@ -13,7 +17,10 @@ class NesSurfaceView(context: Context, renderer: NesRenderer) : GLSurfaceView(co
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        println("onTouchEvent")
-        return true
+        if (touchEventCallback !== {}) {
+            this.touchEventCallback(event)
+            return true
+        }
+        return false
     }
 }
