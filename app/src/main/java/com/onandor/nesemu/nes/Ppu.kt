@@ -256,6 +256,9 @@ class Ppu(
         dbgNametableFrame = IntArray(512 * 480)
         dbgColorPalettes = Array(8) { IntArray(4 * 225) }
         oamClear = false
+        oamBuffer = IntArray(32) { 0xFF }
+        sprPatternDataLow = IntArray(8)
+        sprPatternDataHigh= IntArray(8)
     }
 
     fun tick() {
@@ -295,10 +298,12 @@ class Ppu(
         }
 
         if (scanline == 261 && cycle == 1) {
-            // End of vertical blank
+            // End of vertical blank, start of pre-render scanline
             Status.vblank = 0
             Status.spriteZeroHit = 0
             Status.spriteOverflow = 0
+            sprPatternDataLow = IntArray(8)
+            sprPatternDataHigh = IntArray(8)
         }
 
         fetchTileData()
@@ -311,11 +316,11 @@ class Ppu(
         } else if (cycle == 64) {
             oamClear = false
         }
-        if (cycle == 257 && Mask.spriteRenderingOn + Mask.backgroundRenderingOn > 0) {
+        if (cycle == 257 && scanline != 261 && Mask.spriteRenderingOn + Mask.backgroundRenderingOn > 0) {
             evaluateSprites()
         }
 
-        if (scanline != 261 && cycle in 1 .. 256 && Mask.backgroundRenderingOn > 0) {
+        if (scanline != 261 && cycle in 1 .. 256) {
             renderPixel()
         }
 
@@ -349,39 +354,45 @@ class Ppu(
         // |||++- Pixel value from tile pattern data
         // |++--- Palette number from attributes
         // +----- Background/Sprite select
-        val bgColor = COLOR_PALETTE[readMemory(0x3F00 + (bgPaletteId shl 2) or bgPixelId)]
+        val bgColor = if (bgPixelId != 0 && Mask.backgroundRenderingOn > 0) {
+            COLOR_PALETTE[readMemory(0x3F00 + (bgPaletteId shl 2) or bgPixelId)]
+        } else {
+            COLOR_PALETTE[readMemory(0x3F00)]
+        }
 
         // Sprite pixel
 
         // If the color is left on -1 after the priority evaluation, the background is drawn
         var spriteColor: Int = -1
 
-        for (i in 0 ..< numSpritesOnScanline) {
-            if (cycle < oamBuffer[i * 4 + 3]) {
-                // We have not yet reached the sprite
-                continue
-            }
+        if (Mask.spriteRenderingOn > 0) {
+            for (i in 0 ..< numSpritesOnScanline) {
+                if (cycle <= oamBuffer[i * 4 + 3]) {
+                    // We have not yet reached the sprite
+                    continue
+                }
 
-            val sprPixelIdLow = (sprPatternDataLow[i] and bitSelect) ushr offset
-            val sprPixelIdHigh = (sprPatternDataHigh[i] and bitSelect) ushr offset
-            val sprPixelId = (sprPixelIdHigh shl 1) or sprPixelIdLow
-            if (sprPixelId == 0) {
-                // This pixel of the sprite is transparent
-                continue
-            }
+                val sprPixelIdLow = (sprPatternDataLow[i] and 0x80) ushr 7
+                val sprPixelIdHigh = (sprPatternDataHigh[i] and 0x80) ushr 7
+                val sprPixelId = (sprPixelIdHigh shl 1) or sprPixelIdLow
+                if (sprPixelId == 0) {
+                    // This pixel of the sprite is transparent
+                    continue
+                }
 
-            // At this point we have reached an opaque sprite pixel
-            // If the priority of the first opaque sprite is set to 1, and the background is
-            // NOT transparent, then the background is drawn
-            val priority = (oamBuffer[i * 4 + 2] and 0x20) ushr 5
-            if (bgPixelId != 0 && priority == 1) {
-                break;
-            }
+                // At this point we have reached an opaque sprite pixel
+                // If the priority of the first opaque sprite is set to 1, and the background is
+                // NOT transparent, then the background is drawn
+                val priority = (oamBuffer[i * 4 + 2] and 0x20) ushr 5
+                if (bgPixelId != 0 && priority == 1) {
+                    break;
+                }
 
-            val sprPaletteId = oamBuffer[i * 4 + 2] and 0x03
-            // The sprite is opaque and its priority is 0 -> draw the sprite pixel
-            spriteColor = COLOR_PALETTE[readMemory(0x3F10 + (sprPaletteId shl 2) + sprPixelId)]
-            break
+                val sprPaletteId = oamBuffer[i * 4 + 2] and 0x03
+                // The sprite is opaque and its priority is 0 -> draw the sprite pixel
+                spriteColor = COLOR_PALETTE[readMemory(0x3F10 + (sprPaletteId shl 2) + sprPixelId)]
+                break
+            }
         }
 
         val color = if (spriteColor != -1) spriteColor else bgColor
@@ -507,7 +518,7 @@ class Ppu(
         }
 
         // This function gets called on cycle mod 8 = 5 and cycle mod 8 = 7
-        // We fetch the low byte of the tile on 5 and the high byte on 7
+        // The low byte of the tile is fetched on 5 and the high byte on 7
         if (cycle % 8 == 7) {
             address += 8
         }
@@ -515,7 +526,12 @@ class Ppu(
         var tilePattern = readMemory(address)
         if ((tileAttributes and 0x40) > 0) {
             // Tile is flipped horizontally -> reverse the order of bits
-            tilePattern = Integer.reverse(tilePattern)
+            var reversed = 0
+            for (i in 0 ..< 8) {
+                reversed = (reversed shl 1) or (tilePattern and 0x01)
+                tilePattern = tilePattern ushr 1
+            }
+            tilePattern = reversed and 0xFF
         }
 
         if (cycle % 8 == 5) {
@@ -531,10 +547,10 @@ class Ppu(
         bgAttributeDataLow = bgAttributeDataLow shl 1
         bgAttributeDataHigh = bgAttributeDataHigh shl 1
 
-        if (cycle in 0 .. 256) {
+        if (cycle in 1 .. 256) {
             // Check all 8 (or less, because dummy 0xFF bits) sprites in secondary OAM
             for (i in 0 ..< 8) {
-                if (cycle >= oamBuffer[i * 4 + 3]) {
+                if (cycle - 1 > oamBuffer[i * 4 + 3]) {
                     // Sprite X coordinate reached, shift its pattern data
                     sprPatternDataLow[i] = sprPatternDataLow[i] shl 1
                     sprPatternDataHigh[i] = sprPatternDataHigh[i] shl 1
@@ -595,7 +611,7 @@ class Ppu(
         for (n in 0 ..< 64) {
             val y = OAMData.data[n * 4]
             val height = 8 + Control.tallSprites * 8
-            if ((scanline + 1) - y !in 0 .. height) {
+            if (scanline - y !in 0 ..< height) {
                 continue
             }
             if (numSpritesOnScanline < 8) {

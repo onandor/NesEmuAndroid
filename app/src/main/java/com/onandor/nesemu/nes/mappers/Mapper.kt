@@ -9,6 +9,10 @@ abstract class Mapper(open val cartridge: Cartridge) {
     abstract fun writePrgRom(address: Int, value: Int)
     abstract fun readChrRom(address: Int): Int
     abstract fun writeChrRom(address: Int, value: Int)
+    abstract fun readUnmappedRange(address: Int): Int
+    abstract fun writeUnmappedRange(address: Int, value: Int)
+    abstract fun readRam(address: Int): Int
+    abstract fun writeRam(address: Int, value: Int)
 
     private val nametableOffsetMap: Map<Mirroring, Map<Int, Int>> = mapOf(
         Mirroring.HORIZONTAL to mapOf(

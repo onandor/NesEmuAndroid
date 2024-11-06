@@ -1,7 +1,9 @@
 package com.onandor.nesemu.nes.mappers
 
+import android.util.Log
 import com.onandor.nesemu.nes.Cartridge
 import com.onandor.nesemu.nes.InvalidOperationException
+import com.onandor.nesemu.nes.toHexString
 
 // NROM - https://www.nesdev.org/wiki/NROM
 class Mapper0(cartridge: Cartridge) : Mapper(cartridge) {
@@ -20,7 +22,8 @@ class Mapper0(cartridge: Cartridge) : Mapper(cartridge) {
     }
 
     override fun writePrgRom(address: Int, value: Int) {
-        throw InvalidOperationException(TAG, "Forbidden PRG ROM write at $address (value: $value)")
+        Log.w(TAG, "CPU attempting to write PRG ROM at $${address.toHexString(4)}" +
+                " (value: $${value.toHexString(2)})")
     }
 
     override fun readChrRom(address: Int): Int {
@@ -28,6 +31,19 @@ class Mapper0(cartridge: Cartridge) : Mapper(cartridge) {
     }
 
     override fun writeChrRom(address: Int, value: Int) {
-        throw InvalidOperationException(TAG, "Forbidden CHR ROM write at $address (value: $value)")
+        Log.w(TAG, "CPU attempting to write CHR ROM at $${address.toHexString(4)}" +
+                " (value: $${value.toHexString(2)})")
     }
+
+    override fun readUnmappedRange(address: Int): Int {
+        return -1
+    }
+
+    override fun writeUnmappedRange(address: Int, value: Int) {}
+
+    override fun readRam(address: Int): Int {
+        return -1
+    }
+
+    override fun writeRam(address: Int, value: Int) {}
 }

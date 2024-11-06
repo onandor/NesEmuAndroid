@@ -20,6 +20,7 @@ class Nes {
     val ppu: Ppu = Ppu(::ppuReadMemory, ::ppuWriteMemory, cpu::NMI, ::ppuFrameReady)
     private var cartridge: Cartridge? = null
     private lateinit var mapper: Mapper
+    private var lastValueRead: Int = 0
 
     var running: Boolean = true
     private var isFrameReady: Boolean = false
@@ -30,18 +31,22 @@ class Nes {
     private val listeners = mutableListOf<NesListener>()
 
     fun cpuReadMemory(address: Int): Int {
-        return when (address) {
+        lastValueRead = when (address) {
             in 0x0000 .. 0x1FFF -> cpuMemory[address and 0x07FF]        // 2 KB RAM with mirroring
             in 0x2000 .. 0x3FFF -> ppu.cpuReadRegister(address and 0x2007) // I/O Registers with mirroring
             in 0x4000 .. 0x4019 -> 0                                    // Registers (Mostly APU)
-            in 0x4020 .. 0x5FFF -> {                                    // Cartridge Expansion ROM
-                throw InvalidOperationException(TAG,
-                    "CPU read at $address: Cartridge Expansion ROM not supported")
+            in 0x4020 .. 0x5FFF -> {                                    // Usually unmapped
+                val value = mapper.readUnmappedRange(address)
+                if (value == -1) lastValueRead else value
             }
-            in 0x6000 .. 0x7FFF -> 0                                    // SRAM
+            in 0x6000 .. 0x7FFF -> {                                    // Usually cartridge SRAM
+                val value = mapper.readRam(address)
+                if (value == -1) lastValueRead else value
+            }
             in 0x8000 .. 0xFFFF -> mapper.readPrgRom(address)           // PRG-ROM
             else -> throw InvalidOperationException(TAG, "Invalid CPU read at $address")
         }
+        return lastValueRead
     }
 
     fun cpuWriteMemory(address: Int, value: Int) {
@@ -53,11 +58,8 @@ class Nes {
                 ppu.loadOamData(oamData)
             }
             in 0x4000 .. 0x4019 -> 0                                            // Registers (Mostly APU)
-            in 0x4020 .. 0x5FFF -> {                                            // Cartridge Expansion ROM
-                throw InvalidOperationException(TAG,
-                    "CPU write at $address: Cartridge Expansion ROM not supported")
-            }
-            in 0x6000 .. 0x7FFF -> 0                                            // SRAM
+            in 0x4020 .. 0x5FFF -> mapper.writeUnmappedRange(address, value)    // Usually unmapped
+            in 0x6000 .. 0x7FFF -> mapper.writeRam(address, value)              // SRAM
             in 0x8000 .. 0xFFFF -> mapper.writePrgRom(address, value)           // PRG-ROM
             else -> throw InvalidOperationException(TAG, "Invalid CPU write at $address")
         }
@@ -70,7 +72,7 @@ class Nes {
             in 0x2000 .. 0x2FFF -> vram[mapper.mapNametableAddress(address)]    // Nametables
             in 0x3000 .. 0x3EFF -> ppuReadMemory(address and 0x2EFF) // Mirror of 0x2000-0x2EFF
             in 0x3F00 .. 0x3F1F -> 0    // Palette (access handled by PPU internally)
-            in 0x3F20 .. 0x3FFF -> ppuReadMemory(address and 0x3F1F) // Mirror of 0x3F00-0x3F1F
+            in 0x3F20 .. 0x3FFF -> 0    // Mirror of 0x3F00-0x3F1F
             else -> throw InvalidOperationException(TAG, "Invalid PPU read at $address")
         }
     }
@@ -81,8 +83,8 @@ class Nes {
             in 0x0000 .. 0x1FFF -> mapper.writeChrRom(address, value) // Pattern Table
             in 0x2000 .. 0x2FFF -> vram[mapper.mapNametableAddress(address)] = value    // Nametables
             in 0x3000 .. 0x3EFF -> ppuWriteMemory(address and 0x2EFF, value) // Mirror of 0x2000-0x2EFF
-            in 0x3F00 .. 0x3F1F -> 0    // Palette (access handled by PPU internally)
-            in 0x3F20 .. 0x3FFF -> ppuWriteMemory(address and 0x3F1F, value) // Mirror of 0x3F00-0x3F1F
+            in 0x3F00 .. 0x3F1F -> {}    // Palette (access handled by PPU internally)
+            in 0x3F20 .. 0x3FFF -> {}    // Mirror of 0x3F00-0x3F1F
             else -> throw InvalidOperationException(TAG, "Invalid PPU write at $address")
         }
     }
@@ -104,6 +106,7 @@ class Nes {
     suspend fun reset() {
         cpuMemory = IntArray(MEMORY_SIZE)
         vram = IntArray(MEMORY_SIZE)
+        lastValueRead = 0
         numFrames = 0
         isFrameReady = false
         running = true
