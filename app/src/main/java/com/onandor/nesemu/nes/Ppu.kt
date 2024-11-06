@@ -384,8 +384,20 @@ class Ppu(
                 // If the priority of the first opaque sprite is set to 1, and the background is
                 // NOT transparent, then the background is drawn
                 val priority = (oamBuffer[i * 4 + 2] and 0x20) ushr 5
-                if (bgPixelId != 0 && priority == 1) {
-                    break;
+                if (bgPixelId != 0) {
+                    // Check for sprite 0 hit
+                    if (i == 0 && oamBuffer[0] == OAMData.data[0] && oamBuffer[3]== OAMData.data[3]
+                        && Mask.backgroundRenderingOn > 0 && Status.spriteZeroHit == 0) {
+                        val lowerCycleLimit =
+                            if (Mask.showBgInLeft == 0 || Mask.showSpritesInLeft == 0) 8 else 1
+                        if (cycle - 1 in lowerCycleLimit .. 254) {
+                            Status.spriteZeroHit = 1
+                        }
+                    }
+                    if (priority == 1) {
+                        // The background pixel has priority
+                        break;
+                    }
                 }
 
                 val sprPaletteId = oamBuffer[i * 4 + 2] and 0x03
@@ -612,11 +624,11 @@ class Ppu(
             val y = OAMData.data[n * 4]
             val height = 8 + Control.tallSprites * 8
             if (scanline - y !in 0 ..< height) {
+                // The sprite doesn't have a row of pixels on the next scanline, skipping to the next
                 continue
             }
             if (numSpritesOnScanline < 8) {
                 for (m in 0 ..< 4) {
-                    //println("oamdata size: ${OAMData.data.size} n: $n, m: $m")
                     oamBuffer[numSpritesOnScanline * 4 + m] = OAMData.data[n * 4 + m]
                 }
                 numSpritesOnScanline += 1
