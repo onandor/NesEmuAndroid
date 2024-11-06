@@ -48,22 +48,19 @@ class Ppu(
     private object Control {
         const val ADDRESS = 0x2000
         var register: Int = 0
-        var nametableAddrLow: Int
-            get() { return register and 0x01 }
-            set(value) { register = if (value > 0) register or 0x01 else register and 0x01.inv() }
-        var nametableAddrHigh: Int
-            get() { return (register and 0x02) shr 1 }
-            set(value) { register = if (value > 0) register or 0x02 else register and 0x02.inv() }
+        var nametableSelect: Int
+            get() { return register and 0x03 }
+            set(value) { register = (register and 0xFC) or (value and 0x03) }
         var vramAddrIncrement: Int
             get() { return (register and 0x04) shr 2 }
             set(value) { register = if (value > 0) register or 0x04 else register and 0x04.inv() }
-        var spritePatternTableAddr: Int
+        var spritePatternTableSelect: Int
             get() { return (register and 0x08) shr 3 }
             set(value) { register = if (value > 0) register or 0x08 else register and 0x08.inv() }
-        var backgroundPatternTableAddr: Int
+        var bgPatternTableSelect: Int
             get() { return (register and 0x10) shr 4 }
             set(value) { register = if (value > 0) register or 0x10 else register and 0x10.inv() }
-        var spriteSize: Int
+        var tallSprites: Int
             get() { return (register and 0x20) shr 5 }
             set(value) { register = if (value > 0) register or 0x20 else register and 0x20.inv() }
         var masterSlaveSelect: Int
@@ -174,6 +171,10 @@ class Ppu(
 
     var mirroring: Mirroring = Mirroring.HORIZONTAL
 
+    // Variables related to sprite fetching and rendering
+
+    // Background
+
     // https://www.nesdev.org/wiki/PPU_scrolling#Tile_and_attribute_fetching
     private var nametableId: Int = 0
     private var attributeId: Int = 0
@@ -181,12 +182,8 @@ class Ppu(
     // https://www.nesdev.org/wiki/PPU_pattern_tables
     // Tiles are 8x8 pixels
     // These two combined store the color indices of a row of pixels of a tile being rendered
-    private var tilePatternLow: Int = 0    // First bit plane
-    private var tilePatternHigh: Int = 0   // Second bit plane
-
-    lateinit var frame: IntArray
-        private set
-    private var frameBuffer: IntBuffer = IntBuffer.allocate(SCREEN_WIDTH * SCREEN_HEIGHT)
+    private var bgTilePatternLow: Int = 0    // First bit plane
+    private var bgTilePatternHigh: Int = 0   // Second bit plane
 
     /*
     16 bit shifters that store the pattern and attribute select bits during rendering for the
@@ -204,6 +201,25 @@ class Ppu(
     private var bgPatternDataHigh: Int = 0
     private var bgAttributeDataLow: Int = 0
     private var bgAttributeDataHigh: Int = 0
+
+    // Sprites - a maximum of 8 sprites can be on the same scanline
+
+    // 8 sprites, 4 bytes each
+    //private var oamBuffer: IntBuffer = IntBuffer.allocate(32)
+    private var oamBuffer: IntArray = IntArray(32) { 0xFF }
+    private var numSpritesOnScanline: Int = 0
+
+    // Between cycles 1-64 it indicates that the secondary OAM is being cleared, so reading 0x2004
+    // (OAMDATA) should return 0xFF
+    private var oamClear: Boolean = false
+
+    // maximum of 8 sprites; 8 bits of pattern data for the low and high bitplanes per sprite
+    private var sprPatternDataLow: IntArray = IntArray(8)
+    private var sprPatternDataHigh: IntArray = IntArray(8)
+
+    lateinit var frame: IntArray
+        private set
+    private var frameBuffer: IntBuffer = IntBuffer.allocate(SCREEN_WIDTH * SCREEN_HEIGHT)
 
     // Debug variables
     var dbgDrawPatternTable: Boolean = false
@@ -239,6 +255,7 @@ class Ppu(
         dbgPatternTableFrame = IntArray(128 * 256)
         dbgNametableFrame = IntArray(512 * 480)
         dbgColorPalettes = Array(8) { IntArray(4 * 225) }
+        oamClear = false
     }
 
     fun tick() {
@@ -259,7 +276,7 @@ class Ppu(
             if (scanline == 241 && cycle == 1) {
                 // Start of vertical blank
                 Status.vblank = 1
-                render()
+                renderFrame()
                 if (Control.enableVBlankNmi > 0) {
                     generateNmi()
                 }
@@ -280,6 +297,8 @@ class Ppu(
         if (scanline == 261 && cycle == 1) {
             // End of vertical blank
             Status.vblank = 0
+            Status.spriteZeroHit = 0
+            Status.spriteOverflow = 0
         }
 
         fetchTileData()
@@ -287,25 +306,17 @@ class Ppu(
             scroll()
         }
 
+        if (cycle == 1) {
+            oamClear = true
+        } else if (cycle == 64) {
+            oamClear = false
+        }
+        if (cycle == 257 && Mask.spriteRenderingOn + Mask.backgroundRenderingOn > 0) {
+            evaluateSprites()
+        }
+
         if (scanline != 261 && cycle in 1 .. 256 && Mask.backgroundRenderingOn > 0) {
-            val bitSelect = 0x8000 shr fineX
-            val offset = 15 - fineX
-
-            val pixelIdLow = (bgPatternDataLow and bitSelect) ushr offset
-            val pixelIdHigh = (bgPatternDataHigh and bitSelect) ushr offset
-            val pixelId = (pixelIdHigh shl 1) or pixelIdLow
-
-            val paletteIdLow = (bgAttributeDataLow and bitSelect) ushr offset
-            val paletteIdHigh = (bgAttributeDataHigh and bitSelect) ushr offset
-            val paletteId = (paletteIdHigh shl 1) or paletteIdLow
-
-            // SAAPP
-            // |||||
-            // |||++- Pixel value from tile pattern data
-            // |++--- Palette number from attributes
-            // +----- Background/Sprite select
-            val color = COLOR_PALETTE[readMemory(0x3F00 + (paletteId shl 2) or pixelId)]
-            frameBuffer.put(color)
+            renderPixel()
         }
 
         cycle++
@@ -319,7 +330,66 @@ class Ppu(
         }
     }
 
-    private fun render() {
+    private fun renderPixel() {
+        val bitSelect = 0x8000 shr fineX
+        val offset = 15 - fineX
+
+        // Background pixel
+
+        val bgPixelIdLow = (bgPatternDataLow and bitSelect) ushr offset
+        val bgPixelIdHigh = (bgPatternDataHigh and bitSelect) ushr offset
+        val bgPixelId = (bgPixelIdHigh shl 1) or bgPixelIdLow
+
+        val bgPaletteIdLow = (bgAttributeDataLow and bitSelect) ushr offset
+        val bgPaletteIdHigh = (bgAttributeDataHigh and bitSelect) ushr offset
+        val bgPaletteId = (bgPaletteIdHigh shl 1) or bgPaletteIdLow
+
+        // SAAPP
+        // |||||
+        // |||++- Pixel value from tile pattern data
+        // |++--- Palette number from attributes
+        // +----- Background/Sprite select
+        val bgColor = COLOR_PALETTE[readMemory(0x3F00 + (bgPaletteId shl 2) or bgPixelId)]
+
+        // Sprite pixel
+
+        // If the color is left on -1 after the priority evaluation, the background is drawn
+        var spriteColor: Int = -1
+
+        for (i in 0 ..< numSpritesOnScanline) {
+            if (cycle < oamBuffer[i * 4 + 3]) {
+                // We have not yet reached the sprite
+                continue
+            }
+
+            val sprPixelIdLow = (sprPatternDataLow[i] and bitSelect) ushr offset
+            val sprPixelIdHigh = (sprPatternDataHigh[i] and bitSelect) ushr offset
+            val sprPixelId = (sprPixelIdHigh shl 1) or sprPixelIdLow
+            if (sprPixelId == 0) {
+                // This pixel of the sprite is transparent
+                continue
+            }
+
+            // At this point we have reached an opaque sprite pixel
+            // If the priority of the first opaque sprite is set to 1, and the background is
+            // NOT transparent, then the background is drawn
+            val priority = (oamBuffer[i * 4 + 2] and 0x20) ushr 5
+            if (bgPixelId != 0 && priority == 1) {
+                break;
+            }
+
+            val sprPaletteId = oamBuffer[i * 4 + 2] and 0x03
+            // The sprite is opaque and its priority is 0 -> draw the sprite pixel
+            spriteColor = COLOR_PALETTE[readMemory(0x3F10 + (sprPaletteId shl 2) + sprPixelId)]
+            break
+        }
+
+        val color = if (spriteColor != -1) spriteColor else bgColor
+
+        frameBuffer.put(color)
+    }
+
+    private fun renderFrame() {
         if (dbgDrawPatternTable) {
             dbgPatternTableFrame = dbgRenderPatternTable()
         }
@@ -338,17 +408,13 @@ class Ppu(
 
     private fun fetchTileData() {
         when (cycle) {
-            in 1 .. 256,
-            in 321 .. 336 -> {
-                bgPatternDataLow = bgPatternDataLow shl 1
-                bgPatternDataHigh = bgPatternDataHigh shl 1
-                bgAttributeDataLow = bgAttributeDataLow shl 1
-                bgAttributeDataHigh = bgAttributeDataHigh shl 1
-
+            in 1 .. 256,        // Fetch background tile data
+            in 321 .. 336 -> {  // Prefetch the next 2 background tiles for the next scanline
+                shiftPatternData()
                 when (cycle % 8) {
                     1 -> {
-                        bgPatternDataLow = (bgPatternDataLow and 0xFF00) or tilePatternLow
-                        bgPatternDataHigh = (bgPatternDataHigh and 0xFF00) or tilePatternHigh
+                        bgPatternDataLow = (bgPatternDataLow and 0xFF00) or bgTilePatternLow
+                        bgPatternDataHigh = (bgPatternDataHigh and 0xFF00) or bgTilePatternHigh
 
                         // Extrapolate the attribute bits to cover the whole tile
                         val attributeDataLow = if (attributeId and 0b01 > 0) 0xFF else 0x00
@@ -376,43 +442,108 @@ class Ppu(
                         attributeId = attributeId and 0b111
                     }
                     5 -> {
-                        val basePatternTable = 0x1000 * Control.backgroundPatternTableAddr
+                        val basePatternTable = 0x1000 * Control.bgPatternTableSelect
                         val fineY = (v ushr 12) and 0x07
                         val address = basePatternTable or (nametableId shl 4) or fineY
-                        tilePatternLow = readMemory(address)
+                        bgTilePatternLow = readMemory(address)
                     }
                     7 -> {
-                        val basePatternTable = 0x1000 * Control.backgroundPatternTableAddr
+                        val basePatternTable = 0x1000 * Control.bgPatternTableSelect
                         val fineY = (v ushr 12) and 0x07
                         val address = (basePatternTable or (nametableId shl 4) or fineY) + 8
-                        tilePatternHigh = readMemory(address)
+                        bgTilePatternHigh = readMemory(address)
                     }
                 }
             }
             in 257 .. 320 -> {
                 // Prefetch tile data for the sprites on the next scanline
                 when (cycle % 8) {
-                    1, 3 -> {
-                        // Garbage nametable byte reads
-                        nametableId = readMemory(0x2000 or (v and 0x0FFF))
-                    }
-                    5 -> {
-                        val basePatternTable = 0x1000 * Control.backgroundPatternTableAddr
-                        val fineY = (v ushr 12) and 0x07
-                        val address = basePatternTable or (nametableId shl 4) or fineY
-                        tilePatternLow = readMemory(address)
-                    }
-                    7 -> {
-                        val basePatternTable = 0x1000 * Control.backgroundPatternTableAddr
-                        val fineY = (v ushr 12) and 0x07
-                        val address = (basePatternTable or (nametableId shl 4) or fineY) + 8
-                        tilePatternHigh = readMemory(address)
+                    5, 7 -> {
+                        fetchSpriteTileData()
                     }
                 }
             }
         }
     }
 
+    private fun fetchSpriteTileData() {
+        // 0 .. 8 index of the sprite in the secondary OAM
+        val spriteIndex = (cycle - 257) / 8
+
+        val tileY = oamBuffer[spriteIndex * 4]
+        val tileIndex = oamBuffer[spriteIndex * 4 + 1]
+        val tileAttributes = oamBuffer[spriteIndex * 4 + 2]
+
+        var address = if (Control.tallSprites > 0) {
+            // 8x16 sprites: the base attribute table is calculated from the LSB of
+            // the tile index, which is then not used when indexing into said
+            // attribute table
+            val basePatternTable = 0x1000 * (tileIndex and 0x01)
+            if (tileAttributes and 0x80 > 0) {  // Tile is flipped vertically
+                if (scanline - tileY < 8) {  // Top 8x8 tile of sprite
+                    basePatternTable or ((tileIndex and 0xFE) * 16) or
+                            (7 - (scanline - tileY))
+                } else {  // Bottom 8x8 tile of sprite (shift down by a row of sprites)
+                    basePatternTable or (((tileIndex and 0xFE) + 1) * 16) or
+                            (7 - (scanline - tileY))
+                }
+            } else {  // Tile is not flipped vertically
+                if (scanline - tileY < 8) {  // Top 8x8 tile of sprite
+                    basePatternTable or ((tileIndex and 0xFE) * 16) or
+                            (scanline - tileY)
+                } else {  // Bottom 8x8 tile of sprite (shift down by a row of sprites)
+                    basePatternTable or (((tileIndex and 0xFE) + 1) * 16) or
+                            (scanline - tileY)
+                }
+            }
+        } else {
+            val basePatternTable = 0x1000 * Control.spritePatternTableSelect
+            if (tileAttributes and 0x80 > 0) {
+                // Tile is flipped vertically -> mirror the row vertically
+                basePatternTable or (tileIndex * 16) or (7 - (scanline - tileY))
+            } else {
+                basePatternTable or (tileIndex * 16) or (scanline - tileY)
+            }
+        }
+
+        // This function gets called on cycle mod 8 = 5 and cycle mod 8 = 7
+        // We fetch the low byte of the tile on 5 and the high byte on 7
+        if (cycle % 8 == 7) {
+            address += 8
+        }
+
+        var tilePattern = readMemory(address)
+        if ((tileAttributes and 0x40) > 0) {
+            // Tile is flipped horizontally -> reverse the order of bits
+            tilePattern = Integer.reverse(tilePattern)
+        }
+
+        if (cycle % 8 == 5) {
+            sprPatternDataLow[spriteIndex] = tilePattern
+        } else {
+            sprPatternDataHigh[spriteIndex] = tilePattern
+        }
+    }
+
+    private fun shiftPatternData() {
+        bgPatternDataLow = bgPatternDataLow shl 1
+        bgPatternDataHigh = bgPatternDataHigh shl 1
+        bgAttributeDataLow = bgAttributeDataLow shl 1
+        bgAttributeDataHigh = bgAttributeDataHigh shl 1
+
+        if (cycle in 0 .. 256) {
+            // Check all 8 (or less, because dummy 0xFF bits) sprites in secondary OAM
+            for (i in 0 ..< 8) {
+                if (cycle >= oamBuffer[i * 4 + 3]) {
+                    // Sprite X coordinate reached, shift its pattern data
+                    sprPatternDataLow[i] = sprPatternDataLow[i] shl 1
+                    sprPatternDataHigh[i] = sprPatternDataHigh[i] shl 1
+                }
+            }
+        }
+    }
+
+    // Increment the fine and coarse X and Y registers inside v while rendering
     private fun scroll() {
         if (cycle == 256) {
             // Increment the vertical position (fine Y) in v, overflowing to coarse Y if necessary
@@ -456,6 +587,35 @@ class Ppu(
         }
     }
 
+    // Cheap out on the implementation and evaluate all sprites all at once
+    // https://www.nesdev.org/wiki/PPU_sprite_evaluation#Details
+    private fun evaluateSprites() {
+        oamBuffer = IntArray(32) { 0xFF }
+        numSpritesOnScanline = 0
+        for (n in 0 ..< 64) {
+            val y = OAMData.data[n * 4]
+            val height = 8 + Control.tallSprites * 8
+            if ((scanline + 1) - y !in 0 .. height) {
+                continue
+            }
+            if (numSpritesOnScanline < 8) {
+                for (m in 0 ..< 4) {
+                    //println("oamdata size: ${OAMData.data.size} n: $n, m: $m")
+                    oamBuffer[numSpritesOnScanline * 4 + m] = OAMData.data[n * 4 + m]
+                }
+                numSpritesOnScanline += 1
+            } else {
+                Status.spriteOverflow = 1
+            }
+        }
+        if (numSpritesOnScanline < 8) {
+            // Since on real hardware the evaluation works by copying the y position of the sprite
+            // into the secondary OAM and then evaluating, if the secondary OAM is not full,
+            // the y position of the last sprite in the OAM should be the last non 0xFF value
+            oamBuffer[numSpritesOnScanline * 4] = (OAMData.data[63 * 4])
+        }
+    }
+
     private fun readMemory(address: Int): Int {
         return if (address >= 0x3F00) {
             var paletteAddress = address and 0x1F
@@ -494,7 +654,7 @@ class Ppu(
                 status
             }
             OAMData.ADDRESS -> {
-                busLatch = OAMData.data[OAMAddress.register]
+                busLatch = if (oamClear) 0xFF else OAMData.data[OAMAddress.register]
                 busLatch
             }
             Data.ADDRESS -> {
@@ -521,7 +681,7 @@ class Ppu(
             Control.ADDRESS -> {
                 Control.register = value
                 // Transfer the nametable select bytes from Control into the temporary address
-                t = (t and 0x73FF) or ((Control.register and 0b11) shl 10)
+                t = (t and 0x73FF) or (Control.nametableSelect shl 10)
                 if (Control.enableVBlankNmi > 0 && Status.vblank > 0) {
                     generateNmi()
                 }
@@ -631,7 +791,7 @@ class Ppu(
         val baseAddress = 0x2000 + nametableIdx * 0x400
         for (tileIdx in 0 until 960) {
             val tileIndex = readMemory(baseAddress + tileIdx)
-            val tileAddress = tileIndex * TILE_BYTES + 0x1000 * Control.backgroundPatternTableAddr
+            val tileAddress = tileIndex * TILE_BYTES + 0x1000 * Control.bgPatternTableSelect
 
             val tileRow = tileIdx / 32
             val tileCol = tileIdx % 32

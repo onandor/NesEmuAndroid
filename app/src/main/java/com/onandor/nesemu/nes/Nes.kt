@@ -49,10 +49,8 @@ class Nes {
             in 0x0000 .. 0x1FFF -> cpuMemory[address and 0x07FF] = value        // 2 KB RAM with mirroring
             in 0x2000 .. 0x3FFF -> ppu.cpuWriteRegister(address and 0x2007, value) // I/O Registers
             0x4014 -> {
-                val oamData = cpuMemory
-                    .copyOfRange(value shl 8, (value shl 8) or 0x00FF)
+                val oamData = cpuMemory.copyOfRange(value shl 8, ((value shl 8) or 0x00FF) + 1)
                 ppu.loadOamData(oamData)
-                // TODO?: CPU suspend - https://www.nesdev.org/wiki/PPU_programmer_reference#OAM_DMA_($4014)_%3E_write
             }
             in 0x4000 .. 0x4019 -> 0                                            // Registers (Mostly APU)
             in 0x4020 .. 0x5FFF -> {                                            // Cartridge Expansion ROM
