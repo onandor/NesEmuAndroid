@@ -62,10 +62,6 @@ class Cartridge {
 
         mapperId = (header.control1 shr 4) or ((header.control2 shr 4) shl 4)
         Log.i(TAG, "Using mapper $mapperId")
-        if (mapperId != 0) {
-            stream.close()
-            throw RomParseException(TAG, "Unsupported mapper")
-        }
 
         // The mappers currently supported only use horizontal or vertical mirroring
         if (header.control1 and Bits.NAMETABLE > 0) {

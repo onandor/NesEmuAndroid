@@ -91,9 +91,10 @@ class Nes {
 
     fun insertCartridge(cartridge: Cartridge) {
         this.cartridge = cartridge
-        when (cartridge.mapperId) {
-            0 -> mapper = Mapper0(cartridge)
-            else -> return
+        mapper = when (cartridge.mapperId) {
+            0 -> Mapper0(cartridge)
+            3 -> Mapper3(cartridge)
+            else -> throw RomParseException(TAG, "Unsupported mapper")
         }
         ppu.mirroring = cartridge.mirroring
     }
