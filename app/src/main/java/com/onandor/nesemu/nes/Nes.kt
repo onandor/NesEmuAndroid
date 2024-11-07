@@ -3,6 +3,7 @@ package com.onandor.nesemu.nes
 import android.util.Log
 import com.onandor.nesemu.nes.mappers.Mapper
 import com.onandor.nesemu.nes.mappers.Mapper0
+import com.onandor.nesemu.nes.mappers.Mapper3
 import kotlinx.coroutines.delay
 import kotlin.time.TimeSource
 
@@ -21,6 +22,7 @@ class Nes {
     private var cartridge: Cartridge? = null
     private lateinit var mapper: Mapper
     private var lastValueRead: Int = 0
+    private var buttonStates: Int = 0
 
     var running: Boolean = true
     private var isFrameReady: Boolean = false
@@ -34,7 +36,13 @@ class Nes {
         lastValueRead = when (address) {
             in 0x0000 .. 0x1FFF -> cpuMemory[address and 0x07FF]        // 2 KB RAM with mirroring
             in 0x2000 .. 0x3FFF -> ppu.cpuReadRegister(address and 0x2007) // I/O Registers with mirroring
-            in 0x4000 .. 0x4019 -> 0                                    // Registers (Mostly APU)
+            in 0x4000 .. 0x4015 -> 0                                    // APU registers
+            0x4016, 0x4017 -> {                                               // Controller
+                val state = buttonStates and 0x01
+                buttonStates = buttonStates ushr 1
+                state
+            }
+            0x4018, 0x4019 -> lastValueRead                                   // Unused? (open bus set for now)
             in 0x4020 .. 0x5FFF -> {                                    // Usually unmapped
                 val value = mapper.readUnmappedRange(address)
                 if (value == -1) lastValueRead else value
@@ -44,7 +52,8 @@ class Nes {
                 if (value == -1) lastValueRead else value
             }
             in 0x8000 .. 0xFFFF -> mapper.readPrgRom(address)           // PRG-ROM
-            else -> throw InvalidOperationException(TAG, "Invalid CPU read at $address")
+            else -> throw InvalidOperationException(TAG,
+                "Invalid CPU read at $${address.toHexString(4)}")
         }
         return lastValueRead
     }
@@ -57,11 +66,14 @@ class Nes {
                 val oamData = cpuMemory.copyOfRange(value shl 8, ((value shl 8) or 0x00FF) + 1)
                 ppu.loadOamData(oamData)
             }
-            in 0x4000 .. 0x4019 -> 0                                            // Registers (Mostly APU)
+            in 0x4000 .. 0x4015, 0x4017 -> 0                                    // APU registers
+            0x4016 -> pollButtonStates()                                              // Controller
+            0x4018, 0x4019 -> lastValueRead                                           // Unused? (open bus set for now)
             in 0x4020 .. 0x5FFF -> mapper.writeUnmappedRange(address, value)    // Usually unmapped
-            in 0x6000 .. 0x7FFF -> mapper.writeRam(address, value)              // SRAM
+            in 0x6000 .. 0x7FFF -> mapper.writeRam(address, value)              // Usually cartridge SRAM
             in 0x8000 .. 0xFFFF -> mapper.writePrgRom(address, value)           // PRG-ROM
-            else -> throw InvalidOperationException(TAG, "Invalid CPU write at $address")
+            else -> throw InvalidOperationException(TAG,
+                "Invalid CPU write at $${address.toHexString(4)}")
         }
     }
 
@@ -73,7 +85,8 @@ class Nes {
             in 0x3000 .. 0x3EFF -> ppuReadMemory(address and 0x2EFF) // Mirror of 0x2000-0x2EFF
             in 0x3F00 .. 0x3F1F -> 0    // Palette (access handled by PPU internally)
             in 0x3F20 .. 0x3FFF -> 0    // Mirror of 0x3F00-0x3F1F
-            else -> throw InvalidOperationException(TAG, "Invalid PPU read at $address")
+            else -> throw InvalidOperationException(TAG,
+                "Invalid PPU read at $${address.toHexString(4)}")
         }
     }
 
@@ -85,7 +98,8 @@ class Nes {
             in 0x3000 .. 0x3EFF -> ppuWriteMemory(address and 0x2EFF, value) // Mirror of 0x2000-0x2EFF
             in 0x3F00 .. 0x3F1F -> {}    // Palette (access handled by PPU internally)
             in 0x3F20 .. 0x3FFF -> {}    // Mirror of 0x3F00-0x3F1F
-            else -> throw InvalidOperationException(TAG, "Invalid PPU write at $address")
+            else -> throw InvalidOperationException(TAG,
+                "Invalid PPU write at $${address.toHexString(4)}")
         }
     }
 
@@ -139,6 +153,14 @@ class Nes {
                 Log.i(TAG, "FPS: $fps")
             }
         }
+    }
+
+    fun pollButtonStates() {
+        listeners.forEach { it.onReadButtons() }
+    }
+
+    fun setButtonStates(buttonStates: Int) {
+        this.buttonStates = buttonStates
     }
 
     fun registerListener(listener: NesListener) {

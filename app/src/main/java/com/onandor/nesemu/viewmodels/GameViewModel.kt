@@ -5,11 +5,12 @@ import androidx.lifecycle.ViewModel
 import com.onandor.nesemu.navigation.CartridgeNavArgs
 import com.onandor.nesemu.navigation.NavActions
 import com.onandor.nesemu.navigation.NavigationManager
-import com.onandor.nesemu.nes.DebugFeature
 import com.onandor.nesemu.nes.Nes
 import com.onandor.nesemu.nes.NesException
 import com.onandor.nesemu.nes.NesListener
 import com.onandor.nesemu.ui.components.NesRenderer
+import com.onandor.nesemu.ui.components.controls.Button
+import com.onandor.nesemu.ui.components.controls.ButtonState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +31,17 @@ class GameViewModel @Inject constructor(
     private val nes: Nes
 ) : ViewModel() {
 
+    val buttonStateMap = mutableMapOf<Button, ButtonState>(
+        Button.DPAD_RIGHT to ButtonState.UP,
+        Button.DPAD_LEFT to ButtonState.UP,
+        Button.DPAD_DOWN to ButtonState.UP,
+        Button.DPAD_UP to ButtonState.UP,
+        Button.START to ButtonState.UP,
+        Button.SELECT to ButtonState.UP,
+        Button.B to ButtonState.UP,
+        Button.A to ButtonState.UP
+    )
+
     val renderer: NesRenderer = NesRenderer(256, 240)
     private var requestRender: () -> Unit = {}
     private val nesRunnerJob: Job
@@ -41,6 +53,10 @@ class GameViewModel @Inject constructor(
         override fun onFrameReady() {
             renderer.setTextureData(nes.ppu.frame)
             requestRender()
+        }
+
+        override fun onReadButtons() {
+            nes.setButtonStates(mapButtonStatesToInt())
         }
     }
 
@@ -78,6 +94,19 @@ class GameViewModel @Inject constructor(
 
     fun navigateToDebugScreen() {
         navManager.navigateTo(NavActions.debugScreen())
+    }
+
+    fun buttonStateChanged(button: Button, state: ButtonState) {
+        buttonStateMap[button] = state
+    }
+
+    private fun mapButtonStatesToInt(): Int {
+        var buttonStates = 0
+        buttonStateMap.forEach { _, state ->
+            val pressed = if (state == ButtonState.DOWN) 1 else 0
+            buttonStates = (buttonStates shl 1) or pressed
+        }
+        return buttonStates
     }
 
     fun navigateBack() {

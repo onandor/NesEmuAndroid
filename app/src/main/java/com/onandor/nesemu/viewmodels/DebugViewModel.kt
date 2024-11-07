@@ -38,6 +38,8 @@ class DebugViewModel @Inject constructor(
                 requestColorPaletteRender[i]()
             }
         }
+
+        override fun onReadButtons() {}
     }
 
     init {

@@ -6,11 +6,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Settings
@@ -24,9 +26,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.onandor.nesemu.ui.components.NesRenderer
 import com.onandor.nesemu.ui.components.NesSurfaceView
+import com.onandor.nesemu.ui.components.controls.Button
+import com.onandor.nesemu.ui.components.controls.ButtonState
+import com.onandor.nesemu.ui.components.controls.OptionButton
 import com.onandor.nesemu.viewmodels.GameViewModel
 
 @Composable
@@ -45,7 +51,7 @@ fun GameScreen(
                 setRenderCallback = viewModel::setRenderCallback,
                 onShowSettingsOverlay = viewModel::showSettingsOverlay,
                 onQuit = viewModel::quit,
-                onNavigateToDebugScreen = viewModel::navigateToDebugScreen
+                onButtonStateChanged = viewModel::buttonStateChanged
             )
         }
     }
@@ -69,7 +75,7 @@ private fun Game(
     setRenderCallback: (() -> Unit) -> Unit,
     onShowSettingsOverlay: () -> Unit,
     onQuit: () -> Unit,
-    onNavigateToDebugScreen: () -> Unit
+    onButtonStateChanged: (Button, ButtonState) -> Unit
 ) {
     val configuration = LocalConfiguration.current
 
@@ -80,11 +86,24 @@ private fun Game(
                 renderer = renderer,
                 setRenderCallback = setRenderCallback
             )
+            /*
             Button(onClick = onShowSettingsOverlay) {
                 Text("Show settings overlay")
             }
             Button(onClick = onNavigateToDebugScreen) {
                 Text("Navigate to debug screen")
+            }
+             */
+            Row {
+                OptionButton(
+                    text = "SELECT",
+                    onStateChanged = { onButtonStateChanged(Button.SELECT, it) }
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                OptionButton(
+                    text = "START",
+                    onStateChanged = { onButtonStateChanged(Button.START, it) }
+                )
             }
         }
     } else {
