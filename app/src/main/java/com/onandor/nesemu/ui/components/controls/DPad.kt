@@ -30,11 +30,11 @@ fun DPad(
             Button.DPAD_DOWN to ButtonState.UP
         )
     }
-    val sizeDp = 130.dp
+    val sizeDp = 140.dp
     val sizePx = with(LocalDensity.current) { sizeDp.toPx() }
 
-    val canvasModifier = Modifier
-        .size(130.dp)
+    val canvasModifier = modifier
+        .size(sizeDp)
         .pointerInput(Unit) {
             awaitPointerEventScope {
                 while (true) {
@@ -53,21 +53,30 @@ fun DPad(
         val innerYBottom = size.height / 2 + 50f
 
         val buttonOutline = Path().apply {
-            moveTo(innerXStart, 0f)
-            lineTo(innerXEnd, 0f)
+            moveTo(innerXStart, 15f)
+            lineTo(innerXEnd, 15f)
             lineTo(innerXEnd, innerYTop)
-            lineTo(size.width, innerYTop)
-            lineTo(size.width, innerYBottom)
+            lineTo(size.width - 15f, innerYTop)
+            lineTo(size.width - 15f, innerYBottom)
             lineTo(innerXEnd, innerYBottom)
-            lineTo(innerXEnd, size.height)
-            lineTo(innerXStart, size.height)
+            lineTo(innerXEnd, size.height - 15f)
+            lineTo(innerXStart, size.height - 15f)
             lineTo(innerXStart, innerYBottom)
-            lineTo(0f, innerYBottom)
-            lineTo(0f, innerYTop)
+            lineTo(15f, innerYBottom)
+            lineTo(15f, innerYTop)
             lineTo(innerXStart, innerYTop)
-            lineTo(innerXStart, 0f)
+            lineTo(innerXStart, 15f)
             close()
         }
+
+        drawPath(
+            path = buttonOutline,
+            color = Color.LightGray,
+            style = Stroke(
+                width = 30f,
+                pathEffect = PathEffect.cornerPathEffect(5.dp.toPx())
+            )
+        )
 
         drawPath(
             path = buttonOutline,
