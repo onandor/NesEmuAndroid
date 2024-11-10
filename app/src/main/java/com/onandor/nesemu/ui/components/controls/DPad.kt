@@ -4,6 +4,9 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -22,14 +25,17 @@ fun DPad(
     modifier: Modifier = Modifier,
     onStateChanged: (Map<Button, ButtonState>) -> Unit
 ) {
-    var buttonStates = remember {
-        mapOf(
-            Button.DPAD_RIGHT to ButtonState.UP,
-            Button.DPAD_LEFT to ButtonState.UP,
-            Button.DPAD_UP to ButtonState.UP,
-            Button.DPAD_DOWN to ButtonState.UP
+    var buttonStates by remember {
+        mutableStateOf(
+            mapOf(
+                Button.DPAD_RIGHT to ButtonState.UP,
+                Button.DPAD_LEFT to ButtonState.UP,
+                Button.DPAD_UP to ButtonState.UP,
+                Button.DPAD_DOWN to ButtonState.UP
+            )
         )
     }
+
     val sizeDp = 140.dp
     val sizePx = with(LocalDensity.current) { sizeDp.toPx() }
 
@@ -47,30 +53,87 @@ fun DPad(
         }
 
     Canvas(modifier = canvasModifier) {
-        val innerXStart = size.width / 2 - 50f
-        val innerXEnd = size.width / 2 + 50f
-        val innerYTop = size.height / 2 - 50f
-        val innerYBottom = size.height / 2 + 50f
+        val center = size.width / 2
+        val innerXStart = center - 50f
+        val innerXEnd = center + 50f
+        val innerYTop = center - 50f
+        val innerYBottom = center + 50f
+        val edgePadding = 15f
 
-        val buttonOutline = Path().apply {
-            moveTo(innerXStart, 15f)
-            lineTo(innerXEnd, 15f)
+        val dpad = Path().apply {
+            moveTo(innerXStart, edgePadding)
+            lineTo(innerXEnd, edgePadding)
             lineTo(innerXEnd, innerYTop)
-            lineTo(size.width - 15f, innerYTop)
-            lineTo(size.width - 15f, innerYBottom)
+            lineTo(size.width - edgePadding, innerYTop)
+            lineTo(size.width - edgePadding, innerYBottom)
             lineTo(innerXEnd, innerYBottom)
-            lineTo(innerXEnd, size.height - 15f)
-            lineTo(innerXStart, size.height - 15f)
+            lineTo(innerXEnd, size.height - edgePadding)
+            lineTo(innerXStart, size.height - edgePadding)
             lineTo(innerXStart, innerYBottom)
-            lineTo(15f, innerYBottom)
-            lineTo(15f, innerYTop)
+            lineTo(edgePadding, innerYBottom)
+            lineTo(edgePadding, innerYTop)
             lineTo(innerXStart, innerYTop)
-            lineTo(innerXStart, 15f)
+            lineTo(innerXStart, edgePadding)
             close()
         }
 
+        val top = Path().apply {
+            moveTo(innerXStart, edgePadding)
+            lineTo(innerXEnd, edgePadding)
+            lineTo(innerXEnd, innerYTop)
+            lineTo(center, center)
+            lineTo(innerXStart, innerYTop)
+            lineTo(innerXStart, edgePadding)
+            close()
+        }
+
+        val right = Path().apply {
+            moveTo(innerXEnd, innerYTop)
+            lineTo(size.width - edgePadding, innerYTop)
+            lineTo(size.width - edgePadding, innerYBottom)
+            lineTo(innerXEnd, innerYBottom)
+            lineTo(center, center)
+            lineTo(innerXEnd, innerYTop)
+            close()
+        }
+
+        val bottom = Path().apply {
+            moveTo(innerXEnd, innerYBottom)
+            lineTo(innerXEnd, size.height - edgePadding)
+            lineTo(innerXStart, size.height - edgePadding)
+            lineTo(innerXStart, innerYBottom)
+            lineTo(center, center)
+            lineTo(innerXEnd, innerYBottom)
+            close()
+        }
+
+        val left = Path().apply {
+            moveTo(innerXStart, innerYBottom)
+            lineTo(edgePadding, innerYBottom)
+            lineTo(edgePadding, innerYTop)
+            lineTo(innerXStart, innerYTop)
+            lineTo(center, center)
+            lineTo(innerXStart, innerYBottom)
+            close()
+        }
+
+        val highlightedParts = Path()
+        if (buttonStates[Button.DPAD_UP]!! == ButtonState.DOWN) {
+            highlightedParts.addPath(top)
+        }
+        if (buttonStates[Button.DPAD_RIGHT]!! == ButtonState.DOWN) {
+            highlightedParts.addPath(right)
+        }
+        if (buttonStates[Button.DPAD_DOWN]!! == ButtonState.DOWN) {
+            highlightedParts.addPath(bottom)
+        }
+        if (buttonStates[Button.DPAD_LEFT]!! == ButtonState.DOWN) {
+            highlightedParts.addPath(left)
+        }
+
+        // Light gray outline
         drawPath(
-            path = buttonOutline,
+            path = dpad,
             color = Color.LightGray,
             style = Stroke(
                 width = 30f,
@@ -78,14 +141,23 @@ fun DPad(
             )
         )
 
+        // Base button
         drawPath(
-            path = buttonOutline,
+            path = dpad,
             color = Color.DarkGray,
             style = Fill
         )
 
+        // Pressed-highlighted parts
         drawPath(
-            buttonOutline,
+            path = highlightedParts,
+            color = Color.Gray,
+            style = Fill
+        )
+
+        // Rounded corners
+        drawPath(
+            dpad,
             color = Color.DarkGray,
             style = Stroke(
                 width = 8f,
@@ -98,10 +170,10 @@ fun DPad(
 private fun evaluateButtonStates(center: Float, change: PointerInputChange): Map<Button, ButtonState> {
     val x = change.position.x
     val y = change.position.y
-    val touchXStart = center - 65f
-    val touchXEnd = center + 65f
-    val touchYTop = center - 65f
-    val touchYBottom = center + 65f
+    val touchXStart = center - 60f
+    val touchXEnd = center + 60f
+    val touchYTop = center - 60f
+    val touchYBottom = center + 60f
 
     val buttonStates = mutableMapOf(
         Button.DPAD_RIGHT to ButtonState.UP,

@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.changedToDown
@@ -54,8 +55,19 @@ fun FaceButton(
 
         Text(text = text)
         Canvas(modifier = canvasModifier) {
+            val upBrush = Brush.radialGradient(
+                0.80f to Color.Red,
+                0.90f to Color(0xFFFF9A98),
+                1.0f to Color.Gray
+            )
+
+            val downBrush = Brush.radialGradient(
+                0.80f to Color(0xFF950606),
+                1.0f to Color.Gray
+            )
+
             drawCircle(
-                color = if (buttonState == ButtonState.DOWN) Color.Gray else Color.Red
+                brush = if (buttonState == ButtonState.DOWN) downBrush else upBrush
             )
         }
     }
