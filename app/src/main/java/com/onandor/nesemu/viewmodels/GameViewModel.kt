@@ -100,11 +100,14 @@ class GameViewModel @Inject constructor(
         buttonStateMap[button] = state
     }
 
+    fun dpadStateChanged(state: Map<Button, ButtonState>) {
+        buttonStateMap.putAll(state)
+    }
+
     private fun mapButtonStatesToInt(): Int {
         var buttonStates = 0
         buttonStateMap.forEach { _, state ->
-            val pressed = if (state == ButtonState.DOWN) 1 else 0
-            buttonStates = (buttonStates shl 1) or pressed
+            buttonStates = (buttonStates shl 1) or state.ordinal
         }
         return buttonStates
     }

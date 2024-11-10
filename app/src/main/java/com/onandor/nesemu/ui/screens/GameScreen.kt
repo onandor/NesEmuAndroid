@@ -32,6 +32,8 @@ import com.onandor.nesemu.ui.components.NesRenderer
 import com.onandor.nesemu.ui.components.NesSurfaceView
 import com.onandor.nesemu.ui.components.controls.Button
 import com.onandor.nesemu.ui.components.controls.ButtonState
+import com.onandor.nesemu.ui.components.controls.DPad
+import com.onandor.nesemu.ui.components.controls.FaceButton
 import com.onandor.nesemu.ui.components.controls.OptionButton
 import com.onandor.nesemu.viewmodels.GameViewModel
 
@@ -51,7 +53,8 @@ fun GameScreen(
                 setRenderCallback = viewModel::setRenderCallback,
                 onShowSettingsOverlay = viewModel::showSettingsOverlay,
                 onQuit = viewModel::quit,
-                onButtonStateChanged = viewModel::buttonStateChanged
+                onButtonStateChanged = viewModel::buttonStateChanged,
+                onDPadStateChanged = viewModel::dpadStateChanged
             )
         }
     }
@@ -75,7 +78,8 @@ private fun Game(
     setRenderCallback: (() -> Unit) -> Unit,
     onShowSettingsOverlay: () -> Unit,
     onQuit: () -> Unit,
-    onButtonStateChanged: (Button, ButtonState) -> Unit
+    onButtonStateChanged: (Button, ButtonState) -> Unit,
+    onDPadStateChanged: (Map<Button, ButtonState>) -> Unit
 ) {
     val configuration = LocalConfiguration.current
 
@@ -105,6 +109,19 @@ private fun Game(
                     onStateChanged = { onButtonStateChanged(Button.START, it) }
                 )
             }
+            Row {
+                FaceButton(
+                    text = "A",
+                    onStateChanged = { onButtonStateChanged(Button.A, it) }
+                )
+                FaceButton(
+                    text = "B",
+                    onStateChanged = { onButtonStateChanged(Button.B, it) }
+                )
+            }
+            DPad(
+                onStateChanged = onDPadStateChanged
+            )
         }
     } else {
         Row(
