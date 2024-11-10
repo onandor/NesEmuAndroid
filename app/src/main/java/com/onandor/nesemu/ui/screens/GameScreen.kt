@@ -1,6 +1,7 @@
 package com.onandor.nesemu.ui.screens
 
 import android.content.res.Configuration
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,11 +24,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.onandor.nesemu.ui.components.NesRenderer
@@ -44,6 +47,7 @@ import com.onandor.nesemu.viewmodels.GameViewModel
 fun GameScreen(
     viewModel: GameViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold { padding ->
@@ -61,6 +65,13 @@ fun GameScreen(
                 onButtonStateChanged = viewModel::buttonStateChanged,
                 onDPadStateChanged = viewModel::dpadStateChanged
             )
+        }
+    }
+
+    if (uiState.errorMessage != null) {
+        LaunchedEffect(uiState.errorMessage) {
+            Toast.makeText(context, uiState.errorMessage, Toast.LENGTH_LONG).show()
+            viewModel.errorMessageToastShown()
         }
     }
 

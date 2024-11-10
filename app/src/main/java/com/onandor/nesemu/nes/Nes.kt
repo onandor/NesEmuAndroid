@@ -108,7 +108,7 @@ class Nes {
         mapper = when (cartridge.mapperId) {
             0 -> Mapper0(cartridge)
             3 -> Mapper3(cartridge)
-            else -> throw RomParseException(TAG, "Unsupported mapper")
+            else -> throw RomParseException(TAG, "Unsupported mapper: ${cartridge.mapperId}")
         }
         ppu.mirroring = cartridge.mirroring
     }

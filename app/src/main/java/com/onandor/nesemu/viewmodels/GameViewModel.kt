@@ -8,6 +8,7 @@ import com.onandor.nesemu.navigation.NavigationManager
 import com.onandor.nesemu.nes.Nes
 import com.onandor.nesemu.nes.NesException
 import com.onandor.nesemu.nes.NesListener
+import com.onandor.nesemu.nes.RomParseException
 import com.onandor.nesemu.ui.components.NesRenderer
 import com.onandor.nesemu.ui.components.controls.Button
 import com.onandor.nesemu.ui.components.controls.ButtonState
@@ -22,7 +23,8 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class GameUiState(
-    val settingsOverlayVisible: Boolean = false
+    val settingsOverlayVisible: Boolean = false,
+    val errorMessage: String? = null
 )
 
 @HiltViewModel
@@ -44,7 +46,7 @@ class GameViewModel @Inject constructor(
 
     val renderer: NesRenderer = NesRenderer(256, 240)
     private var requestRender: () -> Unit = {}
-    private val nesRunnerJob: Job
+    private var nesRunnerJob: Job? = null
 
     private val _uiState = MutableStateFlow(GameUiState())
     val uiState = _uiState.asStateFlow()
@@ -64,15 +66,23 @@ class GameViewModel @Inject constructor(
         nes.registerListener(nesListener)
 
         val cartridge = (navManager.getCurrentNavAction()!!.navArgs as CartridgeNavArgs).cartridge
-        nes.insertCartridge(cartridge)
+        try {
+            nes.insertCartridge(cartridge)
+            reset()
+        } catch (e: RomParseException) {
+            Log.e(e.tag, e.message.toString())
+            _uiState.update { it.copy(errorMessage = e.message) }
+        }
+    }
 
+    private fun reset() {
         nesRunnerJob = CoroutineScope(Dispatchers.Default).launch {
             try {
                 nes.reset()
             } catch (e: Exception) {
                 if (e is NesException) {
                     Log.e(e.tag, e.message.toString())
-                    // TODO: display some kind of error message
+                    _uiState.update { it.copy(errorMessage = e.message) }
                 } else {
                     e.printStackTrace()
                 }
@@ -104,6 +114,10 @@ class GameViewModel @Inject constructor(
         buttonStateMap.putAll(state)
     }
 
+    fun errorMessageToastShown() {
+        _uiState.update { it.copy(errorMessage = null) }
+    }
+
     private fun mapButtonStatesToInt(): Int {
         var buttonStates = 0
         buttonStateMap.forEach { _, state ->
@@ -119,6 +133,6 @@ class GameViewModel @Inject constructor(
     override fun onCleared() {
         nes.unregisterListener(nesListener)
         nes.running = false // TODO: might not be enough, seems to keep running, need to investigate
-        nesRunnerJob.cancel()
+        nesRunnerJob?.cancel()
     }
 }
