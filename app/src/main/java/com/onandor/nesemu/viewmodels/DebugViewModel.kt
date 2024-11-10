@@ -8,7 +8,17 @@ import com.onandor.nesemu.nes.Nes
 import com.onandor.nesemu.nes.NesListener
 import com.onandor.nesemu.ui.components.NesRenderer
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import javax.inject.Inject
+
+data class DebugScreenUiState(
+    val showBottomSheet: Boolean = false,
+    val renderPatternTable: Boolean = false,
+    val renderNametable: Boolean = false,
+    val renderColorPalettes: Boolean = false
+)
 
 @HiltViewModel
 class DebugViewModel @Inject constructor(
@@ -42,6 +52,9 @@ class DebugViewModel @Inject constructor(
         override fun onReadButtons() {}
     }
 
+    private val _uiState = MutableStateFlow(DebugScreenUiState())
+    val uiState = _uiState.asStateFlow()
+
     init {
         nes.registerListener(nesListener)
     }
@@ -65,6 +78,18 @@ class DebugViewModel @Inject constructor(
     }
 
     fun setDebugFeatureBool(feature: DebugFeature, value: Boolean) {
+        when (feature) {
+            DebugFeature.PPU_RENDER_PATTERN_TABLE -> {
+                _uiState.update { it.copy(renderPatternTable = value) }
+            }
+            DebugFeature.PPU_RENDER_NAMETABLE -> {
+                _uiState.update { it.copy(renderNametable = value) }
+            }
+            DebugFeature.PPU_RENDER_COLOR_PALETTES -> {
+                _uiState.update { it.copy(renderColorPalettes = value) }
+            }
+            else -> {}
+        }
         nes.setDebugFeatureBool(feature, value)
     }
 
@@ -73,6 +98,10 @@ class DebugViewModel @Inject constructor(
     }
 
     override fun onCleared() {
+        nes.setDebugFeatureInt(DebugFeature.PPU_SET_COLOR_PALETTE, 0)
+        nes.setDebugFeatureBool(DebugFeature.PPU_RENDER_PATTERN_TABLE, false)
+        nes.setDebugFeatureBool(DebugFeature.PPU_RENDER_NAMETABLE, false)
+        nes.setDebugFeatureBool(DebugFeature.PPU_RENDER_COLOR_PALETTES, false)
         nes.unregisterListener(nesListener)
     }
 }

@@ -1,98 +1,196 @@
 package com.onandor.nesemu.ui.screens
 
 import android.view.MotionEvent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Button
-import androidx.compose.material3.Scaffold
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material3.BottomSheetScaffold
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.onandor.nesemu.nes.DebugFeature
+import com.onandor.nesemu.ui.components.CheckboxListItem
 import com.onandor.nesemu.ui.components.NesRenderer
 import com.onandor.nesemu.viewmodels.DebugViewModel
 import com.onandor.nesemu.ui.components.NesSurfaceView
+import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DebugScreen(
     viewModel: DebugViewModel = hiltViewModel()
 ) {
-    Scaffold { padding ->
-        LazyColumn(modifier = Modifier.padding(padding)) {
-            item {
-                ColorPalettes(
-                    renderers = viewModel.colorPaletteRenderers,
-                    setRenderCallback = viewModel::setColorPaletteRenderCallback,
-                    onColorPaletteTouchEvent = viewModel::onColorPaletteTouchEvent
-                )
-                Button(
-                    onClick = {
-                        viewModel.setDebugFeatureBool(DebugFeature.PPU_RENDER_COLOR_PALETTES, true)
-                    }
-                ) {
-                    Text("Enable color palette rendering")
-                }
-                Button(
-                    onClick = {
-                        viewModel.setDebugFeatureBool(DebugFeature.PPU_RENDER_COLOR_PALETTES, false)
-                    }
-                ) {
-                    Text("Disable color palette rendering")
-                }
-            }
+    val uiState by viewModel.uiState.collectAsState()
+    val scaffoldState = rememberBottomSheetScaffoldState()
+    val coroutineScope = rememberCoroutineScope()
 
-            item {
-                NesSurfaceView(
-                    modifier = Modifier.fillMaxWidth().aspectRatio(256f / 128f),
-                    renderer = viewModel.patternTableRenderer,
-                    setRenderCallback = viewModel::setPatternTableRenderCallback
-                )
-                Button(
-                    onClick = {
-                        viewModel.setDebugFeatureBool(DebugFeature.PPU_RENDER_PATTERN_TABLE, true)
-                    }
-                ) {
-                    Text("Enable pattern table rendering")
-                }
-                Button(
-                    onClick = {
-                        viewModel.setDebugFeatureBool(DebugFeature.PPU_RENDER_PATTERN_TABLE, false)
-                    }
-                ) {
-                    Text("Disable pattern table rendering")
-                }
-            }
+    LaunchedEffect(Unit) {
+        scaffoldState.bottomSheetState.expand()
+    }
 
-            item {
-                NesSurfaceView(
-                    modifier = Modifier.fillMaxWidth().aspectRatio(512f / 480f),
-                    renderer = viewModel.nametableRenderer,
-                    setRenderCallback = viewModel::setNametableRenderCallback
+    BottomSheetScaffold(
+        topBar = { TopBar(onNavigateBack = viewModel::navigateBack) },
+        scaffoldState = scaffoldState,
+        sheetPeekHeight = 70.dp,
+        sheetDragHandle = {
+            val expanded = scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded
+            val arrowAngle by animateFloatAsState(if (expanded) 0f else 180f, label = "")
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(70.dp)
+                    .clickable {
+                        coroutineScope.launch {
+                            if (expanded) {
+                                scaffoldState.bottomSheetState.partialExpand()
+                            } else {
+                                scaffoldState.bottomSheetState.expand()
+                            }
+                        }
+                    },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    modifier = Modifier.padding(start = 30.dp),
+                    text = "View options"
                 )
-                Button(
-                    onClick = {
-                        viewModel.setDebugFeatureBool(DebugFeature.PPU_RENDER_NAMETABLE, true)
-                    }
-                ) {
-                    Text("Enable nametable rendering")
+                Spacer(modifier = Modifier.weight(1f))
+                Box(modifier = Modifier.rotate(arrowAngle)) {
+                    Icon(imageVector = Icons.Default.KeyboardArrowDown, null)
                 }
-                Button(
-                    onClick = {
-                        viewModel.setDebugFeatureBool(DebugFeature.PPU_RENDER_NAMETABLE, false)
+                Spacer(modifier = Modifier.width(30.dp))
+            }
+        },
+        sheetContent = {
+            SheetContent(onSetDebugFeatureBool = viewModel::setDebugFeatureBool)
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier.padding(padding),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            if (uiState.renderColorPalettes) {
+                item {
+                    Text(
+                        modifier = Modifier.padding(start = 10.dp, bottom = 10.dp),
+                        text = "Color palettes"
+                    )
+                    ColorPalettes(
+                        renderers = viewModel.colorPaletteRenderers,
+                        setRenderCallback = viewModel::setColorPaletteRenderCallback,
+                        onColorPaletteTouchEvent = viewModel::onColorPaletteTouchEvent
+                    )
+                    if (uiState.renderPatternTable || uiState.renderNametable) {
+                        HorizontalDivider(modifier = Modifier.padding(top = 10.dp))
                     }
-                ) {
-                    Text("Disable nametable rendering")
                 }
             }
+            if (uiState.renderPatternTable) {
+                item {
+                    Text(
+                        modifier = Modifier.padding(start = 10.dp, bottom = 10.dp),
+                        text = "Pattern table"
+                    )
+                    NesSurfaceView(
+                        modifier = Modifier.fillMaxWidth().aspectRatio(256f / 128f),
+                        renderer = viewModel.patternTableRenderer,
+                        setRenderCallback = viewModel::setPatternTableRenderCallback
+                    )
+                    if (uiState.renderNametable) {
+                        HorizontalDivider(modifier = Modifier.padding(top = 10.dp))
+                    }
+                }
+            }
+            if (uiState.renderNametable) {
+                item {
+                    Text(
+                        modifier = Modifier.padding(start = 10.dp, bottom = 10.dp),
+                        text = "Nametable"
+                    )
+                    NesSurfaceView(
+                        modifier = Modifier.fillMaxWidth().aspectRatio(512f / 480f),
+                        renderer = viewModel.nametableRenderer,
+                        setRenderCallback = viewModel::setNametableRenderCallback
+                    )
+                }
+            }
+            item {
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TopBar(
+    onNavigateBack: () -> Unit
+) {
+    TopAppBar(
+        title = { Text("Debug view") },
+        navigationIcon = {
+            IconButton(onClick = onNavigateBack) {
+                Icon(imageVector = Icons.AutoMirrored.Default.ArrowBack, null)
+            }
+        }
+    )
+}
+
+@Composable
+private fun SheetContent(
+    modifier: Modifier = Modifier,
+    onSetDebugFeatureBool: (DebugFeature, Boolean) -> Unit
+) {
+    Column(modifier = modifier.padding(bottom = 10.dp)) {
+        CheckboxListItem(
+            onCheckedChange = { onSetDebugFeatureBool(DebugFeature.PPU_RENDER_COLOR_PALETTES, it) }
+        ) {
+            Text(text = "Show color palettes")
+        }
+        CheckboxListItem(
+            onCheckedChange = { onSetDebugFeatureBool(DebugFeature.PPU_RENDER_PATTERN_TABLE, it) }
+        ) {
+            Text(text = "Show pattern tables")
+        }
+        CheckboxListItem(
+            onCheckedChange = { onSetDebugFeatureBool(DebugFeature.PPU_RENDER_NAMETABLE, it) }
+        ) {
+            Text(text = "Show nametables")
         }
     }
 }
@@ -105,17 +203,31 @@ private fun ColorPalettes(
  ) {
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
+    var selectedIdx by remember { mutableIntStateOf(0) }
+
     Column {
+        var paletteModifier = Modifier.width(screenWidth / 4.5f).aspectRatio(60f / 15f)
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 5.dp, bottom = 5.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             for (i in 0 ..< 4) {
+                var modifier = if (i == selectedIdx) {
+                    paletteModifier.border(
+                        width = 3.dp,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                } else {
+                    paletteModifier
+                }
                 NesSurfaceView(
-                    modifier = Modifier.width(screenWidth / 4.5f).aspectRatio(60f / 15f),
+                    modifier = modifier,
                     renderer = renderers[i],
                     setRenderCallback = { setRenderCallback(i, it) },
-                    onTouchEvent = { onColorPaletteTouchEvent(i, it) }
+                    onTouchEvent = {
+                        selectedIdx = i
+                        onColorPaletteTouchEvent(i, it)
+                    }
                 )
             }
         }
@@ -124,11 +236,22 @@ private fun ColorPalettes(
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             for (i in 4 ..< 8) {
+                var modifier = if (i == selectedIdx) {
+                    paletteModifier.border(
+                        width = 3.dp,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                } else {
+                    paletteModifier
+                }
                 NesSurfaceView(
-                    modifier = Modifier.width(screenWidth / 4.5f).aspectRatio(60f / 15f),
+                    modifier = modifier,
                     renderer = renderers[i],
                     setRenderCallback = { setRenderCallback(i, it) },
-                    onTouchEvent = { onColorPaletteTouchEvent(i, it) }
+                    onTouchEvent = {
+                        selectedIdx = i
+                        onColorPaletteTouchEvent(i, it)
+                    }
                 )
             }
         }
