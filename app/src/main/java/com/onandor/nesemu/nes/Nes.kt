@@ -3,6 +3,7 @@ package com.onandor.nesemu.nes
 import android.util.Log
 import com.onandor.nesemu.nes.mappers.Mapper
 import com.onandor.nesemu.nes.mappers.Mapper0
+import com.onandor.nesemu.nes.mappers.Mapper2
 import com.onandor.nesemu.nes.mappers.Mapper3
 import kotlinx.coroutines.delay
 import kotlin.time.TimeSource
@@ -107,6 +108,7 @@ class Nes {
         this.cartridge = cartridge
         mapper = when (cartridge.mapperId) {
             0 -> Mapper0(cartridge)
+            2 -> Mapper2(cartridge)
             3 -> Mapper3(cartridge)
             else -> throw RomParseException(TAG, "Unsupported mapper: ${cartridge.mapperId}")
         }

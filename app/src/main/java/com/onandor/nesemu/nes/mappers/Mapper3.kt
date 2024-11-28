@@ -1,14 +1,9 @@
 package com.onandor.nesemu.nes.mappers
 
-import android.util.Log
 import com.onandor.nesemu.nes.Cartridge
-import com.onandor.nesemu.nes.toHexString
 
+// CNROM - https://www.nesdev.org/wiki/INES_Mapper_003
 class Mapper3(cartridge: Cartridge) : Mapper(cartridge) {
-
-    companion object {
-        private const val TAG = "Mapper3"
-    }
 
     private var bankSelect: Int = 0
 
@@ -26,30 +21,5 @@ class Mapper3(cartridge: Cartridge) : Mapper(cartridge) {
 
     override fun readChrRom(address: Int): Int {
         return cartridge.chrRom[bankSelect * 0x2000 + address]
-    }
-
-    override fun writeChrRom(address: Int, value: Int) {
-        Log.w(TAG, "CPU attempting to write CHR ROM at $${address.toHexString(4)}" +
-                " (value: $${value.toHexString(2)})")
-    }
-
-    override fun readUnmappedRange(address: Int): Int {
-        Log.i(TAG, "CPU reading unmapped address $${address.toHexString(4)}")
-        return -1
-    }
-
-    override fun writeUnmappedRange(address: Int, value: Int) {
-        Log.i(TAG, "CPU writing unmapped address $${address.toHexString(4)}" +
-                " (value: $${value.toHexString(2)})")
-    }
-
-    override fun readRam(address: Int): Int {
-        Log.i(TAG, "CPU reading unmapped address $${address.toHexString(4)}")
-        return -1
-    }
-
-    override fun writeRam(address: Int, value: Int) {
-        Log.i(TAG, "CPU writing unmapped address $${address.toHexString(4)}" +
-                " (value: $${value.toHexString(2)})")
     }
 }

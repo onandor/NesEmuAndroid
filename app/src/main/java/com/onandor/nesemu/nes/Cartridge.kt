@@ -41,10 +41,12 @@ class Cartridge {
         private set
     var mapperId: Int = 0
         private set
+    lateinit var header: INesHeader
+        private set
 
     fun parseRom(rom: ByteArray) {
         val stream = rom.inputStream()
-        val header = parseINesHeader(stream)
+        header = parseINesHeader(stream)
 
         if (header.name.commonToUtf8String(0, 3) != "NES") {
             stream.close()
@@ -71,17 +73,16 @@ class Cartridge {
             Log.i(TAG, "Using horizontal nametable mirroring")
         }
 
-        val prgRomBytes = ByteArray(header.numPrgBank * 16384)
+        val prgRomBytes = ByteArray(header.numPrgBank * 0x4000)
         stream.read(prgRomBytes)
         prgRom = prgRomBytes.toByteIntArray()
 
         if (header.numChrBank != 0) {
-            val chrRomBytes = ByteArray(header.numChrBank * 8192)
+            val chrRomBytes = ByteArray(header.numChrBank * 0x2000)
             stream.read(chrRomBytes)
             chrRom = chrRomBytes.toByteIntArray()
         } else {
-            stream.close()
-            throw RomParseException(TAG, "Cartridge uses CHR RAM")
+            chrRom = IntArray(0x2000)
         }
         Log.i(TAG, "PRG ROM banks: ${header.numPrgBank}, CHR ROM banks: ${header.numChrBank}")
         stream.close()

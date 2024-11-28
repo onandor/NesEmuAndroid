@@ -1,18 +1,15 @@
 package com.onandor.nesemu.nes.mappers
 
+import android.util.Log
 import com.onandor.nesemu.nes.Cartridge
 import com.onandor.nesemu.nes.Mirroring
+import com.onandor.nesemu.nes.toHexString
 
 abstract class Mapper(open val cartridge: Cartridge) {
 
-    abstract fun readPrgRom(address: Int): Int
-    abstract fun writePrgRom(address: Int, value: Int)
-    abstract fun readChrRom(address: Int): Int
-    abstract fun writeChrRom(address: Int, value: Int)
-    abstract fun readUnmappedRange(address: Int): Int
-    abstract fun writeUnmappedRange(address: Int, value: Int)
-    abstract fun readRam(address: Int): Int
-    abstract fun writeRam(address: Int, value: Int)
+    companion object {
+        internal const val TAG = "Mapper"
+    }
 
     private val nametableOffsetMap: Map<Mirroring, Map<Int, Int>> = mapOf(
         Mirroring.HORIZONTAL to mapOf(
@@ -45,5 +42,39 @@ abstract class Mapper(open val cartridge: Cartridge) {
         val vramAddress = address - 0x2000
         val nametableIdx = vramAddress / 0x400
         return vramAddress - nametableOffsetMap[cartridge.mirroring]!![nametableIdx]!!
+    }
+
+    abstract fun readPrgRom(address: Int): Int
+
+    open fun writePrgRom(address: Int, value: Int) {
+        Log.w(TAG, "CPU attempting to write PRG ROM at $${address.toHexString(4)}" +
+                " (value: $${value.toHexString(2)})")
+    }
+
+    abstract fun readChrRom(address: Int): Int
+
+    open fun writeChrRom(address: Int, value: Int) {
+        Log.w(TAG, "CPU attempting to write CHR ROM at $${address.toHexString(4)}" +
+                " (value: $${value.toHexString(2)})")
+    }
+
+    open fun readRam(address: Int): Int {
+        Log.i(TAG, "CPU reading unmapped address $${address.toHexString(4)}")
+        return -1
+    }
+
+    open fun writeRam(address: Int, value: Int) {
+        Log.i(TAG, "CPU writing unmapped address $${address.toHexString(4)}" +
+                " (value: $${value.toHexString(2)})")
+    }
+
+    open fun readUnmappedRange(address: Int): Int {
+        Log.i(TAG, "CPU reading unmapped address $${address.toHexString(4)}")
+        return -1
+    }
+
+    open fun writeUnmappedRange(address: Int, value: Int) {
+        Log.i(TAG, "CPU writing unmapped address $${address.toHexString(4)}" +
+                " (value: $${value.toHexString(2)})")
     }
 }

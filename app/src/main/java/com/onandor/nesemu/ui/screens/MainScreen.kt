@@ -30,7 +30,7 @@ fun MainScreen(
     viewModel: MainViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val pickRomFileLauncher = rememberLauncherForActivityResult(
+    val filePickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { documentUri ->
         documentUri?.let {
@@ -61,7 +61,7 @@ fun MainScreen(
                 modifier = Modifier
                     .width(250.dp)
                     .height(75.dp),
-                onClick = { pickRomFileLauncher.launch(arrayOf("*/*")) }
+                onClick = { filePickerLauncher.launch(arrayOf("*/*")) }
             ) {
                 Text(
                     text = "Select rom",
