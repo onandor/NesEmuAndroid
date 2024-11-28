@@ -407,9 +407,7 @@ class Ppu(
             }
         }
 
-        val color = if (spriteColor != -1) spriteColor else bgColor
-
-        frameBuffer.put(color)
+        frameBuffer.put(if (spriteColor != -1) spriteColor else bgColor)
     }
 
     private fun renderFrame() {
@@ -430,60 +428,58 @@ class Ppu(
     }
 
     private fun fetchTileData() {
-        when (cycle) {
-            in 1 .. 256,        // Fetch background tile data
-            in 321 .. 336 -> {  // Prefetch the next 2 background tiles for the next scanline
-                shiftPatternData()
-                when (cycle % 8) {
-                    1 -> {
-                        bgPatternDataLow = (bgPatternDataLow and 0xFF00) or bgTilePatternLow
-                        bgPatternDataHigh = (bgPatternDataHigh and 0xFF00) or bgTilePatternHigh
+        if (cycle in 1 .. 256 || cycle in 321 .. 336) {
+            // Fetching background tile data in cycles 1 .. 256 and prefetching data for 2 the
+            // first 2 tiles on the next scanline in 321 .. 336
+            shiftPatternData()
+            when (cycle % 8) {
+                1 -> {
+                    bgPatternDataLow = (bgPatternDataLow and 0xFF00) or bgTilePatternLow
+                    bgPatternDataHigh = (bgPatternDataHigh and 0xFF00) or bgTilePatternHigh
 
-                        // Extrapolate the attribute bits to cover the whole tile
-                        val attributeDataLow = if (attributeId and 0b01 > 0) 0xFF else 0x00
-                        bgAttributeDataLow = (bgAttributeDataLow and 0xFF00) or attributeDataLow
-                        val attributeDataHigh = if (attributeId and 0b10 > 0) 0xFF else 0x00
-                        bgAttributeDataHigh = (bgAttributeDataHigh and 0xFF00) or attributeDataHigh
+                    // Extrapolate the attribute bits to cover the whole tile
+                    val attributeDataLow = if (attributeId and 0b01 > 0) 0xFF else 0x00
+                    bgAttributeDataLow = (bgAttributeDataLow and 0xFF00) or attributeDataLow
+                    val attributeDataHigh = if (attributeId and 0b10 > 0) 0xFF else 0x00
+                    bgAttributeDataHigh = (bgAttributeDataHigh and 0xFF00) or attributeDataHigh
 
-                        nametableId = readMemory(0x2000 or (v and 0x0FFF))
+                    nametableId = readMemory(0x2000 or (v and 0x0FFF))
+                }
+                3 -> {
+                    val address = 0x23C0 or (v and 0x0C00) or ((v ushr 4) and 0x38) or
+                            ((v ushr 2) and 0x07)
+
+                    attributeId = readMemory(address)
+
+                    val coarseX = (v and 0x001F)
+                    val coarseY = (v and 0x03E0) ushr 5
+                    if (coarseX and 0x02 > 0) {
+                        attributeId = attributeId ushr 2
                     }
-                    3 -> {
-                        val address = 0x23C0 or (v and 0x0C00) or ((v ushr 4) and 0x38) or
-                                ((v ushr 2) and 0x07)
-
-                        attributeId = readMemory(address)
-
-                        val coarseX = (v and 0x001F)
-                        val coarseY = (v and 0x03E0) ushr 5
-                        if (coarseX and 0x02 > 0) {
-                            attributeId = attributeId ushr 2
-                        }
-                        if (coarseY and 0x02 > 0) {
-                            attributeId = attributeId ushr 4
-                        }
-
-                        attributeId = attributeId and 0b111
+                    if (coarseY and 0x02 > 0) {
+                        attributeId = attributeId ushr 4
                     }
-                    5 -> {
-                        val basePatternTable = 0x1000 * Control.bgPatternTableSelect
-                        val fineY = (v ushr 12) and 0x07
-                        val address = basePatternTable or (nametableId shl 4) or fineY
-                        bgTilePatternLow = readMemory(address)
-                    }
-                    7 -> {
-                        val basePatternTable = 0x1000 * Control.bgPatternTableSelect
-                        val fineY = (v ushr 12) and 0x07
-                        val address = (basePatternTable or (nametableId shl 4) or fineY) + 8
-                        bgTilePatternHigh = readMemory(address)
-                    }
+
+                    attributeId = attributeId and 0b111
+                }
+                5 -> {
+                    val basePatternTable = 0x1000 * Control.bgPatternTableSelect
+                    val fineY = (v ushr 12) and 0x07
+                    val address = basePatternTable or (nametableId shl 4) or fineY
+                    bgTilePatternLow = readMemory(address)
+                }
+                7 -> {
+                    val basePatternTable = 0x1000 * Control.bgPatternTableSelect
+                    val fineY = (v ushr 12) and 0x07
+                    val address = (basePatternTable or (nametableId shl 4) or fineY) + 8
+                    bgTilePatternHigh = readMemory(address)
                 }
             }
-            in 257 .. 320 -> {
-                // Prefetch tile data for the sprites on the next scanline
-                when (cycle % 8) {
-                    5, 7 -> {
-                        fetchSpriteTileData()
-                    }
+        } else if (cycle in 257 .. 320) {
+            // Prefetching tile data for the sprites on the next scanline
+            when (cycle % 8) {
+                5, 7 -> {
+                    fetchSpriteTileData()
                 }
             }
         }
@@ -494,39 +490,28 @@ class Ppu(
         val spriteIndex = (cycle - 257) / 8
 
         val tileY = oamBuffer[spriteIndex * 4]
-        val tileIndex = oamBuffer[spriteIndex * 4 + 1]
+        var tileIndex = oamBuffer[spriteIndex * 4 + 1]
         val tileAttributes = oamBuffer[spriteIndex * 4 + 2]
 
-        var address = if (Control.tallSprites > 0) {
+        var basePatternTable: Int
+        var rowShift = 0
+        if (Control.tallSprites > 0) {
             // 8x16 sprites: the base attribute table is calculated from the LSB of
             // the tile index, which is then not used when indexing into said
             // attribute table
-            val basePatternTable = 0x1000 * (tileIndex and 0x01)
-            if (tileAttributes and 0x80 > 0) {  // Tile is flipped vertically
-                if (scanline - tileY < 8) {  // Top 8x8 tile of sprite
-                    basePatternTable or ((tileIndex and 0xFE) * 16) or
-                            (7 - (scanline - tileY))
-                } else {  // Bottom 8x8 tile of sprite (shift down by a row of sprites)
-                    basePatternTable or (((tileIndex and 0xFE) + 1) * 16) or
-                            (7 - (scanline - tileY))
-                }
-            } else {  // Tile is not flipped vertically
-                if (scanline - tileY < 8) {  // Top 8x8 tile of sprite
-                    basePatternTable or ((tileIndex and 0xFE) * 16) or
-                            (scanline - tileY)
-                } else {  // Bottom 8x8 tile of sprite (shift down by a row of sprites)
-                    basePatternTable or (((tileIndex and 0xFE) + 1) * 16) or
-                            (scanline - tileY)
-                }
-            }
+            basePatternTable = 0x1000 * (tileIndex and 0x01)
+            tileIndex = tileIndex and 0xFE
+            // Bottom 8x8 tile of the sprite -> shift down by one row
+            if (scanline - tileY >= 8) rowShift += 1
         } else {
-            val basePatternTable = 0x1000 * Control.spritePatternTableSelect
-            if (tileAttributes and 0x80 > 0) {
-                // Tile is flipped vertically -> mirror the row vertically
-                basePatternTable or (tileIndex * 16) or (7 - (scanline - tileY))
-            } else {
-                basePatternTable or (tileIndex * 16) or (scanline - tileY)
-            }
+            basePatternTable = 0x1000 * Control.spritePatternTableSelect
+        }
+
+        var address = if (tileAttributes and 0x80 > 0) {
+            // Tile is flipped vertically
+            basePatternTable or ((tileIndex + rowShift) * 16) or (7 - (scanline - tileY))
+        } else {
+            basePatternTable or ((tileIndex + rowShift) * 16) or (scanline - tileY)
         }
 
         // This function gets called on cycle mod 8 = 5 and cycle mod 8 = 7
@@ -640,7 +625,7 @@ class Ppu(
             // Since on real hardware the evaluation works by copying the y position of the sprite
             // into the secondary OAM and then evaluating, if the secondary OAM is not full,
             // the y position of the last sprite in the OAM should be the last non 0xFF value
-            oamBuffer[numSpritesOnScanline * 4] = (OAMData.data[63 * 4])
+            oamBuffer[numSpritesOnScanline * 4] = OAMData.data[63 * 4]
         }
     }
 
