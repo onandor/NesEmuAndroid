@@ -9,7 +9,6 @@ import java.nio.IntBuffer
    pixel tile, and each nametable 30 rows of 32 tiles each. There are 4 logical nametables.
  - Attribute table: 64 bytes at the end of each nametable that controls which color palette is
    assigned to each part of the background.
-
  */
 
 class Ppu(
@@ -171,8 +170,7 @@ class Ppu(
 
     var mirroring: Mirroring = Mirroring.HORIZONTAL
 
-    // Variables related to sprite fetching and rendering
-
+    // Variables related to tile fetching and rendering
     // Background
 
     // https://www.nesdev.org/wiki/PPU_scrolling#Tile_and_attribute_fetching
@@ -205,7 +203,6 @@ class Ppu(
     // Sprites - a maximum of 8 sprites can be on the same scanline
 
     // 8 sprites, 4 bytes each
-    //private var oamBuffer: IntBuffer = IntBuffer.allocate(32)
     private var oamBuffer: IntArray = IntArray(32) { 0xFF }
     private var numSpritesOnScanline: Int = 0
 
@@ -213,7 +210,7 @@ class Ppu(
     // (OAMDATA) should return 0xFF
     private var oamClear: Boolean = false
 
-    // maximum of 8 sprites; 8 bits of pattern data for the low and high bitplanes per sprite
+    // Maximum of 8 sprites; 8 bits of pattern data for the low and high bitplanes per sprite
     private var sprPatternDataLow: IntArray = IntArray(8)
     private var sprPatternDataHigh: IntArray = IntArray(8)
 
@@ -502,7 +499,7 @@ class Ppu(
             basePatternTable = 0x1000 * (tileIndex and 0x01)
             tileIndex = tileIndex and 0xFE
             // Bottom 8x8 tile of the sprite -> shift down by one row
-            if (scanline - tileY >= 8) rowShift += 1
+            rowShift = (scanline - tileY >= 8).toInt()
         } else {
             basePatternTable = 0x1000 * Control.spritePatternTableSelect
         }

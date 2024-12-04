@@ -75,12 +75,12 @@ class Cartridge {
 
         val prgRomBytes = ByteArray(header.numPrgBank * 0x4000)
         stream.read(prgRomBytes)
-        prgRom = prgRomBytes.toByteIntArray()
+        prgRom = prgRomBytes.toSigned8Array()
 
         if (header.numChrBank != 0) {
             val chrRomBytes = ByteArray(header.numChrBank * 0x2000)
             stream.read(chrRomBytes)
-            chrRom = chrRomBytes.toByteIntArray()
+            chrRom = chrRomBytes.toSigned8Array()
         } else {
             chrRom = IntArray(0x2000)
         }

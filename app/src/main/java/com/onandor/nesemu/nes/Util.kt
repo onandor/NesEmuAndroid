@@ -5,7 +5,7 @@ fun Int.plus8(value: Int): Int = (this + value) and 0xFF
 fun Int.plus16(value: Int): Int = (this + value) and 0xFFFF
 fun Int.toSigned8(): Int = this.toUByte().toByte().toInt()
 
-fun ByteArray.toByteIntArray(): IntArray {
+fun ByteArray.toSigned8Array(): IntArray {
     return this.foldIndexed(IntArray(this.size)) { index, intArray, value ->
         intArray.apply { set(index, value.toInt() and 0xFF) }
     }
