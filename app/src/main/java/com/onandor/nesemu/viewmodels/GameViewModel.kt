@@ -72,6 +72,7 @@ class GameViewModel @Inject constructor(
         } catch (e: RomParseException) {
             Log.e(e.tag, e.message.toString())
             _uiState.update { it.copy(errorMessage = e.message) }
+            navManager.navigateBack()
         }
     }
 

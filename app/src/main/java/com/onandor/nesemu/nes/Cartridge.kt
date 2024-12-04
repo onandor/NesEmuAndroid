@@ -48,7 +48,7 @@ class Cartridge {
         val stream = rom.inputStream()
         header = parseINesHeader(stream)
 
-        if (header.name.commonToUtf8String(0, 3) != "NES") {
+        if (header.name.commonToUtf8String() != "NES${0x1A.toChar()}") {
             stream.close()
             throw RomParseException(TAG, "Invalid ROM file")
         }
@@ -62,7 +62,7 @@ class Cartridge {
             stream.read(ByteArray(512)) // Discarding trainer
         }
 
-        mapperId = (header.control1 shr 4) or ((header.control2 shr 4) shl 4)
+        mapperId = ((header.control1 ushr 4) and 0x0F) or (header.control2 and 0xF0)
         Log.i(TAG, "Using mapper $mapperId")
 
         // The mappers currently supported only use horizontal or vertical mirroring

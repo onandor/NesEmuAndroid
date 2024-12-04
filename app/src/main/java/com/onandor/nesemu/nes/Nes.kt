@@ -13,7 +13,7 @@ class Nes {
     private companion object {
         const val TAG = "Nes"
         const val MEMORY_SIZE = 2048
-        private const val FPS = 60
+        const val TARGET_FPS = 60
     }
 
     private var cpuMemory: IntArray = IntArray(MEMORY_SIZE)
@@ -136,7 +136,7 @@ class Nes {
             val frameStart = timeSource.markNow()
             while (!isFrameReady) {
                 val cpuCycles = cpu.step()
-                for (i in 0 until cpuCycles * 3) {
+                for (i in 0 ..< cpuCycles * 3) {
                     ppu.tick()
                 }
             }
@@ -146,7 +146,7 @@ class Nes {
             val now = timeSource.markNow()
             // If we are lagging behind, the delta will be negative and the call to delay will
             // return immediately
-            delay(1000 / FPS - (now - frameStart).inWholeMilliseconds)
+            delay(1000 / TARGET_FPS - (now - frameStart).inWholeMilliseconds)
 
             if ((now - fpsMeasureStart).inWholeMilliseconds >= 3000) {
                 fps = numFrames / 3f

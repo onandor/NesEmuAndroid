@@ -36,6 +36,7 @@ class MainViewModel @Inject constructor(
         } catch (e: RomParseException) {
             Log.e(e.tag, e.message.toString())
             _uiState.update { it.copy(errorMessage = e.message) }
+            return
         }
 
         navManager.navigateTo(NavActions.gameScreen(CartridgeNavArgs(cartridge)))
