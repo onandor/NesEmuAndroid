@@ -118,16 +118,16 @@ fun DPad(
         }
 
         val highlightedParts = Path()
-        if (buttonStates[Button.DPAD_UP]!! == ButtonState.DOWN) {
+        if (ButtonState.DOWN == buttonStates[Button.DPAD_UP]) {
             highlightedParts.addPath(top)
         }
-        if (buttonStates[Button.DPAD_RIGHT]!! == ButtonState.DOWN) {
+        if (ButtonState.DOWN == buttonStates[Button.DPAD_RIGHT]) {
             highlightedParts.addPath(right)
         }
-        if (buttonStates[Button.DPAD_DOWN]!! == ButtonState.DOWN) {
+        if (ButtonState.DOWN == buttonStates[Button.DPAD_DOWN]!!) {
             highlightedParts.addPath(bottom)
         }
-        if (buttonStates[Button.DPAD_LEFT]!! == ButtonState.DOWN) {
+        if (ButtonState.DOWN == buttonStates[Button.DPAD_LEFT]!!) {
             highlightedParts.addPath(left)
         }
 

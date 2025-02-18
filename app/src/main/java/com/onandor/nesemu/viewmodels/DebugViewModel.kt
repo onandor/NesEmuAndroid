@@ -48,8 +48,6 @@ class DebugViewModel @Inject constructor(
                 requestColorPaletteRender[i]()
             }
         }
-
-        override fun onReadButtons() {}
     }
 
     private val _uiState = MutableStateFlow(DebugScreenUiState())

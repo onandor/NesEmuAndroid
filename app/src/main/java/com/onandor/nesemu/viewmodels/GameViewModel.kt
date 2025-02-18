@@ -57,8 +57,12 @@ class GameViewModel @Inject constructor(
             requestRender()
         }
 
-        override fun onReadButtons() {
-            nes.setButtonStates(mapButtonStatesToInt())
+        override fun onPollController1Buttons(): Int? {
+            return mapButtonStatesToInt()
+        }
+
+        override fun onPollController2Buttons(): Int? {
+            return 0 // TODO: second controller
         }
     }
 

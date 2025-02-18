@@ -22,8 +22,10 @@ class Nes {
     val ppu: Ppu = Ppu(::ppuReadMemory, ::ppuWriteMemory, cpu::NMI, ::ppuFrameReady)
     private var cartridge: Cartridge? = null
     private lateinit var mapper: Mapper
+
     private var lastValueRead: Int = 0
-    private var buttonStates: Int = 0
+    private var controller1Buttons: Int = 0
+    private var controller2Buttons: Int = 0
 
     var running: Boolean = true
     private var isFrameReady: Boolean = false
@@ -38,10 +40,15 @@ class Nes {
             in 0x0000 .. 0x1FFF -> cpuMemory[address and 0x07FF]        // 2 KB RAM with mirroring
             in 0x2000 .. 0x3FFF -> ppu.cpuReadRegister(address and 0x2007) // I/O Registers with mirroring
             in 0x4000 .. 0x4015 -> 0                                    // APU registers
-            0x4016, 0x4017 -> {                                               // Controller
-                val state = buttonStates and 0x01
-                buttonStates = buttonStates ushr 1
-                state
+            0x4016 -> {                                                       // Controller 1
+                val nextButton = controller1Buttons and 0x01
+                controller1Buttons = controller1Buttons ushr 1
+                nextButton
+            }
+            0x4017 -> {                                                       // Controller 2
+                val nextButton = controller2Buttons and 0x01
+                controller2Buttons = controller2Buttons ushr 1
+                nextButton
             }
             0x4018, 0x4019 -> lastValueRead                                   // Unused? (open bus set for now)
             in 0x4020 .. 0x5FFF -> {                                    // Usually unmapped
@@ -158,11 +165,10 @@ class Nes {
     }
 
     fun pollButtonStates() {
-        listeners.forEach { it.onReadButtons() }
-    }
-
-    fun setButtonStates(buttonStates: Int) {
-        this.buttonStates = buttonStates
+        listeners.forEach { listener ->
+            listener.onPollController1Buttons().let { it?.let { controller1Buttons = it or 0xFF00 } }
+            listener.onPollController2Buttons().let { it?.let { controller2Buttons = it or 0xFF00 } }
+        }
     }
 
     fun registerListener(listener: NesListener) {
