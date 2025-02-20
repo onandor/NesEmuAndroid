@@ -20,6 +20,7 @@ class Nes {
     private var vram: IntArray = IntArray(MEMORY_SIZE)
     val cpu: Cpu = Cpu(::cpuReadMemory, ::cpuWriteMemory)
     val ppu: Ppu = Ppu(::ppuReadMemory, ::ppuWriteMemory, cpu::NMI, ::ppuFrameReady)
+    val apu: Apu = Apu(cpu::IRQ)
     private var cartridge: Cartridge? = null
     private lateinit var mapper: Mapper
 
@@ -39,7 +40,11 @@ class Nes {
         lastValueRead = when (address) {
             in 0x0000 .. 0x1FFF -> cpuMemory[address and 0x07FF]        // 2 KB RAM with mirroring
             in 0x2000 .. 0x3FFF -> ppu.cpuReadRegister(address and 0x2007) // I/O Registers with mirroring
-            in 0x4000 .. 0x4015 -> 0                                    // APU registers
+            in 0x4000 .. 0x4014 -> lastValueRead                         // APU channels (write only, reading open bus)
+            0x4015 -> {                                                        // APU status (doesn't affect open bus)
+                val apuStatus = apu.readStatus()
+                return apuStatus or (lastValueRead and 0b00100000)            // Bit 5 is open bus
+            }
             0x4016 -> {                                                       // Controller 1
                 val nextButton = controller1Buttons and 0x01
                 controller1Buttons = controller1Buttons ushr 1
@@ -74,7 +79,7 @@ class Nes {
                 val oamData = cpuMemory.copyOfRange(value shl 8, ((value shl 8) or 0x00FF) + 1)
                 ppu.loadOamData(oamData)
             }
-            in 0x4000 .. 0x4015, 0x4017 -> 0                                    // APU registers
+            in 0x4000 .. 0x4015, 0x4017 -> apu.writeRegister(address, value)    // APU registers
             0x4016 -> pollButtonStates()                                              // Controller
             0x4018, 0x4019 -> lastValueRead                                           // Unused? (open bus set for now)
             in 0x4020 .. 0x5FFF -> mapper.writeUnmappedRange(address, value)    // Usually unmapped
@@ -134,17 +139,28 @@ class Nes {
         numFrames = 0
         isFrameReady = false
         running = true
+
         cpu.reset()
         ppu.reset()
+        apu.reset()
 
+        var apuCycleCarry = 0
         val timeSource = TimeSource.Monotonic
         var fpsMeasureStart = timeSource.markNow()
+
         while (running) {
             val frameStart = timeSource.markNow()
             while (!isFrameReady) {
-                val cpuCycles = cpu.step()
+                var cpuCycles = cpu.step()
+
                 for (i in 0 ..< cpuCycles * 3) {
                     ppu.tick()
+                }
+
+                cpuCycles += apuCycleCarry
+                apuCycleCarry = cpuCycles % 2
+                for (i in 0 ..< cpuCycles / 2) {
+                    apu.tick()
                 }
             }
             isFrameReady = false
