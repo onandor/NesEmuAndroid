@@ -1,8 +1,9 @@
-package com.onandor.nesemu.nes
+package com.onandor.nesemu.emulation.nes
 
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
+import android.util.Log
 
 class Apu(private val generateIRQ: () -> Unit) {
 
@@ -15,6 +16,8 @@ class Apu(private val generateIRQ: () -> Unit) {
         var length: Int = 0
         var lengthCounterHalted: Boolean = false
         var timer: Int = 0
+
+        var frequency: Double = 0.0
         var output: Int = 0 // 0 - 15
 
         open fun reset() {
@@ -25,8 +28,13 @@ class Apu(private val generateIRQ: () -> Unit) {
         }
 
         open fun frameCounterTick() {
-            if (!lengthCounterHalted && length > 0) {
-                length -= 1
+            if (!lengthCounterHalted) {
+                if (length > 0) {
+                    length -= 1
+                } else {
+                    // TODO: clock waveform generator
+                    length = timer
+                }
             }
         }
     }
@@ -146,7 +154,7 @@ class Apu(private val generateIRQ: () -> Unit) {
 
     fun readStatus(): Int {
         val prevInterruptOccurred = interruptOccurred
-        interruptOccurred = false   // TODO: if set and read at the same time, don't clear it
+        interruptOccurred = false
         return (DMC.interruptOccurred.toInt() shl 7) or
                 (prevInterruptOccurred.toInt() shl 6) or
                 0 or
@@ -228,8 +236,8 @@ class Apu(private val generateIRQ: () -> Unit) {
                     interruptOccurred = false
                 }
             }
-            else -> throw RuntimeException("Write to unknown address: 0x${address.toHexString(4)} " +
-                    "(value: 0x${value.toHexString(4)}")
+            else -> Log.w(TAG, "Write to unknown address: 0x${address.toHexString(4)} " +
+                    "(value: 0x${value.toHexString(4)})")
         }
     }
 

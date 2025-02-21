@@ -1,4 +1,4 @@
-package com.onandor.nesemu.nes
+package com.onandor.nesemu.emulation.nes
 
 import android.util.Log
 import okio.internal.commonToUtf8String
@@ -50,12 +50,14 @@ class Cartridge {
 
         if (header.name.commonToUtf8String() != "NES${0x1A.toChar()}") {
             stream.close()
-            throw RomParseException(TAG, "Invalid ROM file")
+            Log.e(TAG, "Invalid ROM file")
+            throw RomParseException("Invalid ROM file")
         }
 
         if (header.control2 shr 2 == 0b11) {
             stream.close()
-            throw RomParseException(TAG, "Unsupported iNES version")
+            Log.e(TAG, "Unsupported iNES version")
+            throw RomParseException("Unsupported iNES version")
         }
 
         if (header.control1 and Bits.TRAINER > 0) {

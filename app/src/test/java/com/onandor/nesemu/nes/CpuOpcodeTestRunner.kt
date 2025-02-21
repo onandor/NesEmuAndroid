@@ -1,6 +1,8 @@
 package com.onandor.nesemu.nes
 
 import com.google.gson.Gson
+import com.onandor.nesemu.emulation.nes.Cpu
+import com.onandor.nesemu.emulation.nes.CpuState
 import java.io.File
 
 class CpuOpcodeTestRunner(

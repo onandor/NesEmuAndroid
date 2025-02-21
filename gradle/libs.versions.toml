@@ -13,6 +13,7 @@ daggerHilt = "2.52"
 hiltNavigationCompose = "1.2.0"
 dataStore = "1.1.1"
 gson = "2.11.0"
+oboe = "1.9.3"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -37,6 +38,8 @@ hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-com
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "dataStore" }
 # Gson
 google-code-gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
+# Oboe
+google-oboe = { group = "com.google.oboe", name = "oboe", version.ref = "oboe"}
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

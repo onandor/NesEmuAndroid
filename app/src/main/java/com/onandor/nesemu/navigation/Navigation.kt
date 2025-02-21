@@ -22,9 +22,8 @@ object NavActions {
         override val destination: String = NavDestinations.BACK
     }
 
-    fun gameScreen(cartridgeNavArgs: CartridgeNavArgs) = object : NavAction {
+    fun gameScreen() = object : NavAction {
         override val destination: String = NavDestinations.GAME_SCREEN
-        override val navArgs: NavArgs = cartridgeNavArgs
     }
 
     fun debugScreen() = object : NavAction {

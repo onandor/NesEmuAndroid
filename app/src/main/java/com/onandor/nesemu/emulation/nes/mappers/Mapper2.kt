@@ -1,6 +1,6 @@
-package com.onandor.nesemu.nes.mappers
+package com.onandor.nesemu.emulation.nes.mappers
 
-import com.onandor.nesemu.nes.Cartridge
+import com.onandor.nesemu.emulation.nes.Cartridge
 
 // UxROM - https://www.nesdev.org/wiki/UxROM
 class Mapper2(cartridge: Cartridge) : Mapper(cartridge) {

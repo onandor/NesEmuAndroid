@@ -1,4 +1,4 @@
-package com.onandor.nesemu.nes
+package com.onandor.nesemu.emulation.nes
 
 enum class DebugFeature {
     PPU_RENDER_PATTERN_TABLE,

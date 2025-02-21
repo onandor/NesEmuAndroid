@@ -18,6 +18,12 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        externalNativeBuild {
+            cmake {
+                cppFlags += "-std=c++2a"
+                arguments += "-DANDROID_STL=c++_shared"
+            }
+        }
     }
 
     buildTypes {
@@ -39,6 +45,13 @@ android {
     }
     buildFeatures {
         compose = true
+        prefab = true
+    }
+    externalNativeBuild {
+        cmake {
+            path = file("CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 }
 
@@ -67,4 +80,6 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     // Gson
     implementation(libs.google.code.gson)
+    // Oboe
+    implementation(libs.google.oboe)
 }

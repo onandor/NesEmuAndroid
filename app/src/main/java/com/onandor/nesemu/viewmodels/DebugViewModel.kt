@@ -2,10 +2,10 @@ package com.onandor.nesemu.viewmodels
 
 import android.view.MotionEvent
 import androidx.lifecycle.ViewModel
+import com.onandor.nesemu.emulation.Emulator
 import com.onandor.nesemu.navigation.NavigationManager
-import com.onandor.nesemu.nes.DebugFeature
-import com.onandor.nesemu.nes.Nes
-import com.onandor.nesemu.nes.NesListener
+import com.onandor.nesemu.emulation.nes.DebugFeature
+import com.onandor.nesemu.emulation.nes.NesListener
 import com.onandor.nesemu.ui.components.NesRenderer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +23,7 @@ data class DebugScreenUiState(
 @HiltViewModel
 class DebugViewModel @Inject constructor(
     private val navManager: NavigationManager,
-    private val nes: Nes
+    private val emulator: Emulator
 ) : ViewModel() {
 
     val patternTableRenderer: NesRenderer = NesRenderer(256, 128)
@@ -37,14 +37,14 @@ class DebugViewModel @Inject constructor(
 
     private val nesListener = object : NesListener {
         override fun onFrameReady() {
-            patternTableRenderer.setTextureData(nes.ppu.dbgPatternTableFrame)
+            patternTableRenderer.setTextureData(emulator.nes.ppu.dbgPatternTableFrame)
             requestPatternTableRender()
 
-            nametableRenderer.setTextureData(nes.ppu.dbgNametableFrame)
+            nametableRenderer.setTextureData(emulator.nes.ppu.dbgNametableFrame)
             requestNametableRender()
 
             for (i in 0 ..< 8) {
-                colorPaletteRenderers[i].setTextureData(nes.ppu.dbgColorPalettes[i])
+                colorPaletteRenderers[i].setTextureData(emulator.nes.ppu.dbgColorPalettes[i])
                 requestColorPaletteRender[i]()
             }
         }
@@ -54,7 +54,7 @@ class DebugViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     init {
-        nes.registerListener(nesListener)
+        emulator.nes.registerListener(nesListener)
     }
 
     fun setPatternTableRenderCallback(requestRender: () -> Unit) {
@@ -71,7 +71,7 @@ class DebugViewModel @Inject constructor(
 
     fun onColorPaletteTouchEvent(idx: Int, event: MotionEvent) {
         if (event.action == MotionEvent.ACTION_DOWN) {
-            nes.setDebugFeatureInt(DebugFeature.PPU_SET_COLOR_PALETTE, idx)
+            emulator.nes.setDebugFeatureInt(DebugFeature.PPU_SET_COLOR_PALETTE, idx)
         }
     }
 
@@ -88,7 +88,7 @@ class DebugViewModel @Inject constructor(
             }
             else -> {}
         }
-        nes.setDebugFeatureBool(feature, value)
+        emulator.nes.setDebugFeatureBool(feature, value)
     }
 
     fun navigateBack() {
@@ -96,10 +96,10 @@ class DebugViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        nes.setDebugFeatureInt(DebugFeature.PPU_SET_COLOR_PALETTE, 0)
-        nes.setDebugFeatureBool(DebugFeature.PPU_RENDER_PATTERN_TABLE, false)
-        nes.setDebugFeatureBool(DebugFeature.PPU_RENDER_NAMETABLE, false)
-        nes.setDebugFeatureBool(DebugFeature.PPU_RENDER_COLOR_PALETTES, false)
-        nes.unregisterListener(nesListener)
+        emulator.nes.setDebugFeatureInt(DebugFeature.PPU_SET_COLOR_PALETTE, 0)
+        emulator.nes.setDebugFeatureBool(DebugFeature.PPU_RENDER_PATTERN_TABLE, false)
+        emulator.nes.setDebugFeatureBool(DebugFeature.PPU_RENDER_NAMETABLE, false)
+        emulator.nes.setDebugFeatureBool(DebugFeature.PPU_RENDER_COLOR_PALETTES, false)
+        emulator.nes.unregisterListener(nesListener)
     }
 }

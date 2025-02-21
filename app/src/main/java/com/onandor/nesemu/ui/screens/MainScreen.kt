@@ -13,6 +13,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -23,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.onandor.nesemu.viewmodels.MainViewModel
 
 @Composable
@@ -30,6 +32,7 @@ fun MainScreen(
     viewModel: MainViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val filePickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { documentUri ->
@@ -42,6 +45,11 @@ fun MainScreen(
     }
 
     val uiState by viewModel.uiState.collectAsState()
+
+    DisposableEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.addObserver(viewModel.emulator)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(viewModel.emulator) }
+    }
 
     Scaffold { padding ->
         Column(
@@ -61,7 +69,10 @@ fun MainScreen(
                 modifier = Modifier
                     .width(250.dp)
                     .height(75.dp),
-                onClick = { filePickerLauncher.launch(arrayOf("*/*")) }
+                onClick = {
+                    filePickerLauncher.launch(arrayOf("*/*"))
+                    //viewModel.onDebugButtonPressed()
+                }
             ) {
                 Text(
                     text = "Select rom",

@@ -1,4 +1,4 @@
-package com.onandor.nesemu.nes
+package com.onandor.nesemu.emulation.nes
 
 import java.nio.IntBuffer
 

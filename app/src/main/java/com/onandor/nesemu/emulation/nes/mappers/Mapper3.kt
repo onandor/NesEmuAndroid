@@ -1,6 +1,6 @@
-package com.onandor.nesemu.nes.mappers
+package com.onandor.nesemu.emulation.nes.mappers
 
-import com.onandor.nesemu.nes.Cartridge
+import com.onandor.nesemu.emulation.nes.Cartridge
 
 // CNROM - https://www.nesdev.org/wiki/INES_Mapper_003
 class Mapper3(cartridge: Cartridge) : Mapper(cartridge) {

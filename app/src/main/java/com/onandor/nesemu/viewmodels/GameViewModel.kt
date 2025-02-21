@@ -2,13 +2,14 @@ package com.onandor.nesemu.viewmodels
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import com.onandor.nesemu.emulation.Emulator
 import com.onandor.nesemu.navigation.CartridgeNavArgs
 import com.onandor.nesemu.navigation.NavActions
 import com.onandor.nesemu.navigation.NavigationManager
-import com.onandor.nesemu.nes.Nes
-import com.onandor.nesemu.nes.NesException
-import com.onandor.nesemu.nes.NesListener
-import com.onandor.nesemu.nes.RomParseException
+import com.onandor.nesemu.emulation.nes.Nes
+import com.onandor.nesemu.emulation.nes.NesException
+import com.onandor.nesemu.emulation.nes.NesListener
+import com.onandor.nesemu.emulation.nes.RomParseException
 import com.onandor.nesemu.ui.components.NesRenderer
 import com.onandor.nesemu.ui.components.controls.Button
 import com.onandor.nesemu.ui.components.controls.ButtonState
@@ -30,7 +31,7 @@ data class GameUiState(
 @HiltViewModel
 class GameViewModel @Inject constructor(
     private val navManager: NavigationManager,
-    private val nes: Nes
+    private val emulator: Emulator
 ) : ViewModel() {
 
     val buttonStateMap = mutableMapOf<Button, ButtonState>(
@@ -46,14 +47,13 @@ class GameViewModel @Inject constructor(
 
     val renderer: NesRenderer = NesRenderer(256, 240)
     private var requestRender: () -> Unit = {}
-    private var nesRunnerJob: Job? = null
 
     private val _uiState = MutableStateFlow(GameUiState())
     val uiState = _uiState.asStateFlow()
 
     private val nesListener = object : NesListener {
         override fun onFrameReady() {
-            renderer.setTextureData(nes.ppu.frame)
+            renderer.setTextureData(emulator.nes.ppu.frame)
             requestRender()
         }
 
@@ -67,30 +67,16 @@ class GameViewModel @Inject constructor(
     }
 
     init {
-        nes.registerListener(nesListener)
+        emulator.nes.registerListener(nesListener)
 
-        val cartridge = (navManager.getCurrentNavAction()!!.navArgs as CartridgeNavArgs).cartridge
         try {
-            nes.insertCartridge(cartridge)
-            reset()
-        } catch (e: RomParseException) {
-            Log.e(e.tag, e.message.toString())
-            _uiState.update { it.copy(errorMessage = e.message) }
-            navManager.navigateBack()
-        }
-    }
-
-    private fun reset() {
-        nesRunnerJob = CoroutineScope(Dispatchers.Default).launch {
-            try {
-                nes.reset()
-            } catch (e: Exception) {
-                if (e is NesException) {
-                    Log.e(e.tag, e.message.toString())
-                    _uiState.update { it.copy(errorMessage = e.message) }
-                } else {
-                    e.printStackTrace()
-                }
+            emulator.reset()
+        } catch (e: Exception) {
+            if (e is NesException) {
+                _uiState.update { it.copy(errorMessage = e.message) }
+            } else {
+                Log.e("GameViewModel", e.localizedMessage, e)
+                _uiState.update { it.copy(errorMessage = "An unexpected error occurred") }
             }
         }
     }
@@ -136,8 +122,7 @@ class GameViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        nes.unregisterListener(nesListener)
-        nes.running = false // TODO: might not be enough, seems to keep running, need to investigate
-        nesRunnerJob?.cancel()
+        emulator.stop()
+        emulator.nes.unregisterListener(nesListener)
     }
 }

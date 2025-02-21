@@ -1,13 +1,13 @@
 package com.onandor.nesemu
 
-import com.onandor.nesemu.nes.Cartridge
-import com.onandor.nesemu.nes.Cpu
-import com.onandor.nesemu.nes.InvalidOperationException
-import com.onandor.nesemu.nes.Nes
-import com.onandor.nesemu.nes.plus16
-import com.onandor.nesemu.nes.plus8
-import com.onandor.nesemu.nes.toHexString
-import com.onandor.nesemu.nes.toSigned8
+import com.onandor.nesemu.emulation.nes.Cartridge
+import com.onandor.nesemu.emulation.nes.Cpu
+import com.onandor.nesemu.emulation.nes.InvalidOperationException
+import com.onandor.nesemu.emulation.nes.Nes
+import com.onandor.nesemu.emulation.nes.plus16
+import com.onandor.nesemu.emulation.nes.plus8
+import com.onandor.nesemu.emulation.nes.toHexString
+import com.onandor.nesemu.emulation.nes.toSigned8
 import org.junit.Test
 import java.io.File
 import java.io.FileWriter
@@ -23,7 +23,7 @@ class NesTestCpu {
         private const val NUM_TEST_INSTRUCTIONS = 8991
     }
 
-    private val nes = Nes(frameReady = {})
+    private val nes = Nes()
     private val traceList = mutableListOf<String>()
 
     private fun createNesTestTrace(PC: Int, SP: Int, A: Int, X: Int, Y: Int, PS: Int, cycles: Int) {
@@ -366,7 +366,7 @@ class NesTestCpu {
             try {
                 val cycles = nes.cpu.step()
                 for (j in 0 ..< cycles * 3) {
-                    nes.ppu.tick2()
+                    nes.ppu.tick()
                 }
             } catch (e: InvalidOperationException) {
                 println(e.message)

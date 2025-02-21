@@ -1,10 +1,10 @@
-package com.onandor.nesemu.nes
+package com.onandor.nesemu.emulation.nes
 
 import android.util.Log
-import com.onandor.nesemu.nes.mappers.Mapper
-import com.onandor.nesemu.nes.mappers.Mapper0
-import com.onandor.nesemu.nes.mappers.Mapper2
-import com.onandor.nesemu.nes.mappers.Mapper3
+import com.onandor.nesemu.emulation.nes.mappers.Mapper
+import com.onandor.nesemu.emulation.nes.mappers.Mapper0
+import com.onandor.nesemu.emulation.nes.mappers.Mapper2
+import com.onandor.nesemu.emulation.nes.mappers.Mapper3
 import kotlinx.coroutines.delay
 import kotlin.time.TimeSource
 
@@ -65,8 +65,10 @@ class Nes {
                 if (value == -1) lastValueRead else value
             }
             in 0x8000 .. 0xFFFF -> mapper.readPrgRom(address)           // PRG-ROM
-            else -> throw InvalidOperationException(TAG,
-                "Invalid CPU read at $${address.toHexString(4)}")
+            else -> {
+                Log.e(TAG, "Invalid CPU read at $${address.toHexString(4)}")
+                throw InvalidOperationException("Invalid CPU read at $${address.toHexString(4)}")
+            }
         }
         return lastValueRead
     }
@@ -85,8 +87,10 @@ class Nes {
             in 0x4020 .. 0x5FFF -> mapper.writeUnmappedRange(address, value)    // Usually unmapped
             in 0x6000 .. 0x7FFF -> mapper.writeRam(address, value)              // Usually cartridge SRAM
             in 0x8000 .. 0xFFFF -> mapper.writePrgRom(address, value)           // PRG-ROM
-            else -> throw InvalidOperationException(TAG,
-                "Invalid CPU write at $${address.toHexString(4)}")
+            else -> {
+                Log.e(TAG, "Invalid CPU write at $${address.toHexString(4)}")
+                throw InvalidOperationException("Invalid CPU write at $${address.toHexString(4)}")
+            }
         }
     }
 
@@ -98,8 +102,10 @@ class Nes {
             in 0x3000 .. 0x3EFF -> ppuReadMemory(address and 0x2EFF) // Mirror of 0x2000-0x2EFF
             in 0x3F00 .. 0x3F1F -> 0    // Palette (access handled by PPU internally)
             in 0x3F20 .. 0x3FFF -> 0    // Mirror of 0x3F00-0x3F1F
-            else -> throw InvalidOperationException(TAG,
-                "Invalid PPU read at $${address.toHexString(4)}")
+            else -> {
+                Log.e(TAG, "Invalid PPU read at $${address.toHexString(4)}")
+                throw InvalidOperationException("Invalid PPU read at $${address.toHexString(4)}")
+            }
         }
     }
 
@@ -111,19 +117,21 @@ class Nes {
             in 0x3000 .. 0x3EFF -> ppuWriteMemory(address and 0x2EFF, value) // Mirror of 0x2000-0x2EFF
             in 0x3F00 .. 0x3F1F -> {}    // Palette (access handled by PPU internally)
             in 0x3F20 .. 0x3FFF -> {}    // Mirror of 0x3F00-0x3F1F
-            else -> throw InvalidOperationException(TAG,
-                "Invalid PPU write at $${address.toHexString(4)}")
+            else -> {
+                Log.e(TAG, "Invalid PPU write at $${address.toHexString(4)}")
+                throw InvalidOperationException("Invalid PPU write at $${address.toHexString(4)}")
+            }
         }
     }
 
     fun insertCartridge(cartridge: Cartridge) {
-        this.cartridge = cartridge
         mapper = when (cartridge.mapperId) {
             0 -> Mapper0(cartridge)
             2 -> Mapper2(cartridge)
             3 -> Mapper3(cartridge)
-            else -> throw RomParseException(TAG, "Unsupported mapper: ${cartridge.mapperId}")
+            else -> throw RomParseException("Unsupported mapper: ${cartridge.mapperId}")
         }
+        this.cartridge = cartridge
         ppu.mirroring = cartridge.mirroring
     }
 
@@ -202,13 +210,10 @@ class Nes {
             in 0x0000 .. 0x1FFF -> cpuMemory[address and 0x07FF]        // 2 KB RAM with mirroring
             in 0x2000 .. 0x3FFF -> ppu.dbgCpuReadRegister(address and 0x2007) // I/O Registers with mirroring
             in 0x4000 .. 0x4019 -> 0                                    // Registers (Mostly APU)
-            in 0x4020 .. 0x5FFF -> {                                    // Cartridge Expansion ROM
-                throw InvalidOperationException(TAG,
-                    "CPU read at $address: Cartridge Expansion ROM not supported")
-            }
+            in 0x4020 .. 0x5FFF -> 0                                    // Cartridge Expansion ROM
             in 0x6000 .. 0x7FFF -> 0                                    // SRAM
             in 0x8000 .. 0xFFFF -> mapper.readPrgRom(address)           // PRG-ROM
-            else -> throw InvalidOperationException(TAG, "Invalid CPU read at $address")
+            else -> throw InvalidOperationException("Invalid CPU read at $address")
         }
     }
 

@@ -1,9 +1,9 @@
-package com.onandor.nesemu.nes.mappers
+package com.onandor.nesemu.emulation.nes.mappers
 
 import android.util.Log
-import com.onandor.nesemu.nes.Cartridge
-import com.onandor.nesemu.nes.Mirroring
-import com.onandor.nesemu.nes.toHexString
+import com.onandor.nesemu.emulation.nes.Cartridge
+import com.onandor.nesemu.emulation.nes.Mirroring
+import com.onandor.nesemu.emulation.nes.toHexString
 
 abstract class Mapper(open val cartridge: Cartridge) {
 

@@ -1,6 +1,6 @@
-package com.onandor.nesemu.nes.mappers
+package com.onandor.nesemu.emulation.nes.mappers
 
-import com.onandor.nesemu.nes.Cartridge
+import com.onandor.nesemu.emulation.nes.Cartridge
 
 // NROM - https://www.nesdev.org/wiki/NROM
 class Mapper0(cartridge: Cartridge) : Mapper(cartridge) {

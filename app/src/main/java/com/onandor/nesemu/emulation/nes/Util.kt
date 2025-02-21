@@ -1,4 +1,4 @@
-package com.onandor.nesemu.nes
+package com.onandor.nesemu.emulation.nes
 
 fun Boolean.toInt() = if (this) 1 else 0
 fun Int.plus8(value: Int): Int = (this + value) and 0xFF

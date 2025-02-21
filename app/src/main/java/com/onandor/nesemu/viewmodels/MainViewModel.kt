@@ -2,15 +2,16 @@ package com.onandor.nesemu.viewmodels
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
-import com.onandor.nesemu.navigation.CartridgeNavArgs
+import androidx.lifecycle.viewModelScope
+import com.onandor.nesemu.emulation.Emulator
 import com.onandor.nesemu.navigation.NavActions
 import com.onandor.nesemu.navigation.NavigationManager
-import com.onandor.nesemu.nes.Cartridge
-import com.onandor.nesemu.nes.RomParseException
+import com.onandor.nesemu.emulation.nes.RomParseException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import java.io.InputStream
 import javax.inject.Inject
 
@@ -20,26 +21,38 @@ data class MainScreenUiState(
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
-    private val navManager: NavigationManager
+    private val navManager: NavigationManager,
+    val emulator: Emulator
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainScreenUiState())
     val uiState = _uiState.asStateFlow()
 
     fun onRomSelected(stream: InputStream) {
-        val cartridge: Cartridge = Cartridge()
         val rom = stream.readBytes()
         stream.close()
 
         try {
-            cartridge.parseRom(rom)
-        } catch (e: RomParseException) {
-            Log.e(e.tag, e.message.toString())
-            _uiState.update { it.copy(errorMessage = e.message) }
+            emulator.parseAndInsertRom(rom)
+        } catch (e: Exception) {
+            if (e is RomParseException) {
+                _uiState.update { it.copy(errorMessage = e.message) }
+            } else {
+                Log.e("MainViewModel", e.localizedMessage, e)
+                _uiState.update {
+                    it.copy(errorMessage = "An exception occurred while reading the ROM file")
+                }
+            }
             return
         }
 
-        navManager.navigateTo(NavActions.gameScreen(CartridgeNavArgs(cartridge)))
+        navManager.navigateTo(NavActions.gameScreen())
+    }
+
+    fun onDebugButtonPressed() {
+        viewModelScope.launch {
+            emulator.audioPlayer.playSound()
+        }
     }
 
     fun errorMessageToastShown() {
