@@ -1,11 +1,12 @@
 package com.onandor.nesemu.emulation.nes
 
-import android.media.AudioAttributes
-import android.media.AudioFormat
-import android.media.AudioTrack
 import android.util.Log
+import kotlin.random.Random
 
-class Apu(private val generateIRQ: () -> Unit) {
+class Apu(
+    private val generateIRQ: () -> Unit,
+    private val onAudioSampleReady: (Float) -> Unit
+) {
 
     private enum class SequencerMode(val cycles: Int) {
         MODE_4_STEP(14915),
@@ -105,9 +106,18 @@ class Apu(private val generateIRQ: () -> Unit) {
         }
     }
 
+    var sampleRate: Int = 44100
+        set(value) {
+            cpuCyclesPerSample = Cpu.FREQUENCY / value
+            field = value
+        }
+    private var cpuCyclesPerSample: Int = Cpu.FREQUENCY / sampleRate
+    private var cpuCyclesSinceSample: Int = 0
+    private var cycles: Int = 0
+    private var cpuCycles: Int = 0
+
     private var interruptOccurred: Boolean = false
     private var interruptInhibited: Boolean = false
-    private var cycles: Int = 0
     private var sequencerMode: SequencerMode = SequencerMode.MODE_4_STEP
 
     // Clocks the frame counter's looping sequencer
@@ -146,9 +156,17 @@ class Apu(private val generateIRQ: () -> Unit) {
             }
         }
 
-        cycles += 1
+        cpuCycles += 1
+        cpuCyclesSinceSample += 1
+        if (cpuCyclesSinceSample >= cpuCyclesPerSample) {
+            onAudioSampleReady(getSample())
+            cpuCyclesSinceSample = 0
+        }
+
+        cycles = cpuCycles / 2
         if (cycles >= sequencerMode.cycles) {
             cycles = 0
+            cpuCycles = 0
         }
     }
 
@@ -242,9 +260,11 @@ class Apu(private val generateIRQ: () -> Unit) {
     }
 
     fun reset() {
+        cycles = 0
+        cpuCycles = 0
+        cpuCyclesSinceSample = 0
         interruptOccurred = false
         interruptInhibited = false
-        cycles = 0
         sequencerMode = SequencerMode.MODE_4_STEP
 
         Pulse1.reset()
@@ -254,51 +274,10 @@ class Apu(private val generateIRQ: () -> Unit) {
         DMC.reset()
     }
 
-    fun getSample(): Double {
-        val pulseSample = 0.00752 * (Pulse1.output + Pulse2.output)
-        val tndSample = 0.00851 * Triangle.output + 0.00494 * Noise.output + 0.00335 * DMC.output
-        return pulseSample + tndSample
-    }
-
-    fun playSound() {
-        val frequency = 440.0
-        val durationMs = 500
-        val sampleRate = 44100
-
-        val numSamples = (durationMs / 1000.0 * sampleRate).toInt()
-        val buffer = ShortArray(numSamples)
-
-        for (i in buffer.indices) {
-            buffer[i] = if ((i * frequency / sampleRate) % 1.0 < 0.5) {
-                Short.MAX_VALUE
-            } else {
-                Short.MIN_VALUE
-            }
-        }
-
-        val attributes = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_GAME)
-            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-            .build()
-
-        val audioFormat = AudioFormat.Builder()
-            .setSampleRate(sampleRate)
-            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-            .build()
-
-        val audioTrack = AudioTrack(
-            attributes,
-            audioFormat,
-            buffer.size * 2,
-            AudioTrack.MODE_STATIC,
-            0
-        )
-
-        audioTrack.write(buffer, 0, buffer.size)
-        audioTrack.play()
-
-        Thread.sleep(durationMs.toLong())
-        audioTrack.release()
+    fun getSample(): Float {
+//        val pulseSample = 0.00752 * (Pulse1.output + Pulse2.output)
+//        val tndSample = 0.00851 * Triangle.output + 0.00494 * Noise.output + 0.00335 * DMC.output
+//        return pulseSample + tndSample
+        return (Random.nextFloat() - 0.5f) * 2.0f * 0.05f
     }
 }

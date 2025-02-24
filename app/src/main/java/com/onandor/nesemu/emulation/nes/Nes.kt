@@ -1,10 +1,12 @@
 package com.onandor.nesemu.emulation.nes
 
 import android.util.Log
+import androidx.collection.mutableFloatListOf
 import com.onandor.nesemu.emulation.nes.mappers.Mapper
 import com.onandor.nesemu.emulation.nes.mappers.Mapper0
 import com.onandor.nesemu.emulation.nes.mappers.Mapper2
 import com.onandor.nesemu.emulation.nes.mappers.Mapper3
+import com.onandor.nesemu.util.CircularBuffer
 import kotlinx.coroutines.delay
 import kotlin.time.TimeSource
 
@@ -20,13 +22,16 @@ class Nes {
     private var vram: IntArray = IntArray(MEMORY_SIZE)
     val cpu: Cpu = Cpu(::cpuReadMemory, ::cpuWriteMemory)
     val ppu: Ppu = Ppu(::ppuReadMemory, ::ppuWriteMemory, cpu::NMI, ::ppuFrameReady)
-    val apu: Apu = Apu(cpu::IRQ)
+    val apu: Apu = Apu(cpu::IRQ, ::apuSampleReady)
     private var cartridge: Cartridge? = null
     private lateinit var mapper: Mapper
 
     private var lastValueRead: Int = 0
     private var controller1Buttons: Int = 0
     private var controller2Buttons: Int = 0
+
+    //var audioSampleBuffer = CircularBuffer<Float>(5000)
+    private var audioSampleBuffer = mutableFloatListOf()
 
     var running: Boolean = true
     private var isFrameReady: Boolean = false
@@ -140,6 +145,20 @@ class Nes {
         listeners.forEach { it.onFrameReady() }
     }
 
+    private fun apuSampleReady(sample: Float) {
+        audioSampleBuffer.add(sample)
+    }
+
+    fun drainAudioBuffer(numSamples: Int): FloatArray {
+        val size = if (audioSampleBuffer.size < numSamples) audioSampleBuffer.size else numSamples
+        val samples = FloatArray(size)
+        for (i in 0 ..< size) {
+            samples[i] = audioSampleBuffer[i]
+        }
+        audioSampleBuffer.removeRange(0, size)
+        return samples
+    }
+
     suspend fun reset() {
         cpuMemory = IntArray(MEMORY_SIZE)
         vram = IntArray(MEMORY_SIZE)
@@ -147,6 +166,7 @@ class Nes {
         numFrames = 0
         isFrameReady = false
         running = true
+        audioSampleBuffer.clear()
 
         cpu.reset()
         ppu.reset()
@@ -167,12 +187,12 @@ class Nes {
 
                 cpuCycles += apuCycleCarry
                 apuCycleCarry = cpuCycles % 2
-                for (i in 0 ..< cpuCycles / 2) {
+                for (i in 0 ..< cpuCycles) {
                     apu.tick()
                 }
             }
             isFrameReady = false
-            numFrames++
+            numFrames += 1
 
             val now = timeSource.markNow()
             // If we are lagging behind, the delta will be negative and the call to delay will

@@ -22,6 +22,7 @@ android {
             cmake {
                 cppFlags += "-std=c++2a"
                 arguments += "-DANDROID_STL=c++_shared"
+                arguments += "-DCMAKE_BUILD_TYPE=debug"
             }
         }
     }

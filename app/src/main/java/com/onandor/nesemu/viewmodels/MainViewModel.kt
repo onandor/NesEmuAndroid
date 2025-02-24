@@ -2,7 +2,6 @@ package com.onandor.nesemu.viewmodels
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.onandor.nesemu.emulation.Emulator
 import com.onandor.nesemu.navigation.NavActions
 import com.onandor.nesemu.navigation.NavigationManager
@@ -11,7 +10,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import java.io.InputStream
 import javax.inject.Inject
 
@@ -22,7 +20,7 @@ data class MainScreenUiState(
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val navManager: NavigationManager,
-    val emulator: Emulator
+    private val emulator: Emulator
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainScreenUiState())
@@ -47,12 +45,6 @@ class MainViewModel @Inject constructor(
         }
 
         navManager.navigateTo(NavActions.gameScreen())
-    }
-
-    fun onDebugButtonPressed() {
-        viewModelScope.launch {
-            emulator.audioPlayer.playSound()
-        }
     }
 
     fun errorMessageToastShown() {

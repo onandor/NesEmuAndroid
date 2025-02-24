@@ -3,24 +3,17 @@ package com.onandor.nesemu.viewmodels
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import com.onandor.nesemu.emulation.Emulator
-import com.onandor.nesemu.navigation.CartridgeNavArgs
 import com.onandor.nesemu.navigation.NavActions
 import com.onandor.nesemu.navigation.NavigationManager
-import com.onandor.nesemu.emulation.nes.Nes
 import com.onandor.nesemu.emulation.nes.NesException
 import com.onandor.nesemu.emulation.nes.NesListener
-import com.onandor.nesemu.emulation.nes.RomParseException
 import com.onandor.nesemu.ui.components.NesRenderer
 import com.onandor.nesemu.ui.components.controls.Button
 import com.onandor.nesemu.ui.components.controls.ButtonState
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class GameUiState(
@@ -68,6 +61,7 @@ class GameViewModel @Inject constructor(
 
     init {
         emulator.nes.registerListener(nesListener)
+        emulator.startAudioStream()
 
         try {
             emulator.reset()
@@ -122,6 +116,7 @@ class GameViewModel @Inject constructor(
     }
 
     override fun onCleared() {
+        emulator.pauseAudioStream()
         emulator.stop()
         emulator.nes.unregisterListener(nesListener)
     }

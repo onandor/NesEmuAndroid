@@ -32,7 +32,6 @@ fun MainScreen(
     viewModel: MainViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
     val filePickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { documentUri ->
@@ -45,11 +44,6 @@ fun MainScreen(
     }
 
     val uiState by viewModel.uiState.collectAsState()
-
-    DisposableEffect(lifecycleOwner) {
-        lifecycleOwner.lifecycle.addObserver(viewModel.emulator)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(viewModel.emulator) }
-    }
 
     Scaffold { padding ->
         Column(
@@ -71,7 +65,6 @@ fun MainScreen(
                     .height(75.dp),
                 onClick = {
                     filePickerLauncher.launch(arrayOf("*/*"))
-                    //viewModel.onDebugButtonPressed()
                 }
             ) {
                 Text(

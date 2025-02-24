@@ -17,8 +17,8 @@ class Emulator : DefaultLifecycleObserver {
     }
 
     val nes = Nes()
-    val audioPlayer = AudioPlayer()
-    lateinit var cartridge: Cartridge
+    private lateinit var cartridge: Cartridge
+    private val audioPlayer = AudioPlayer(::setSampleRate, ::provideSamples)
 
     private var nesRunnerJob: Job? = null
 
@@ -26,6 +26,14 @@ class Emulator : DefaultLifecycleObserver {
         cartridge = Cartridge()
         cartridge.parseRom(rom)
         nes.insertCartridge(cartridge)
+    }
+
+    private fun setSampleRate(sampleRate: Int) {
+        nes.apu.sampleRate = sampleRate
+    }
+
+    private fun provideSamples(numSamples: Int): FloatArray {
+        return nes.drainAudioBuffer(numSamples)
     }
 
     fun reset() {
@@ -39,13 +47,21 @@ class Emulator : DefaultLifecycleObserver {
         nesRunnerJob?.cancel()
     }
 
+    fun startAudioStream() {
+        audioPlayer.startStream()
+    }
+
+    fun pauseAudioStream() {
+        audioPlayer.pauseStream()
+    }
+
     override fun onResume(owner: LifecycleOwner) {
         super.onResume(owner)
-        audioPlayer.onResume()
+        audioPlayer.init()
     }
 
     override fun onPause(owner: LifecycleOwner) {
         super.onPause(owner)
-        audioPlayer.onPause()
+        audioPlayer.destroy()
     }
 }
