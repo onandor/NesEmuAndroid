@@ -1,8 +1,5 @@
 package com.onandor.nesemu.emulation.nes
 
-import android.util.Log
-import kotlin.random.Random
-
 class Apu(
     private val generateIRQ: () -> Unit,
     private val onAudioSampleReady: (Float) -> Unit
@@ -13,29 +10,52 @@ class Apu(
         MODE_5_STEP(18641)
     }
 
-    private open class WaveformChannel {
+    private class PulseChannel {
         var length: Int = 0
         var lengthCounterHalted: Boolean = false
-        var timer: Int = 0
+        // 11 bit timer, counts t, t-1, ..., 0, t, t-1, ...
+        // Clocks the waveform generator when it goes from 0 to t
+        var t: Int = 0
+        var tLower8: Int = 0 // Temporary variable that holds the lower 8 bits until the upper 3 are set
+        var tReload: Int = 0
+        var dutyCycle: Int = PULSE_DUTY_CYCLE_LOOKUP[0]
+        var phase: Int = 0
 
-        var frequency: Double = 0.0
-        var output: Int = 0 // 0 - 15
+        var volume: Int = 0 // 0 - 15
 
-        open fun reset() {
+        val output: Int
+            get() {
+                // TODO: sweep unit's adder overflows -> silence
+                return if ((dutyCycle shl phase) and 0x80 == 0 || length == 0 || t < 8) {
+                    0
+                } else {
+                    volume
+                }
+            }
+//        var output: Float = 0.0f
+
+        fun reset() {
             length = 0
             lengthCounterHalted = false
-            timer = 0
-            output = 0
+            t = 0
+            tReload = 0
+            dutyCycle = PULSE_DUTY_CYCLE_LOOKUP[0]
+            phase = 0
         }
 
-        open fun frameCounterTick() {
-            if (!lengthCounterHalted) {
-                if (length > 0) {
-                    length -= 1
-                } else {
-                    // TODO: clock waveform generator
-                    length = timer
-                }
+        fun tick() {
+            // Clocking the length counter
+            if (!lengthCounterHalted && length > 0) {
+                length -= 1
+            }
+        }
+
+        fun tickTimer() {
+            if (t > 0) {
+                t -= 1
+            } else {
+                t = tReload
+                phase = (phase + 1) % 8
             }
         }
     }
@@ -67,33 +87,6 @@ class Apu(
         const val IRQ_INHIBIT: Int = 0b01000000
     }
 
-    private object Pulse1 : WaveformChannel() {
-        var dutyCycle: Int = PULSE_DUTY_CYCLE_LOOKUP[0]
-
-        override fun reset() {
-            super.reset()
-            dutyCycle = PULSE_DUTY_CYCLE_LOOKUP[0]
-        }
-    }
-
-    private object Pulse2 : WaveformChannel() {
-        var dutyCycle: Int = PULSE_DUTY_CYCLE_LOOKUP[0]
-
-        override fun reset() {
-            super.reset()
-            dutyCycle = PULSE_DUTY_CYCLE_LOOKUP[0]
-        }
-    }
-
-    private object Triangle : WaveformChannel() {
-        // TODO: might need to override frameCounterTick
-        // https://www.nesdev.org/wiki/APU_Frame_Counter - Mode 0 and mode 1
-    }
-
-    private object Noise : WaveformChannel() {
-
-    }
-
     private object DMC {
         var bytesRemaining: Int = 0
         var interruptOccurred: Boolean = false
@@ -106,12 +99,15 @@ class Apu(
         }
     }
 
+    private val pulse1 = PulseChannel()
+    private val pulse2 = PulseChannel()
+
     var sampleRate: Int = 44100
         set(value) {
-            cpuCyclesPerSample = Cpu.FREQUENCY / value
+            cpuCyclesPerSample = Cpu.FREQUENCY_HZ / value
             field = value
         }
-    private var cpuCyclesPerSample: Int = Cpu.FREQUENCY / sampleRate
+    private var cpuCyclesPerSample: Int = Cpu.FREQUENCY_HZ / sampleRate
     private var cpuCyclesSinceSample: Int = 0
     private var cycles: Int = 0
     private var cpuCycles: Int = 0
@@ -127,34 +123,38 @@ class Apu(
         // https://www.nesdev.org/wiki/APU_Frame_Counter - Mode 0 and mode 1
         when (cycles) {
             3728 -> {                                                   // Step 1
-                Triangle.frameCounterTick()
+                //Triangle.tick()
             }
             7456 -> {                                                   // Step 2
-                Pulse1.frameCounterTick()
-                Pulse2.frameCounterTick()
-                Triangle.frameCounterTick()
+                pulse1.tick()
+                pulse2.tick()
+                //Triangle.tick()
             }
             11185 -> {                                                  // Step 3
-                Triangle.frameCounterTick()
+                //Triangle.tick()
             }
             14914 -> {                                                  // Step 4
                 if (sequencerMode == SequencerMode.MODE_4_STEP) {
-                    Pulse1.frameCounterTick()
-                    Pulse2.frameCounterTick()
-                    Triangle.frameCounterTick()
-                    interruptOccurred = !interruptInhibited
+                    pulse1.tick()
+                    pulse2.tick()
+                    //Triangle.tick()
                     if (!interruptInhibited) {
                         interruptOccurred = true
                         generateIRQ() // TODO: might not be the most accurate mode to generate an IRQ (the same goes for the PPU)
+                    } else {
+                        interruptOccurred = false
                     }
                 }
             }
-            18640 -> {                                                  // Step 5
-                Pulse1.frameCounterTick()
-                Pulse2.frameCounterTick()
-                Triangle.frameCounterTick()
+            18640 -> {                                                  // Step 5 (only reached in 5 step mode)
+                pulse1.tick()
+                pulse2.tick()
+                //Triangle.tick()
             }
         }
+
+        pulse1.tickTimer()
+        pulse2.tickTimer()
 
         cpuCycles += 1
         cpuCyclesSinceSample += 1
@@ -177,64 +177,86 @@ class Apu(
                 (prevInterruptOccurred.toInt() shl 6) or
                 0 or
                 ((DMC.bytesRemaining > 0).toInt() shl 4) or
-                ((Noise.length > 0).toInt() shl 3) or
-                ((Triangle.length > 0).toInt() shl 2) or
-                ((Pulse2.length > 0).toInt() shl 1) or
-                (Pulse1.length > 0).toInt()
+                //((Noise.length > 0).toInt() shl 3) or
+                //((Triangle.length > 0).toInt() shl 2) or
+                0 or
+                0 or
+                ((pulse2.length > 0).toInt() shl 1) or
+                (pulse1.length > 0).toInt()
     }
 
     fun writeRegister(address: Int, value: Int) {
         DMC.interruptOccurred = false
         when (address) {
             0x4000 -> {
-                // TODO: might not be correct with the length counter
-                // https://www.nesdev.org/wiki/APU#Pulse_($4000%E2%80%93$4007)
-                Pulse1.dutyCycle = PULSE_DUTY_CYCLE_LOOKUP[(value and 0xC0) ushr 6]
-                Pulse1.lengthCounterHalted = value and 0x20 > 0
+                pulse1.dutyCycle = PULSE_DUTY_CYCLE_LOOKUP[(value and 0xC0) ushr 6]
+                pulse1.lengthCounterHalted = value and 0x20 > 0
+                if (value and 0x10 > 0) {
+                    // Constant volume
+                    pulse1.volume = value and 0x0F
+                } else {
+                    // TODO: set envelope lowering rate
+                }
             }
             0x4001 -> {} // TODO: pulse 1 sweep
             0x4002 -> {
-                Pulse1.timer = Pulse1.timer or value
+                pulse1.tReload = (pulse1.tReload and 0x700) or (value and 0xFF)
             }
             0x4003 -> {
-                Pulse1.timer = Pulse1.timer or ((value and 0b111) shl 10)
-                Pulse1.length = LENGTH_COUNTER_LOOKUP[(value and 0xF8) ushr 3]
+                pulse1.tReload = ((value and 0b111) shl 8) or (pulse1.tReload and 0xFF)
+                pulse1.t = pulse1.tReload
+                pulse1.length = LENGTH_COUNTER_LOOKUP[(value and 0xF8) ushr 3]
+                pulse1.phase = 0
+                // TODO: restart envelope
             }
             0x4004 -> {
-                Pulse2.dutyCycle = PULSE_DUTY_CYCLE_LOOKUP[(value and 0xC0) ushr 6]
-                Pulse2.lengthCounterHalted = value and 0x20 > 0
+                pulse2.dutyCycle = PULSE_DUTY_CYCLE_LOOKUP[(value and 0xC0) ushr 6]
+                pulse2.lengthCounterHalted = value and 0x20 > 0
+                if (value and 0x10 > 0) {
+                    // Constant volume
+                    pulse2.volume = value and 0x0F
+                } else {
+                    // TODO: set envelope lowering rate
+                }
             }
             0x4005 -> {} // TODO: pulse 2 sweep
             0x4006 -> {
-                Pulse2.timer = Pulse2.timer or value
+                pulse2.tReload = (pulse2.tReload and 0x700) or (value and 0xFF)
             }
             0x4007 -> {
-                Pulse2.timer = Pulse2.timer or ((value and 0b111) shl 10)
-                Pulse2.length = LENGTH_COUNTER_LOOKUP[(value and 0xF8) ushr 3]
+                pulse2.tReload = ((value and 0b111) shl 8) or (pulse2.tReload and 0xFF)
+                pulse2.t = pulse2.tReload
+                pulse2.length = LENGTH_COUNTER_LOOKUP[(value and 0xF8) ushr 3]
+                pulse2.phase = 0
+                // TODO: restart envelope
             }
             0x400B -> {
-                Triangle.length = LENGTH_COUNTER_LOOKUP[(value and 0xF8) ushr 3]
+//                if (!Triangle.lengthCounterHalted) {
+//                    Triangle.length = LENGTH_COUNTER_LOOKUP[(value and 0xF8) ushr 3]
+//                }
             }
             0x400F -> {
-                Noise.length = LENGTH_COUNTER_LOOKUP[(value and 0xF8) ushr 3]
+//                if (!Noise.lengthCounterHalted) {
+//                    Noise.length = LENGTH_COUNTER_LOOKUP[(value and 0xF8) ushr 3]
+//                }
             }
             0x4015 -> {
-                Pulse1.lengthCounterHalted = value and StatusFlags.PULSE_1_ENABLE == 0
-                if (Pulse1.lengthCounterHalted) {
-                    Pulse1.length = 0
+                pulse1.lengthCounterHalted = value and StatusFlags.PULSE_1_ENABLE == 0
+                if (pulse1.lengthCounterHalted) {
+                    pulse1.length = 0
                 }
-                Pulse2.lengthCounterHalted = value and StatusFlags.PULSE_2_ENABLE == 0
-                if (Pulse2.lengthCounterHalted) {
-                    Pulse2.length = 0
+                pulse2.lengthCounterHalted = value and StatusFlags.PULSE_2_ENABLE == 0
+                if (pulse2.lengthCounterHalted) {
+                    pulse2.length = 0
                 }
-                Triangle.lengthCounterHalted = value and StatusFlags.TRIANGLE_ENABLE == 0
-                if (Triangle.lengthCounterHalted) {
-                    Triangle.length = 0
-                }
-                Noise.lengthCounterHalted = value and StatusFlags.NOISE_ENABLE == 0
-                if (Noise.lengthCounterHalted) {
-                    Noise.length = 0
-                }
+//                Triangle.lengthCounterHalted = value and StatusFlags.TRIANGLE_ENABLE == 0
+//                if (Triangle.lengthCounterHalted) {
+//                    Triangle.length = 0
+//                }
+//                Noise.lengthCounterHalted = value and StatusFlags.NOISE_ENABLE == 0
+//                if (Noise.lengthCounterHalted) {
+//                    Noise.length = 0
+//                }
                 if (value and StatusFlags.DMC_ENABLE == 0) {
                     // TODO: doesn't immediately silence, but only after it finishes the current playback
                     DMC.bytesRemaining = 0
@@ -267,17 +289,18 @@ class Apu(
         interruptInhibited = false
         sequencerMode = SequencerMode.MODE_4_STEP
 
-        Pulse1.reset()
-        Pulse2.reset()
-        Triangle.reset()
-        Noise.reset()
+        pulse1.reset()
+        pulse2.reset()
+//        Triangle.reset()
+//        Noise.reset()
         DMC.reset()
     }
 
     fun getSample(): Float {
-        val pulseSample = 0.00752f * (Pulse1.output + Pulse2.output)
-        val tndSample = 0.00851f * Triangle.output + 0.00494f * Noise.output + 0.00335f * DMC.output
+        val pulseSample = 0.00752f * (pulse1.output + pulse2.output)
+        //val tndSample = 0.00851f * Triangle.output + 0.00494f * Noise.output + 0.00335f * DMC.output
+        val tndSample = 0
         return pulseSample + tndSample
-        //return (Random.nextFloat() - 0.5f) * 2.0f * 0.05f
+        //return if ((pulse1.dutyCycle shl pulse1.phase) and 0x80 > 0) -0.05f else 0.0f
     }
 }

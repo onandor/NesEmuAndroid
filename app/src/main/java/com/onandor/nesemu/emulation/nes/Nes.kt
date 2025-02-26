@@ -151,11 +151,11 @@ class Nes {
     }
 
     fun drainAudioBuffer(numSamples: Int): FloatArray {
-        if (!audioSampleSizeQueue.isFull()) {
-            audioSampleSizeQueue.add(numSamples)
-        } else if (targetAudioBufferSize == 0) {
-            targetAudioBufferSize = (audioSampleSizeQueue.average * 3).toInt()
-        }
+//        if (!audioSampleSizeQueue.isFull()) {
+//            audioSampleSizeQueue.add(numSamples)
+//        } else if (targetAudioBufferSize == 0) {
+//            targetAudioBufferSize = (audioSampleSizeQueue.average * 3).toInt()
+//        }
 
         val size = if (audioBuffer.size < numSamples) audioBuffer.size else numSamples
         val samples = FloatArray(size)
@@ -164,15 +164,15 @@ class Nes {
         }
         audioBuffer.removeRange(0, size)
 
-        if (targetAudioBufferSize != 0) {
-            if (audioBuffer.size > targetAudioBufferSize * 1.5) {
-                val ratio = (audioBuffer.size - targetAudioBufferSize).toFloat() / audioBuffer.size
-                apu.sampleRate -= (0.01 * ratio * apu.sampleRate).toInt()
-            } else if (audioBuffer.size < targetAudioBufferSize) {
-                val ratio = (targetAudioBufferSize - audioBuffer.size).toFloat() / targetAudioBufferSize
-                apu.sampleRate += (0.02 * ratio * apu.sampleRate).toInt()
-            }
-        }
+//        if (targetAudioBufferSize != 0) {
+//            if (audioBuffer.size > targetAudioBufferSize * 1.5) {
+//                val ratio = (audioBuffer.size - targetAudioBufferSize).toFloat() / audioBuffer.size
+//                apu.sampleRate -= (0.01 * ratio * apu.sampleRate).toInt()
+//            } else if (audioBuffer.size < targetAudioBufferSize) {
+//                val ratio = (targetAudioBufferSize - audioBuffer.size).toFloat() / targetAudioBufferSize
+//                apu.sampleRate += (0.02 * ratio * apu.sampleRate).toInt()
+//            }
+//        }
 
         return samples
     }

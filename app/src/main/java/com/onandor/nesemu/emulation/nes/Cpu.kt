@@ -801,7 +801,7 @@ class Cpu(
 
     companion object {
         private const val TAG = "Cpu"
-        const val FREQUENCY = 1789773
+        const val FREQUENCY_HZ = 1_789_773
 
         private val EMPTY_DEBUG_CALLBACK: (
             PC: Int,
