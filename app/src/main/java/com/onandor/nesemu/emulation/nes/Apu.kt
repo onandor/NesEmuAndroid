@@ -275,9 +275,9 @@ class Apu(
     }
 
     fun getSample(): Float {
-//        val pulseSample = 0.00752 * (Pulse1.output + Pulse2.output)
-//        val tndSample = 0.00851 * Triangle.output + 0.00494 * Noise.output + 0.00335 * DMC.output
-//        return pulseSample + tndSample
-        return (Random.nextFloat() - 0.5f) * 2.0f * 0.05f
+        val pulseSample = 0.00752f * (Pulse1.output + Pulse2.output)
+        val tndSample = 0.00851f * Triangle.output + 0.00494f * Noise.output + 0.00335f * DMC.output
+        return pulseSample + tndSample
+        //return (Random.nextFloat() - 0.5f) * 2.0f * 0.05f
     }
 }

@@ -6,7 +6,7 @@ import com.onandor.nesemu.emulation.nes.mappers.Mapper
 import com.onandor.nesemu.emulation.nes.mappers.Mapper0
 import com.onandor.nesemu.emulation.nes.mappers.Mapper2
 import com.onandor.nesemu.emulation.nes.mappers.Mapper3
-import com.onandor.nesemu.util.CircularBuffer
+import com.onandor.nesemu.util.SlidingWindowIntQueue
 import kotlinx.coroutines.delay
 import kotlin.time.TimeSource
 
@@ -30,8 +30,9 @@ class Nes {
     private var controller1Buttons: Int = 0
     private var controller2Buttons: Int = 0
 
-    //var audioSampleBuffer = CircularBuffer<Float>(5000)
-    private var audioSampleBuffer = mutableFloatListOf()
+    private var audioBuffer = mutableFloatListOf()
+    private val audioSampleSizeQueue = SlidingWindowIntQueue(100)
+    private var targetAudioBufferSize: Int = 0
 
     var running: Boolean = true
     private var isFrameReady: Boolean = false
@@ -146,16 +147,33 @@ class Nes {
     }
 
     private fun apuSampleReady(sample: Float) {
-        audioSampleBuffer.add(sample)
+        audioBuffer.add(sample)
     }
 
     fun drainAudioBuffer(numSamples: Int): FloatArray {
-        val size = if (audioSampleBuffer.size < numSamples) audioSampleBuffer.size else numSamples
+        if (!audioSampleSizeQueue.isFull()) {
+            audioSampleSizeQueue.add(numSamples)
+        } else if (targetAudioBufferSize == 0) {
+            targetAudioBufferSize = (audioSampleSizeQueue.average * 3).toInt()
+        }
+
+        val size = if (audioBuffer.size < numSamples) audioBuffer.size else numSamples
         val samples = FloatArray(size)
         for (i in 0 ..< size) {
-            samples[i] = audioSampleBuffer[i]
+            samples[i] = audioBuffer[i]
         }
-        audioSampleBuffer.removeRange(0, size)
+        audioBuffer.removeRange(0, size)
+
+        if (targetAudioBufferSize != 0) {
+            if (audioBuffer.size > targetAudioBufferSize * 1.5) {
+                val ratio = (audioBuffer.size - targetAudioBufferSize).toFloat() / audioBuffer.size
+                apu.sampleRate -= (0.01 * ratio * apu.sampleRate).toInt()
+            } else if (audioBuffer.size < targetAudioBufferSize) {
+                val ratio = (targetAudioBufferSize - audioBuffer.size).toFloat() / targetAudioBufferSize
+                apu.sampleRate += (0.02 * ratio * apu.sampleRate).toInt()
+            }
+        }
+
         return samples
     }
 
@@ -166,7 +184,8 @@ class Nes {
         numFrames = 0
         isFrameReady = false
         running = true
-        audioSampleBuffer.clear()
+        audioBuffer.clear()
+        audioSampleSizeQueue.clear()
 
         cpu.reset()
         ppu.reset()
