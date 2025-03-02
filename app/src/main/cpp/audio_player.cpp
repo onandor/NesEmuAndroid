@@ -88,6 +88,9 @@ AudioPlayer::onAudioReady(oboe::AudioStream *audioStream, void *audioData, int32
     auto *outputData = static_cast<float *>(audioData);
 
     int numSamples = requestSamples(numFrames, outputData);
+    for (int i = 0; i < numSamples; i++) {
+        //outputData[i] = outputData[i] * 0.0000000001f;
+    }
     if (numSamples < numFrames) {
         for (int i = numSamples; i < numFrames; i++) {
             outputData[i] = 0.0f;

@@ -1,4 +1,7 @@
-package com.onandor.nesemu.emulation.nes
+package com.onandor.nesemu.emulation.nes.audio
+
+import com.onandor.nesemu.emulation.nes.Cpu
+import com.onandor.nesemu.emulation.nes.toInt
 
 class Apu(
     private val generateIRQ: () -> Unit,
@@ -16,7 +19,6 @@ class Apu(
         // 11 bit timer, counts t, t-1, ..., 0, t, t-1, ...
         // Clocks the waveform generator when it goes from 0 to t
         var t: Int = 0
-        var tLower8: Int = 0 // Temporary variable that holds the lower 8 bits until the upper 3 are set
         var tReload: Int = 0
         var dutyCycle: Int = PULSE_DUTY_CYCLE_LOOKUP[0]
         var phase: Int = 0
@@ -32,7 +34,6 @@ class Apu(
                     volume
                 }
             }
-//        var output: Float = 0.0f
 
         fun reset() {
             length = 0
@@ -57,6 +58,16 @@ class Apu(
                 t = tReload
                 phase = (phase + 1) % 8
             }
+        }
+    }
+
+    private class Envelope {
+        var start: Boolean = false
+        var volume: Int = 0
+
+
+        fun clock() {
+
         }
     }
 
@@ -104,10 +115,10 @@ class Apu(
 
     var sampleRate: Int = 44100
         set(value) {
-            cpuCyclesPerSample = Cpu.FREQUENCY_HZ / value
+            cpuCyclesPerSample = Cpu.Companion.FREQUENCY_HZ / value
             field = value
         }
-    private var cpuCyclesPerSample: Int = Cpu.FREQUENCY_HZ / sampleRate
+    private var cpuCyclesPerSample: Int = Cpu.Companion.FREQUENCY_HZ / sampleRate
     private var cpuCyclesSinceSample: Int = 0
     private var cycles: Int = 0
     private var cpuCycles: Int = 0
@@ -153,8 +164,10 @@ class Apu(
             }
         }
 
-        pulse1.tickTimer()
-        pulse2.tickTimer()
+        if (cpuCycles % 2 == 0) {
+            pulse1.tickTimer()
+            pulse2.tickTimer()
+        }
 
         cpuCycles += 1
         cpuCyclesSinceSample += 1
@@ -276,8 +289,9 @@ class Apu(
                     interruptOccurred = false
                 }
             }
-            else -> Log.w(TAG, "Write to unknown address: 0x${address.toHexString(4)} " +
-                    "(value: 0x${value.toHexString(4)})")
+            else -> {}
+//            else -> Log.w(TAG, "Write to unknown address: 0x${address.toHexString(4)} " +
+//                    "(value: 0x${value.toHexString(4)})")
         }
     }
 

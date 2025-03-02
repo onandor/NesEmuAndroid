@@ -29,7 +29,8 @@ class Emulator : DefaultLifecycleObserver {
     }
 
     private fun setSampleRate(sampleRate: Int) {
-        nes.apu.sampleRate = sampleRate
+        //nes.apu.sampleRate = sampleRate
+        nes.apu.setSampleRate(sampleRate)
     }
 
     private fun provideSamples(numSamples: Int): FloatArray {
