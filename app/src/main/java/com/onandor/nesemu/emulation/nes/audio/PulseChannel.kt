@@ -59,8 +59,7 @@ class PulseChannel(channel: Int) : Clockable {
     }
 
     fun getOutput(): Int {
-        return if (divider.period < 8 ||
-            divider.period > 0x7FF ||
+        return if (sweep.muting() ||
             length == 0 ||
             (dutyCycle shl phase) and 0x80 == 0) {
             0
@@ -72,7 +71,7 @@ class PulseChannel(channel: Int) : Clockable {
     companion object {
         private val DUTY_CYCLE_LOOKUP: Array<Int> = arrayOf(
             //  12.5%       25%         50%         75% (25% negated)
-            0b01000000, 0b01100000, 0b01111000, 0b10011111
+            0b00000001, 0b00000011, 0b00001111, 0b00111111
         )
     }
 }

@@ -14,8 +14,20 @@ class Apu2(
     private var cpuCycles: Int = 0
     private var sequenceCycles: Int = SEQ_4_STEP_CYCLES
 
-    private val pulse1 = PulseChannel(0)
-    private val pulse2 = PulseChannel(1)
+    private val pulse1 = PulseChannel(PULSE_CHANNEL_1)
+    private val pulse2 = PulseChannel(PULSE_CHANNEL_2)
+
+    private val pulseTable = FloatArray(31)
+    private val tndTable = FloatArray(203)
+
+    init {
+        for (i in 0 until 31) {
+            pulseTable[i] = 95.52f / (8128f / i.toFloat() + 100f)
+        }
+        for (i in 0 until 203) {
+            tndTable[i] = 163.67f / (24329f / i.toFloat() + 100f)
+        }
+    }
 
     // Clocks the frame counter's looping sequencer
     // Called every CPU cycle
@@ -120,13 +132,16 @@ class Apu2(
     }
 
     private fun getSample(): Float {
-        val pulseSample = 0.00752f * (pulse1.getOutput() + pulse2.getOutput())
+        val pulseSample = 0.00752f * (pulse1.getOutput().toFloat() + pulse2.getOutput().toFloat())
         return pulseSample
     }
 
     companion object {
         private const val SEQ_4_STEP_CYCLES = 14915
         private const val SEQ_5_STEP_CYCLES = 18641
+
+        const val PULSE_CHANNEL_1 = 1
+        const val PULSE_CHANNEL_2 = 2
 
         val LENGTH_COUNTER_LOOKUP: Array<Int> = arrayOf(
             10, 254, 20,  2, 40,  4, 80,  6, 160,  8, 60, 10, 14, 12, 26, 14,
