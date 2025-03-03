@@ -16,6 +16,7 @@ class Apu2(
 
     private val pulse1 = PulseChannel(PULSE_CHANNEL_1)
     private val pulse2 = PulseChannel(PULSE_CHANNEL_2)
+    private val triangle = TriangleChannel()
 
     private val pulseTable = FloatArray(31)
     private val tndTable = FloatArray(203)
@@ -59,11 +60,12 @@ class Apu2(
         if (isQuarterFrame) {
             pulse1.envelope.clock()
             pulse2.envelope.clock()
-            // TODO: triangle linear counter
+            triangle.clockCounter()
         }
         if (isHalfFrame) {
             pulse1.clock()
             pulse2.clock()
+            triangle.clock()
             pulse1.sweep.clock()
             pulse2.sweep.clock()
         }
@@ -71,6 +73,7 @@ class Apu2(
             pulse1.divider.clock()
             pulse2.divider.clock()
         }
+        triangle.divider.clock()
 
         cpuCycles += 1
         cpuCyclesSinceSample += 1
@@ -100,6 +103,9 @@ class Apu2(
             0x4005 -> pulse2.setSweep(value)
             0x4006 -> pulse2.setDividerLow(value)
             0x4007 -> pulse2.setDividerHigh(value)
+            0x4008 -> triangle.setControl(value)
+            0x400A -> triangle.setDividerLow(value)
+            0x400B -> triangle.setDividerHigh(value)
             0x4015 -> {
                 pulse1.lengthFrozen = value and 0x01 == 0
                 if (pulse1.lengthFrozen) {
@@ -109,9 +115,22 @@ class Apu2(
                 if (pulse2.lengthFrozen) {
                     pulse2.length = 0
                 }
+                triangle.control = value and 0x04 == 0
+                if (triangle.control) {
+                    triangle.length = 0
+                }
             }
             0x4017 -> {
                 sequenceCycles = if (value and 0x80 == 0) SEQ_4_STEP_CYCLES else SEQ_5_STEP_CYCLES
+                if (sequenceCycles == SEQ_5_STEP_CYCLES) {
+                    pulse1.clock()
+                    pulse2.clock()
+                    triangle.clock()
+                    pulse1.envelope.clock()
+                    pulse2.envelope.clock()
+                    pulse1.sweep.clock()
+                    pulse2.sweep.clock()
+                }
             }
         }
     }
@@ -132,8 +151,11 @@ class Apu2(
     }
 
     private fun getSample(): Float {
-        val pulseSample = 0.00752f * (pulse1.getOutput().toFloat() + pulse2.getOutput().toFloat())
-        return pulseSample
+        //val pulseSample = 0.00752f * (pulse1.getOutput() + pulse2.getOutput())
+        val pulseSample = 0f
+        val tndSample = 0.00851f * triangle.getOutput()
+        //val tndSample = tndTable[3 * triangle.getOutput()]
+        return pulseSample + tndSample
     }
 
     companion object {

@@ -16,8 +16,10 @@ class Divider(private val outClock: () -> Unit) : Clockable {
 
     override fun clock() {
         if (counter == 0) {
-            reload()
-            outClock()
+            if (period != 0) {
+                reload()
+                outClock()
+            }
         } else {
             counter -= 1
         }
