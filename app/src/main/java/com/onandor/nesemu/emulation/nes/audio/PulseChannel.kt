@@ -54,7 +54,7 @@ class PulseChannel(channel: Int) : Clockable {
         divider.period = ((value and 0b111) shl 8) or (divider.period and 0xFF)
         divider.counter = divider.period
         phase = 0
-        length = Apu2.LENGTH_COUNTER_LOOKUP[(value and 0xF8) ushr 3]
+        length = Apu.LENGTH_COUNTER_LOOKUP[(value and 0xF8) ushr 3]
         envelope.isStarted = true
     }
 

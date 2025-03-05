@@ -1,173 +1,86 @@
 package com.onandor.nesemu.emulation.nes.audio
 
 import com.onandor.nesemu.emulation.nes.Cpu
-import com.onandor.nesemu.emulation.nes.toInt
 
 class Apu(
-    private val generateIRQ: () -> Unit,
+    onGenerateIRQ: () -> Unit,
+    onReadMemory: (Int) -> Int,
     private val onAudioSampleReady: (Float) -> Unit
-) {
+) : Clockable {
 
-    private enum class SequencerMode(val cycles: Int) {
-        MODE_4_STEP(14915),
-        MODE_5_STEP(18641)
-    }
-
-    private class PulseChannel {
-        var length: Int = 0
-        var lengthCounterHalted: Boolean = false
-        // 11 bit timer, counts t, t-1, ..., 0, t, t-1, ...
-        // Clocks the waveform generator when it goes from 0 to t
-        var t: Int = 0
-        var tReload: Int = 0
-        var dutyCycle: Int = PULSE_DUTY_CYCLE_LOOKUP[0]
-        var phase: Int = 0
-
-        var volume: Int = 0 // 0 - 15
-
-        val output: Int
-            get() {
-                // TODO: sweep unit's adder overflows -> silence
-                return if ((dutyCycle shl phase) and 0x80 == 0 || length == 0 || t < 8) {
-                    0
-                } else {
-                    volume
-                }
-            }
-
-        fun reset() {
-            length = 0
-            lengthCounterHalted = false
-            t = 0
-            tReload = 0
-            dutyCycle = PULSE_DUTY_CYCLE_LOOKUP[0]
-            phase = 0
-        }
-
-        fun tick() {
-            // Clocking the length counter
-            if (!lengthCounterHalted && length > 0) {
-                length -= 1
-            }
-        }
-
-        fun tickTimer() {
-            if (t > 0) {
-                t -= 1
-            } else {
-                t = tReload
-                phase = (phase + 1) % 8
-            }
-        }
-    }
-
-    private class Envelope {
-        var start: Boolean = false
-        var volume: Int = 0
-
-
-        fun clock() {
-
-        }
-    }
-
-    private companion object {
-        const val TAG = "Apu"
-
-        val LENGTH_COUNTER_LOOKUP: Array<Int> = arrayOf(
-            10, 254, 20,  2, 40,  4, 80,  6, 160,  8, 60, 10, 14, 12, 26, 14,
-            12,  16, 24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30
-        )
-
-        val PULSE_DUTY_CYCLE_LOOKUP: Array<Int> = arrayOf(
-        //  12.5%       25%         50%         75% (25% negated)
-            0b01000000, 0b01100000, 0b01111000, 0b10011111
-        )
-    }
-
-    private object StatusFlags {
-        const val DMC_ENABLE: Int = 0b00010000
-        const val NOISE_ENABLE: Int = 0b00001000
-        const val TRIANGLE_ENABLE: Int = 0b00000100
-        const val PULSE_2_ENABLE: Int = 0b00000010
-        const val PULSE_1_ENABLE: Int = 0b00000001
-    }
-
-    private object FrameCounterFlags {
-        const val MODE: Int = 0b10000000
-        const val IRQ_INHIBIT: Int = 0b01000000
-    }
-
-    private object DMC {
-        var bytesRemaining: Int = 0
-        var interruptOccurred: Boolean = false
-        var output: Int = 0 // 0 - 127
-
-        fun reset() {
-            bytesRemaining = 0
-            interruptOccurred = false
-            output = 0
-        }
-    }
-
-    private val pulse1 = PulseChannel()
-    private val pulse2 = PulseChannel()
-
-    var sampleRate: Int = 44100
-        set(value) {
-            cpuCyclesPerSample = Cpu.Companion.FREQUENCY_HZ / value
-            field = value
-        }
-    private var cpuCyclesPerSample: Int = Cpu.Companion.FREQUENCY_HZ / sampleRate
+    private var sampleRate: Int = 48000
+    private var cpuCyclesPerSample: Int = Cpu.FREQUENCY_HZ / sampleRate
     private var cpuCyclesSinceSample: Int = 0
     private var cycles: Int = 0
     private var cpuCycles: Int = 0
+    private var sequenceCycles: Int = SEQ_4_STEP_CYCLES
 
-    private var interruptOccurred: Boolean = false
-    private var interruptInhibited: Boolean = false
-    private var sequencerMode: SequencerMode = SequencerMode.MODE_4_STEP
+    private val pulse1 = PulseChannel(PULSE_CHANNEL_1)
+    private val pulse2 = PulseChannel(PULSE_CHANNEL_2)
+    private val triangle = TriangleChannel()
+    private val noise = NoiseChannel()
+    private val dmc = DMC(onGenerateIRQ, onReadMemory)
+
+    private val pulseTable = FloatArray(31)
+    private val tndTable = FloatArray(203)
+
+    init {
+        for (i in 0 until 31) {
+            pulseTable[i] = 95.52f / (8128f / i.toFloat() + 100f)
+        }
+        for (i in 0 until 203) {
+            tndTable[i] = 163.67f / (24329f / i.toFloat() + 100f)
+        }
+    }
 
     // Clocks the frame counter's looping sequencer
-    // Called every 2 CPU cycles
-    fun tick() {
-        // TODO: multiple things missing
-        // https://www.nesdev.org/wiki/APU_Frame_Counter - Mode 0 and mode 1
+    // Called every CPU cycle
+    override fun clock() {
+        var isQuarterFrame = false
+        var isHalfFrame = false
+
         when (cycles) {
-            3728 -> {                                                   // Step 1
-                //Triangle.tick()
+            3728 -> {
+                isQuarterFrame = true
             }
-            7456 -> {                                                   // Step 2
-                pulse1.tick()
-                pulse2.tick()
-                //Triangle.tick()
+            7456 -> {
+                isQuarterFrame = true
+                isHalfFrame = true
             }
-            11185 -> {                                                  // Step 3
-                //Triangle.tick()
+            11185 -> {
+                isQuarterFrame = true
             }
-            14914 -> {                                                  // Step 4
-                if (sequencerMode == SequencerMode.MODE_4_STEP) {
-                    pulse1.tick()
-                    pulse2.tick()
-                    //Triangle.tick()
-                    if (!interruptInhibited) {
-                        interruptOccurred = true
-                        generateIRQ() // TODO: might not be the most accurate mode to generate an IRQ (the same goes for the PPU)
-                    } else {
-                        interruptOccurred = false
-                    }
-                }
+            14914 -> {
+                isQuarterFrame = sequenceCycles == SEQ_4_STEP_CYCLES
+                isHalfFrame = sequenceCycles == SEQ_4_STEP_CYCLES
             }
-            18640 -> {                                                  // Step 5 (only reached in 5 step mode)
-                pulse1.tick()
-                pulse2.tick()
-                //Triangle.tick()
+            18640 -> {
+                isQuarterFrame = true
+                isHalfFrame = true
             }
         }
 
-        if (cpuCycles % 2 == 0) {
-            pulse1.tickTimer()
-            pulse2.tickTimer()
+        if (isQuarterFrame) {
+            pulse1.envelope.clock()
+            pulse2.envelope.clock()
+            triangle.clockCounter()
+            noise.envelope.clock()
         }
+        if (isHalfFrame) {
+            pulse1.clock()
+            pulse2.clock()
+            triangle.clock()
+            noise.clock()
+            pulse1.sweep.clock()
+            pulse2.sweep.clock()
+        }
+        if (cpuCycles % 2 == 0) {
+            pulse1.divider.clock()
+            pulse2.divider.clock()
+            noise.divider.clock()
+            dmc.divider.clock()
+        }
+        triangle.divider.clock()
 
         cpuCycles += 1
         cpuCyclesSinceSample += 1
@@ -177,144 +90,118 @@ class Apu(
         }
 
         cycles = cpuCycles / 2
-        if (cycles >= sequencerMode.cycles) {
+        if (cycles >= sequenceCycles) {
             cycles = 0
             cpuCycles = 0
         }
     }
 
     fun readStatus(): Int {
-        val prevInterruptOccurred = interruptOccurred
-        interruptOccurred = false
-        return (DMC.interruptOccurred.toInt() shl 7) or
-                (prevInterruptOccurred.toInt() shl 6) or
-                0 or
-                ((DMC.bytesRemaining > 0).toInt() shl 4) or
-                //((Noise.length > 0).toInt() shl 3) or
-                //((Triangle.length > 0).toInt() shl 2) or
-                0 or
-                0 or
-                ((pulse2.length > 0).toInt() shl 1) or
-                (pulse1.length > 0).toInt()
+        return 0 // TODO
     }
 
     fun writeRegister(address: Int, value: Int) {
-        DMC.interruptOccurred = false
         when (address) {
-            0x4000 -> {
-                pulse1.dutyCycle = PULSE_DUTY_CYCLE_LOOKUP[(value and 0xC0) ushr 6]
-                pulse1.lengthCounterHalted = value and 0x20 > 0
-                if (value and 0x10 > 0) {
-                    // Constant volume
-                    pulse1.volume = value and 0x0F
-                } else {
-                    // TODO: set envelope lowering rate
-                }
-            }
-            0x4001 -> {} // TODO: pulse 1 sweep
-            0x4002 -> {
-                pulse1.tReload = (pulse1.tReload and 0x700) or (value and 0xFF)
-            }
-            0x4003 -> {
-                pulse1.tReload = ((value and 0b111) shl 8) or (pulse1.tReload and 0xFF)
-                pulse1.t = pulse1.tReload
-                pulse1.length = LENGTH_COUNTER_LOOKUP[(value and 0xF8) ushr 3]
-                pulse1.phase = 0
-                // TODO: restart envelope
-            }
-            0x4004 -> {
-                pulse2.dutyCycle = PULSE_DUTY_CYCLE_LOOKUP[(value and 0xC0) ushr 6]
-                pulse2.lengthCounterHalted = value and 0x20 > 0
-                if (value and 0x10 > 0) {
-                    // Constant volume
-                    pulse2.volume = value and 0x0F
-                } else {
-                    // TODO: set envelope lowering rate
-                }
-            }
-            0x4005 -> {} // TODO: pulse 2 sweep
-            0x4006 -> {
-                pulse2.tReload = (pulse2.tReload and 0x700) or (value and 0xFF)
-            }
-            0x4007 -> {
-                pulse2.tReload = ((value and 0b111) shl 8) or (pulse2.tReload and 0xFF)
-                pulse2.t = pulse2.tReload
-                pulse2.length = LENGTH_COUNTER_LOOKUP[(value and 0xF8) ushr 3]
-                pulse2.phase = 0
-                // TODO: restart envelope
-            }
-            0x400B -> {
-//                if (!Triangle.lengthCounterHalted) {
-//                    Triangle.length = LENGTH_COUNTER_LOOKUP[(value and 0xF8) ushr 3]
-//                }
-            }
-            0x400F -> {
-//                if (!Noise.lengthCounterHalted) {
-//                    Noise.length = LENGTH_COUNTER_LOOKUP[(value and 0xF8) ushr 3]
-//                }
-            }
+            0x4000 -> pulse1.setControl(value)
+            0x4001 -> pulse1.setSweep(value)
+            0x4002 -> pulse1.setDividerLow(value)
+            0x4003 -> pulse1.setDividerHigh(value)
+            0x4004 -> pulse2.setControl(value)
+            0x4005 -> pulse2.setSweep(value)
+            0x4006 -> pulse2.setDividerLow(value)
+            0x4007 -> pulse2.setDividerHigh(value)
+            0x4008 -> triangle.setControl(value)
+            0x400A -> triangle.setDividerLow(value)
+            0x400B -> triangle.setDividerHigh(value)
+            0x400C -> noise.setControl(value)
+            0x400E -> noise.setDivider(value)
+            0x400F -> noise.setLengthAndEnvelope(value)
+            0x4010 -> dmc.setControl(value)
+            0x4011 -> dmc.setDirectLoad(value)
+            0x4012 -> dmc.setSampleAddress(value)
+            0x4013 -> dmc.setSampleLength(value)
             0x4015 -> {
-                pulse1.lengthCounterHalted = value and StatusFlags.PULSE_1_ENABLE == 0
-                if (pulse1.lengthCounterHalted) {
+                pulse1.lengthFrozen = value and 0x01 == 0
+                if (pulse1.lengthFrozen) {
                     pulse1.length = 0
                 }
-                pulse2.lengthCounterHalted = value and StatusFlags.PULSE_2_ENABLE == 0
-                if (pulse2.lengthCounterHalted) {
+                pulse2.lengthFrozen = value and 0x02 == 0
+                if (pulse2.lengthFrozen) {
                     pulse2.length = 0
                 }
-//                Triangle.lengthCounterHalted = value and StatusFlags.TRIANGLE_ENABLE == 0
-//                if (Triangle.lengthCounterHalted) {
-//                    Triangle.length = 0
-//                }
-//                Noise.lengthCounterHalted = value and StatusFlags.NOISE_ENABLE == 0
-//                if (Noise.lengthCounterHalted) {
-//                    Noise.length = 0
-//                }
-                if (value and StatusFlags.DMC_ENABLE == 0) {
-                    // TODO: doesn't immediately silence, but only after it finishes the current playback
-                    DMC.bytesRemaining = 0
+                triangle.control = value and 0x04 == 0
+                if (triangle.control) {
+                    triangle.length = 0
+                }
+                noise.lengthFrozen = value and 0x08 == 0
+                if (noise.lengthFrozen) {
+                    noise.length = 0
+                }
+                dmc.isEnabled = value and 0x10 > 0
+                if (!dmc.isEnabled) {
+                    dmc.sample.bytesRemaining = 0
                 } else {
-                    // TODO: restart if the remaining length is 0
-                    // https://www.nesdev.org/wiki/APU#Status_($4015)
+                    // TODO: If the DMC bit is set, the DMC sample will be restarted only if its bytes
+                    //  remaining is 0. If there are bits remaining in the 1-byte sample buffer, these
+                    //  will finish playing before the next sample is fetched.
+                    if (dmc.sample.bytesRemaining == 0) {
+                        dmc.sample.address = dmc.sample.startingAddress
+                        dmc.sample.bytesRemaining = dmc.sample.length
+                    }
+
+                    // TODO: Writing to this register clears the DMC interrupt flag.
                 }
             }
             0x4017 -> {
-                sequencerMode = if (value and FrameCounterFlags.MODE == 0) {
-                    SequencerMode.MODE_4_STEP
-                } else {
-                    SequencerMode.MODE_5_STEP
-                }
-                interruptInhibited = value and FrameCounterFlags.IRQ_INHIBIT > 0
-                if (interruptInhibited) {
-                    interruptOccurred = false
+                sequenceCycles = if (value and 0x80 == 0) SEQ_4_STEP_CYCLES else SEQ_5_STEP_CYCLES
+                if (sequenceCycles == SEQ_5_STEP_CYCLES) {
+                    pulse1.clock()
+                    pulse2.clock()
+                    triangle.clock()
+                    triangle.clockCounter()
+                    noise.clock()
+                    pulse1.envelope.clock()
+                    pulse2.envelope.clock()
+                    pulse1.sweep.clock()
+                    pulse2.sweep.clock()
                 }
             }
-            else -> {}
-//            else -> Log.w(TAG, "Write to unknown address: 0x${address.toHexString(4)} " +
-//                    "(value: 0x${value.toHexString(4)})")
         }
     }
 
-    fun reset() {
+    override fun reset() {
         cycles = 0
         cpuCycles = 0
         cpuCyclesSinceSample = 0
-        interruptOccurred = false
-        interruptInhibited = false
-        sequencerMode = SequencerMode.MODE_4_STEP
+        sequenceCycles = SEQ_4_STEP_CYCLES
 
         pulse1.reset()
         pulse2.reset()
-//        Triangle.reset()
-//        Noise.reset()
-        DMC.reset()
     }
 
-    fun getSample(): Float {
-        val pulseSample = 0.00752f * (pulse1.output + pulse2.output)
-        //val tndSample = 0.00851f * Triangle.output + 0.00494f * Noise.output + 0.00335f * DMC.output
-        val tndSample = 0
+    fun setSampleRate(newSampleRate: Int) {
+        sampleRate = newSampleRate
+        cpuCyclesPerSample = Cpu.FREQUENCY_HZ / sampleRate
+    }
+
+    private fun getSample(): Float {
+        val pulseSample = 0.00752f * (pulse1.getOutput() + pulse2.getOutput())
+        val tndSample = 0.00851f * triangle.getOutput() + 0.00494f * noise.getOutput() + 0.00335f * dmc.getOutput()
+        //val pulseSample = pulseTable[pulse1.getOutput() + pulse2.getOutput()]
+        //val tndSample = tndTable[3 * triangle.getOutput() + 2 * noise.getOutput() + dmc.getOutput()]
         return pulseSample + tndSample
-        //return if ((pulse1.dutyCycle shl pulse1.phase) and 0x80 > 0) -0.05f else 0.0f
+    }
+
+    companion object {
+        private const val SEQ_4_STEP_CYCLES = 14915
+        private const val SEQ_5_STEP_CYCLES = 18641
+
+        const val PULSE_CHANNEL_1 = 1
+        const val PULSE_CHANNEL_2 = 2
+
+        val LENGTH_COUNTER_LOOKUP: Array<Int> = arrayOf(
+            10, 254, 20,  2, 40,  4, 80,  6, 160,  8, 60, 10, 14, 12, 26, 14,
+            12,  16, 24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30
+        )
     }
 }

@@ -48,7 +48,7 @@ class NoiseChannel : Clockable {
     }
 
     fun setLengthAndEnvelope(value: Int) {
-        length = Apu2.LENGTH_COUNTER_LOOKUP[(value and 0xF8) ushr 3]
+        length = Apu.LENGTH_COUNTER_LOOKUP[(value and 0xF8) ushr 3]
         envelope.isStarted = true
     }
 

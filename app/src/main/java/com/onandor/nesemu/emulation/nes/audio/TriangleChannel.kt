@@ -57,7 +57,7 @@ class TriangleChannel : Clockable {
         divider.period = ((value and 0b111) shl 8) or (divider.period and 0xFF)
         divider.reload()
         reloadCounter = true
-        length = Apu2.LENGTH_COUNTER_LOOKUP[(value and 0xF8) ushr 3]
+        length = Apu.LENGTH_COUNTER_LOOKUP[(value and 0xF8) ushr 3]
     }
 
     fun getOutput(): Int {

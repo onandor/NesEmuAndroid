@@ -12,7 +12,7 @@ class Sweep(private val pulse: PulseChannel, private val channel: Int) : Clockab
         var change = pulse.divider.period ushr shiftCount
         if (isNegated) {
             change *= -1
-            if (channel == Apu2.PULSE_CHANNEL_1) {
+            if (channel == Apu.PULSE_CHANNEL_1) {
                 change -= 1
             }
         }
