@@ -3,7 +3,8 @@ package com.onandor.nesemu.emulation.nes.audio
 import com.onandor.nesemu.emulation.nes.Cpu
 
 class Apu2(
-    private val onGenerateIRQ: () -> Unit,
+    onGenerateIRQ: () -> Unit,
+    onReadMemory: (Int) -> Int,
     private val onAudioSampleReady: (Float) -> Unit
 ) : Clockable {
 
@@ -18,6 +19,7 @@ class Apu2(
     private val pulse2 = PulseChannel(PULSE_CHANNEL_2)
     private val triangle = TriangleChannel()
     private val noise = NoiseChannel()
+    private val dmc = DMC(onGenerateIRQ, onReadMemory) // TODO: onReadMemory should stall the CPU
 
     private val pulseTable = FloatArray(31)
     private val tndTable = FloatArray(203)
@@ -76,6 +78,7 @@ class Apu2(
             pulse1.divider.clock()
             pulse2.divider.clock()
             noise.divider.clock()
+            dmc.divider.clock()
         }
         triangle.divider.clock()
 
@@ -113,6 +116,10 @@ class Apu2(
             0x400C -> noise.setControl(value)
             0x400E -> noise.setDivider(value)
             0x400F -> noise.setLengthAndEnvelope(value)
+            0x4010 -> dmc.setControl(value)
+            0x4011 -> dmc.setDirectLoad(value)
+            0x4012 -> dmc.setSampleAddress(value)
+            0x4013 -> dmc.setSampleLength(value)
             0x4015 -> {
                 pulse1.lengthFrozen = value and 0x01 == 0
                 if (pulse1.lengthFrozen) {
@@ -129,6 +136,20 @@ class Apu2(
                 noise.lengthFrozen = value and 0x08 == 0
                 if (noise.lengthFrozen) {
                     noise.length = 0
+                }
+                dmc.isEnabled = value and 0x10 > 0
+                if (!dmc.isEnabled) {
+                    dmc.sample.bytesRemaining = 0
+                } else {
+                    // TODO: If the DMC bit is set, the DMC sample will be restarted only if its bytes
+                    //  remaining is 0. If there are bits remaining in the 1-byte sample buffer, these
+                    //  will finish playing before the next sample is fetched.
+                    if (dmc.sample.bytesRemaining == 0) {
+                        dmc.sample.address = dmc.sample.startingAddress
+                        dmc.sample.bytesRemaining = dmc.sample.length
+                    }
+
+                    // TODO: Writing to this register clears the DMC interrupt flag.
                 }
             }
             0x4017 -> {
@@ -164,11 +185,13 @@ class Apu2(
     }
 
     private fun getSample(): Float {
-        val pulseSample = 0.00752f * (pulse1.getOutput() + pulse2.getOutput())
-        val tndSample = 0.00851f * triangle.getOutput() + 0.00494f * noise.getOutput()
+        val pulseSample = 0f
+        val tndSample = 0.00335f * dmc.getOutput()
+        //val pulseSample = 0.00752f * (pulse1.getOutput() + pulse2.getOutput())
+        //val tndSample = 0.00851f * triangle.getOutput() + 0.00494f * noise.getOutput() + 0.00335f * dmc.getOutput()
         //val pulseSample = 0f
         //val pulseSample = pulseTable[pulse1.getOutput() + pulse2.getOutput()]
-        //val tndSample = tndTable[3 * triangle.getOutput() + 2 * noise.getOutput()]
+        //val tndSample = tndTable[3 * triangle.getOutput() + 2 * noise.getOutput() + dmc.getOutput()]
         return pulseSample + tndSample
     }
 

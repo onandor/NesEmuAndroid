@@ -53,6 +53,7 @@ class Cpu(
 
     private var totalCycles: Int = 7
     private var interruptCycles: Int = 0
+    private var stallCycles: Int = 0
 
     fun reset() {
         PC = read2Bytes(0xFFFC)
@@ -68,6 +69,12 @@ class Cpu(
     fun step(): Int {
         if (debugCallback !== EMPTY_DEBUG_CALLBACK) {
             this.debugCallback(PC, SP, A, X, Y, PS, totalCycles)
+        }
+
+        if (stallCycles != 0) {
+            val stepCycles = stallCycles
+            stallCycles = 0
+            return stepCycles
         }
 
         var stepCycles = interruptCycles
@@ -153,6 +160,10 @@ class Cpu(
         X = state.X
         Y = state.Y
         PS = state.PS
+    }
+
+    fun stall(cycles: Int) {
+        stallCycles += cycles
     }
 
     // ------ Stack functions ------

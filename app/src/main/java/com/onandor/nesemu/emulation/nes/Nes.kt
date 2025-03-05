@@ -25,7 +25,7 @@ class Nes {
     val cpu: Cpu = Cpu(::cpuReadMemory, ::cpuWriteMemory)
     val ppu: Ppu = Ppu(::ppuReadMemory, ::ppuWriteMemory, cpu::NMI, ::ppuFrameReady)
     //val apu: Apu = Apu(cpu::IRQ, ::apuSampleReady)
-    val apu: Apu2 = Apu2(cpu::IRQ, ::apuSampleReady)
+    val apu: Apu2 = Apu2(cpu::IRQ, ::apuReadMemory, ::apuSampleReady)
     private var cartridge: Cartridge? = null
     private lateinit var mapper: Mapper
 
@@ -88,6 +88,7 @@ class Nes {
             in 0x2000 .. 0x3FFF -> ppu.cpuWriteRegister(address and 0x2007, value) // I/O Registers
             0x4014 -> {
                 val oamData = cpuMemory.copyOfRange(value shl 8, ((value shl 8) or 0x00FF) + 1)
+                // TODO: stall - https://www.nesdev.org/wiki/PPU_OAM#DMA
                 ppu.loadOamData(oamData)
             }
             in 0x4000 .. 0x4015, 0x4017 -> apu.writeRegister(address, value)    // APU registers
@@ -131,6 +132,11 @@ class Nes {
                 throw InvalidOperationException("Invalid PPU write at $${address.toHexString(4)}")
             }
         }
+    }
+
+    fun apuReadMemory(address: Int): Int {
+        cpu.stall(4)
+        return mapper.readPrgRom(address)   // Address is between 0x8000 - 0xFFFF
     }
 
     fun insertCartridge(cartridge: Cartridge) {
