@@ -60,7 +60,7 @@ abstract class Mapper(open val cartridge: Cartridge) {
 
     open fun readPrgRam(address: Int): Int {
         Log.i(TAG, "CPU reading unmapped address $${address.toHexString(4)}")
-        return -1
+        return 0
     }
 
     open fun writePrgRam(address: Int, value: Int) {
@@ -70,7 +70,7 @@ abstract class Mapper(open val cartridge: Cartridge) {
 
     open fun readUnmappedRange(address: Int): Int {
         Log.i(TAG, "CPU reading unmapped address $${address.toHexString(4)}")
-        return -1
+        return 0
     }
 
     open fun writeUnmappedRange(address: Int, value: Int) {
