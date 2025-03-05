@@ -15,6 +15,16 @@ class Mapper0(cartridge: Cartridge) : Mapper(cartridge) {
     }
 
     override fun readChrRom(address: Int): Int {
-        return cartridge.chrRom[address]
+        return if (cartridge.chrRam != null) {
+            cartridge.chrRam!![address]
+        } else {
+            cartridge.chrRom[address]
+        }
+    }
+
+    override fun writeChrRom(address: Int, value: Int) {
+        if (cartridge.chrRam != null) {
+            cartridge.chrRam!![address] = value
+        }
     }
 }

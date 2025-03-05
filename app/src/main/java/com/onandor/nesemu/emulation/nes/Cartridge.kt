@@ -3,15 +3,29 @@ package com.onandor.nesemu.emulation.nes
 import android.util.Log
 import okio.internal.commonToUtf8String
 import java.io.ByteArrayInputStream
+import kotlin.math.ceil
+import kotlin.math.pow
 
-data class INesHeader(
-    val name: ByteArray,
-    val numPrgBank: Int,
-    val numChrBank: Int,
-    val control1: Int,
-    val control2: Int,
-    val prgRamSize: Int,
-    val tvSystem: Int
+// https://www.nesdev.org/wiki/INES
+private data class INesHeader(
+    val prgRomBanks: Int,       // byte 4
+    val chrRomBanks: Int,       // byte 5
+    val flags6: Int,            // byte 6
+    val flags7: Int,            // byte 7
+    val prgRamBanks: Int         // byte 8
+)
+
+// https://www.nesdev.org/wiki/NES_2.0
+private data class Nes2Header(
+    val prgRomSizeLow: Int,     // byte 4
+    val chrRomSizeLow: Int,     // byte 5
+    val flags6: Int,            // byte 6
+    val flags7: Int,            // byte 7
+    val mapper: Int,            // byte 8
+    val romSizeHigh: Int,       // byte 9
+    val prgRamSize: Int,        // byte 10
+    val chrRamSize: Int,        // byte 11
+    val timing: Int             // byte 12
 )
 
 enum class Mirroring {
@@ -21,86 +35,239 @@ enum class Mirroring {
     FOUR_SCREEN
 }
 
+private enum class RomFormat {
+    INES,
+    NES2_0
+}
+
 class Cartridge {
 
-    companion object {
-        private const val TAG = "Cartridge"
-    }
-
-    object Bits {
-        const val TRAINER = 4
-        const val NAMETABLE = 1
-        const val ALT_NAMETABLE = 8
-    }
+    // A cartridge has:
+    // - PRG ROM chip
+    // - optional PRG RAM chip
+    // - PRG ROM or PRG RAM chip (or both in rare cases)
+    // https://www.nesdev.org/wiki/CHR_ROM_vs._CHR_RAM
 
     lateinit var prgRom: IntArray
         private set
     lateinit var chrRom: IntArray
         private set
-    var mirroring: Mirroring = Mirroring.HORIZONTAL
+    var prgRam: IntArray? = null
+        private set
+    var chrRam: IntArray? = null
+        private set
+    var prgRomBanks: Int = 0
+        private set
+    var chrRomBanks: Int = 0
+        private set
+    lateinit var mirroring: Mirroring
         private set
     var mapperId: Int = 0
         private set
-    lateinit var header: INesHeader
+    var isPrgRamBatteryBacked: Boolean = false
         private set
 
     fun parseRom(rom: ByteArray) {
         val stream = rom.inputStream()
-        header = parseINesHeader(stream)
+        val romFormat = getRomFormat(stream)
+        Log.d(TAG, "Cartridge information:")
 
-        if (header.name.commonToUtf8String() != "NES${0x1A.toChar()}") {
+        try {
+            if (romFormat == RomFormat.INES) {
+                Log.d(TAG, "\tformat: iNES")
+                val header = parseINesHeader(stream)
+                prepareCartridge(header, stream)
+            } else {
+                Log.d(TAG, "\tformat: NES 2.0")
+                val header = parseNes2Header(stream)
+                prepareCartridge(header, stream)
+            }
+        } finally {
             stream.close()
+        }
+    }
+
+    private fun prepareCartridge(header: INesHeader, stream: ByteArrayInputStream) {
+        if (header.flags6 and 0x04 > 0) {
+            stream.read(ByteArray(512)) // Discarding trainer
+        }
+
+        mapperId = ((header.flags6 ushr 4) and 0x0F) or (header.flags7 and 0xF0)
+        Log.d(TAG, "\tmapper: ${mapperId.toString().padStart(3, '0')}")
+
+        // The mappers currently supported only use horizontal or vertical mirroring
+        mirroring = if (header.flags6 and 0x01 > 0) Mirroring.VERTICAL else Mirroring.HORIZONTAL
+        Log.d(TAG, "\tnametable mirroring: ${mirroring.name.lowercase()}")
+
+        prgRomBanks = header.prgRomBanks
+        Log.d(TAG, "\tPRG ROM banks: $prgRomBanks")
+        val prgRomBytes = ByteArray(prgRomBanks * 0x4000)    // Each PRG ROM bank is 16 KiB
+        stream.read(prgRomBytes)
+        prgRom = prgRomBytes.toSigned8Array()
+
+        isPrgRamBatteryBacked = header.flags6 and 0x02 > 0
+        if (header.prgRamBanks > 0) {
+            // PRG RAM size is defined in 8 KiB banks
+            val prgRamSize = header.prgRamBanks * 0x2000
+            prgRam = IntArray(prgRamSize)
+            Log.d(TAG, "\tPRG RAM: $prgRamSize bytes")
+        } else {
+            prgRam = IntArray(0x2000)
+            Log.d(TAG, "\tPRG RAM: 8192 bytes (default)")
+        }
+        Log.d(TAG, "\tPRG RAM type: ${if (isPrgRamBatteryBacked) "battery backed" else "volatile"}")
+
+        chrRomBanks = header.chrRomBanks
+        Log.d(TAG, "\tCHR ROM banks: $chrRomBanks")
+        if (chrRomBanks != 0) {
+            val chrRomBytes = ByteArray(chrRomBanks * 0x2000)    // Each CHR ROM bank is 8 KiB
+            stream.read(chrRomBytes)
+            chrRom = chrRomBytes.toSigned8Array()
+            Log.d(TAG, "\tCHR RAM: not present")
+        } else {
+            chrRam = IntArray(0x2000)
+            Log.d(TAG, "\tCHR RAM: 8192 bytes (default)")
+        }
+    }
+
+    private fun prepareCartridge(header: Nes2Header, stream: ByteArrayInputStream) {
+        // Check if rom needs special console
+        if (header.flags7 and 0x03 != 0) {
+            Log.e(TAG, "The cartridge ROM requires a special console")
+            throw RomParseException("The cartridge ROM requires a special console")
+        }
+
+        Log.d(TAG, "\ttiming/region: ${TIMING_REGIONS[header.timing and 0x03]}")
+
+        if (header.flags6 and 0x04 > 0) {
+            stream.read(ByteArray(512))
+        }
+
+        mapperId = ((header.flags6 and 0xF0) ushr 4) or
+                (header.flags7 and 0xF0) or
+                ((header.mapper and 0x0F) shl 4)
+        Log.d(TAG, "\tmapper: ${mapperId.toString().padStart(3, '0')}")
+
+        mirroring = if (header.flags6 and 0x01 > 0) Mirroring.VERTICAL else Mirroring.HORIZONTAL
+        Log.d(TAG, "\tnametable mirroring: ${mirroring.name.lowercase()}")
+
+        var prgRomLength: Int = 0
+        if (header.romSizeHigh and 0x0F == 0x0F) {
+            // PRG ROM size is specified in bytes using an exponent-multiplier notation
+            val multiplier = (header.prgRomSizeLow and 0x03) * 2 + 1
+            val exponent = (header.prgRomSizeLow and 0xFC) ushr 2
+            val bytes = 2.0.pow(exponent) * multiplier
+            prgRomLength = bytes.toInt()
+            prgRomBanks = (ceil(bytes / 0x4000)).toInt()
+        } else {
+            // PRG ROM size is specified in 16 KiB banks
+            prgRomBanks = ((header.romSizeHigh and 0x0F) shl 8) or header.prgRomSizeLow
+            prgRomLength = prgRomBanks * 0x4000
+        }
+        Log.d(TAG, "\tPRG ROM banks: $prgRomBanks")
+
+        val prgRomBytes = ByteArray(prgRomLength)
+        stream.read(prgRomBytes)
+        prgRom = prgRomBytes.toSigned8Array()
+
+        val prgRamShiftCount = if (header.prgRamSize and 0xF0 > 0) {
+            isPrgRamBatteryBacked = true
+            header.prgRamSize and 0xF0
+        } else {
+            header.prgRamSize and 0x0F
+        }
+
+        if (prgRamShiftCount > 0) {
+            val prgRamSize = 64 shl prgRamShiftCount
+            prgRam = IntArray(prgRamSize)
+            Log.d(TAG, "\tPRG RAM: $prgRamSize bytes")
+            Log.d(TAG, "\tPRG RAM type: ${if (isPrgRamBatteryBacked) "battery backed" else "volatile"}")
+        } else {
+            Log.d(TAG, "\tPRG RAM: not present")
+        }
+
+        var chrRomLength: Int = 0
+        if (header.romSizeHigh and 0xF0 == 0xF0) {
+            // CHR ROM size is specified in bytes using an exponent-multiplier notation
+            val multiplier = (header.chrRomSizeLow and 0x03) * 2 + 1
+            val exponent = (header.chrRomSizeLow and 0xFC) ushr 2
+            val bytes = 2.0.pow(exponent) * multiplier
+            chrRomLength = bytes.toInt()
+            chrRomLength = (ceil(bytes / 0x2000)).toInt()
+        } else {
+            // CHR ROM size is specified in 16 KiB banks
+            chrRomBanks = ((header.romSizeHigh and 0x0F) shl 4) or header.chrRomSizeLow
+            chrRomLength = chrRomBanks * 0x2000
+        }
+        Log.d(TAG, "\tCHR ROM banks: $chrRomBanks")
+
+        if (chrRomBanks > 0) {
+            val chrRomBytes = ByteArray(chrRomLength)
+            stream.read(chrRomBytes)
+            chrRom = chrRomBytes.toSigned8Array()
+        }
+
+        val chrRamShiftCount = (header.chrRamSize and 0x0F)
+        if (chrRamShiftCount > 0) {
+            val chrRamSize = 64 shl chrRamShiftCount
+            chrRam = IntArray(chrRamSize)
+            Log.d(TAG, "\tCHR RAM: $chrRamSize bytes")
+        } else {
+            Log.d(TAG, "\tCHR RAM: not present")
+        }
+    }
+
+    private fun parseINesHeader(stream: ByteArrayInputStream): INesHeader {
+        stream.read(ByteArray(4))   // Discarding identification
+        val header = INesHeader(
+            prgRomBanks = stream.read(),
+            chrRomBanks = stream.read(),
+            flags6 = stream.read(),
+            flags7 = stream.read(),
+            prgRamBanks = stream.read()
+        )
+        stream.read(ByteArray(7))   // Discarding unused bytes and padding
+        return header
+    }
+
+    private fun parseNes2Header(stream: ByteArrayInputStream): Nes2Header {
+        stream.read(ByteArray(4))
+        val header = Nes2Header(
+            prgRomSizeLow = stream.read(),
+            chrRomSizeLow = stream.read(),
+            flags6 = stream.read(),
+            flags7 = stream.read(),
+            mapper = stream.read(),
+            romSizeHigh = stream.read(),
+            prgRamSize = stream.read(),
+            chrRamSize = stream.read(),
+            timing = stream.read()
+        )
+        stream.read(ByteArray(3))
+        return header
+    }
+
+    private fun getRomFormat(stream: ByteArrayInputStream): RomFormat {
+        val identification = (0 ..< 4).map { stream.read().toByte() }.toByteArray()
+        if (identification.commonToUtf8String() != "NES${0x1A.toChar()}") {
             Log.e(TAG, "Invalid ROM file")
             throw RomParseException("Invalid ROM file")
         }
 
-        if (header.control2 shr 2 == 0b11) {
-            stream.close()
-            Log.e(TAG, "Unsupported iNES version")
-            throw RomParseException("Unsupported iNES version")
-        }
+        stream.read(ByteArray(3))
+        val flags7 = stream.read()
+        stream.reset()
 
-        if (header.control1 and Bits.TRAINER > 0) {
-            stream.read(ByteArray(512)) // Discarding trainer
-        }
-
-        mapperId = ((header.control1 ushr 4) and 0x0F) or (header.control2 and 0xF0)
-        Log.i(TAG, "Using mapper $mapperId")
-
-        // The mappers currently supported only use horizontal or vertical mirroring
-        if (header.control1 and Bits.NAMETABLE > 0) {
-            mirroring = Mirroring.VERTICAL
-            Log.i(TAG, "Using vertical nametable mirroring")
-        } else {
-            Log.i(TAG, "Using horizontal nametable mirroring")
-        }
-
-        val prgRomBytes = ByteArray(header.numPrgBank * 0x4000)
-        stream.read(prgRomBytes)
-        prgRom = prgRomBytes.toSigned8Array()
-
-        if (header.numChrBank != 0) {
-            val chrRomBytes = ByteArray(header.numChrBank * 0x2000)
-            stream.read(chrRomBytes)
-            chrRom = chrRomBytes.toSigned8Array()
-        } else {
-            chrRom = IntArray(0x2000)
-        }
-        Log.i(TAG, "PRG ROM banks: ${header.numPrgBank}, CHR ROM banks: ${header.numChrBank}")
-        stream.close()
+        return if ((flags7 and 0x0C) ushr 2 == 0x02) RomFormat.NES2_0 else RomFormat.INES
     }
 
-    private fun parseINesHeader(stream: ByteArrayInputStream): INesHeader {
-        val header = INesHeader(
-            name = (0..3).map { stream.read().toByte() }.toByteArray(),
-            numPrgBank = stream.read(),
-            numChrBank = stream.read(),
-            control1 = stream.read(),
-            control2 = stream.read(),
-            prgRamSize = stream.read(),
-            tvSystem = stream.read()
+    companion object {
+        private const val TAG = "Cartridge"
+        private val TIMING_REGIONS: Map<Int, String> = mapOf(
+            0 to "NTSC (RP2C02)",
+            1 to "PAL (RP2C07)",
+            2 to "multiple",
+            3 to "Dendy (UA6538)"
         )
-        stream.read(ByteArray(6)) // Discarding padding
-        return header
     }
 }

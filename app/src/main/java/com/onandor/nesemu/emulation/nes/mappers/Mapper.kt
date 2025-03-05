@@ -58,12 +58,12 @@ abstract class Mapper(open val cartridge: Cartridge) {
                 " (value: $${value.toHexString(2)})")
     }
 
-    open fun readRam(address: Int): Int {
+    open fun readPrgRam(address: Int): Int {
         Log.i(TAG, "CPU reading unmapped address $${address.toHexString(4)}")
         return -1
     }
 
-    open fun writeRam(address: Int, value: Int) {
+    open fun writePrgRam(address: Int, value: Int) {
         Log.i(TAG, "CPU writing unmapped address $${address.toHexString(4)}" +
                 " (value: $${value.toHexString(2)})")
     }

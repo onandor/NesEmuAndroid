@@ -2,7 +2,6 @@ package com.onandor.nesemu.emulation.nes
 
 import android.util.Log
 import androidx.collection.mutableFloatListOf
-import com.onandor.nesemu.emulation.nes.audio.Apu
 import com.onandor.nesemu.emulation.nes.audio.Apu2
 import com.onandor.nesemu.emulation.nes.mappers.Mapper
 import com.onandor.nesemu.emulation.nes.mappers.Mapper0
@@ -70,7 +69,7 @@ class Nes {
                 if (value == -1) lastValueRead else value
             }
             in 0x6000 .. 0x7FFF -> {                                    // Usually cartridge SRAM
-                val value = mapper.readRam(address)
+                val value = mapper.readPrgRam(address)
                 if (value == -1) lastValueRead else value
             }
             in 0x8000 .. 0xFFFF -> mapper.readPrgRom(address)           // PRG-ROM
@@ -95,7 +94,7 @@ class Nes {
             0x4016 -> pollButtonStates()                                              // Controller
             0x4018, 0x4019 -> lastValueRead                                           // Unused? (open bus set for now)
             in 0x4020 .. 0x5FFF -> mapper.writeUnmappedRange(address, value)    // Usually unmapped
-            in 0x6000 .. 0x7FFF -> mapper.writeRam(address, value)              // Usually cartridge SRAM
+            in 0x6000 .. 0x7FFF -> mapper.writePrgRam(address, value)           // Usually cartridge SRAM
             in 0x8000 .. 0xFFFF -> mapper.writePrgRom(address, value)           // PRG-ROM
             else -> {
                 Log.e(TAG, "Invalid CPU write at $${address.toHexString(4)}")

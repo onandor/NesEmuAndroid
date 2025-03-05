@@ -185,10 +185,10 @@ class Apu2(
     }
 
     private fun getSample(): Float {
-        val pulseSample = 0f
-        val tndSample = 0.00335f * dmc.getOutput()
-        //val pulseSample = 0.00752f * (pulse1.getOutput() + pulse2.getOutput())
-        //val tndSample = 0.00851f * triangle.getOutput() + 0.00494f * noise.getOutput() + 0.00335f * dmc.getOutput()
+        //val pulseSample = 0f
+        //val tndSample = 0.00335f * dmc.getOutput()
+        val pulseSample = 0.00752f * (pulse1.getOutput() + pulse2.getOutput())
+        val tndSample = 0.00851f * triangle.getOutput() + 0.00494f * noise.getOutput() + 0.00335f * dmc.getOutput()
         //val pulseSample = 0f
         //val pulseSample = pulseTable[pulse1.getOutput() + pulse2.getOutput()]
         //val tndSample = tndTable[3 * triangle.getOutput() + 2 * noise.getOutput() + dmc.getOutput()]

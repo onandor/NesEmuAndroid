@@ -14,7 +14,7 @@ class Mapper2(cartridge: Cartridge) : Mapper(cartridge) {
             cartridge.prgRom[bankSelect * 0x4000 + eaddress]
         } else {
             // Reading last bank (fixed)
-            val bankAddress = (cartridge.header.numPrgBank - 1) * 0x4000
+            val bankAddress = (cartridge.prgRomBanks - 1) * 0x4000
             cartridge.prgRom[bankAddress + (eaddress and 0x3FFF)]
         }
     }
@@ -24,10 +24,16 @@ class Mapper2(cartridge: Cartridge) : Mapper(cartridge) {
     }
 
     override fun readChrRom(address: Int): Int {
-        return cartridge.chrRom[address]
+        return if (cartridge.chrRam != null) {
+            cartridge.chrRam!![address]
+        } else {
+            cartridge.chrRom[address]
+        }
     }
 
     override fun writeChrRom(address: Int, value: Int) {
-        cartridge.chrRom[address] = value
+        if (cartridge.chrRam != null) {
+            cartridge.chrRam!![address] = value
+        }
     }
 }
