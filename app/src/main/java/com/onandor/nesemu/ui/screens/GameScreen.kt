@@ -35,8 +35,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.onandor.nesemu.ui.components.NesRenderer
 import com.onandor.nesemu.ui.components.NesSurfaceView
-import com.onandor.nesemu.ui.components.controls.Button
-import com.onandor.nesemu.ui.components.controls.ButtonState
+import com.onandor.nesemu.input.NesButton
+import com.onandor.nesemu.input.NesButtonState
 import com.onandor.nesemu.ui.components.controls.DPad
 import com.onandor.nesemu.ui.components.controls.FaceButton
 import com.onandor.nesemu.ui.components.controls.OptionButton
@@ -96,8 +96,8 @@ private fun Game(
     onShowSettingsOverlay: () -> Unit,
     onQuit: () -> Unit,
     onNavigateToDebugScreen: () -> Unit,
-    onButtonStateChanged: (Button, ButtonState) -> Unit,
-    onDPadStateChanged: (Map<Button, ButtonState>) -> Unit
+    onButtonStateChanged: (NesButton, NesButtonState) -> Unit,
+    onDPadStateChanged: (Map<NesButton, NesButtonState>) -> Unit
 ) {
     val configuration = LocalConfiguration.current
 
@@ -165,8 +165,8 @@ private fun Game(
 @Composable
 private fun VerticalControls(
     modifier: Modifier = Modifier,
-    onButtonStateChanged: (Button, ButtonState) -> Unit,
-    onDPadStateChanged: (Map<Button, ButtonState>) -> Unit
+    onButtonStateChanged: (NesButton, NesButtonState) -> Unit,
+    onDPadStateChanged: (Map<NesButton, NesButtonState>) -> Unit
 ) {
     Column(
         modifier = modifier
@@ -182,12 +182,12 @@ private fun VerticalControls(
             Row {
                 FaceButton(
                     text = "B",
-                    onStateChanged = { onButtonStateChanged(Button.B, it) }
+                    onStateChanged = { onButtonStateChanged(NesButton.B, it) }
                 )
                 Spacer(modifier = Modifier.width(15.dp))
                 FaceButton(
                     text = "A",
-                    onStateChanged = { onButtonStateChanged(Button.A, it) }
+                    onStateChanged = { onButtonStateChanged(NesButton.A, it) }
                 )
             }
         }
@@ -197,12 +197,12 @@ private fun VerticalControls(
         ) {
             OptionButton(
                 text = "SELECT",
-                onStateChanged = { onButtonStateChanged(Button.SELECT, it) }
+                onStateChanged = { onButtonStateChanged(NesButton.SELECT, it) }
             )
             Spacer(modifier = Modifier.width(20.dp))
             OptionButton(
                 text = "START",
-                onStateChanged = { onButtonStateChanged(Button.START, it) }
+                onStateChanged = { onButtonStateChanged(NesButton.START, it) }
             )
         }
     }
@@ -213,8 +213,8 @@ private fun HorizontalControlsLeft(
     modifier: Modifier = Modifier,
     onShowSettingsOverlay: () -> Unit,
     onNavigateToDebugScreen: () -> Unit,
-    onButtonStateChanged: (Button, ButtonState) -> Unit,
-    onDPadStateChanged: (Map<Button, ButtonState>) -> Unit
+    onButtonStateChanged: (NesButton, NesButtonState) -> Unit,
+    onDPadStateChanged: (Map<NesButton, NesButtonState>) -> Unit
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         Row(
@@ -244,7 +244,7 @@ private fun HorizontalControlsLeft(
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 70.dp),
             text = "SELECT",
-            onStateChanged = { onButtonStateChanged(Button.SELECT, it) }
+            onStateChanged = { onButtonStateChanged(NesButton.SELECT, it) }
         )
     }
 }
@@ -253,7 +253,7 @@ private fun HorizontalControlsLeft(
 private fun HorizontalControlsRight(
     modifier: Modifier = Modifier,
     onQuit: () -> Unit,
-    onButtonStateChanged: (Button, ButtonState) -> Unit
+    onButtonStateChanged: (NesButton, NesButtonState) -> Unit
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         Row(
@@ -276,12 +276,12 @@ private fun HorizontalControlsRight(
         ) {
             FaceButton(
                 text = "B",
-                onStateChanged = { onButtonStateChanged(Button.B, it) }
+                onStateChanged = { onButtonStateChanged(NesButton.B, it) }
             )
             Spacer(modifier = Modifier.width(15.dp))
             FaceButton(
                 text = "A",
-                onStateChanged = { onButtonStateChanged(Button.A, it) }
+                onStateChanged = { onButtonStateChanged(NesButton.A, it) }
             )
         }
         OptionButton(
@@ -289,7 +289,7 @@ private fun HorizontalControlsRight(
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 70.dp),
             text = "START",
-            onStateChanged = { onButtonStateChanged(Button.START, it) }
+            onStateChanged = { onButtonStateChanged(NesButton.START, it) }
         )
     }
 }

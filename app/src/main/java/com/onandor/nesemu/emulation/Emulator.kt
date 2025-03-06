@@ -1,7 +1,5 @@
 package com.onandor.nesemu.emulation
 
-import androidx.lifecycle.DefaultLifecycleObserver
-import androidx.lifecycle.LifecycleOwner
 import com.onandor.nesemu.audio.AudioPlayer
 import com.onandor.nesemu.emulation.nes.Cartridge
 import com.onandor.nesemu.emulation.nes.Nes
@@ -10,7 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
-class Emulator : DefaultLifecycleObserver {
+class Emulator {
 
     private companion object {
         const val TAG = "Emulator"
@@ -29,7 +27,6 @@ class Emulator : DefaultLifecycleObserver {
     }
 
     private fun setSampleRate(sampleRate: Int) {
-        //nes.apu.sampleRate = sampleRate
         nes.apu.setSampleRate(sampleRate)
     }
 
@@ -56,13 +53,11 @@ class Emulator : DefaultLifecycleObserver {
         audioPlayer.pauseStream()
     }
 
-    override fun onResume(owner: LifecycleOwner) {
-        super.onResume(owner)
+    fun initAudioPlayer() {
         audioPlayer.init()
     }
 
-    override fun onPause(owner: LifecycleOwner) {
-        super.onPause(owner)
+    fun destroyAudioPlayer() {
         audioPlayer.destroy()
     }
 }

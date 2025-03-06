@@ -23,15 +23,16 @@ import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import com.onandor.nesemu.input.NesButtonState
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun OptionButton(
     modifier: Modifier = Modifier,
     text: String,
-    onStateChanged: (ButtonState) -> Unit
+    onStateChanged: (NesButtonState) -> Unit
 ) {
-    var buttonState by remember { mutableStateOf(ButtonState.UP) }
+    var buttonState by remember { mutableStateOf(NesButtonState.UP) }
 
     val canvasModifier = Modifier
         .width(60.dp)
@@ -42,11 +43,11 @@ fun OptionButton(
                     val event = awaitPointerEvent(PointerEventPass.Main)
                     event.changes.forEach { change ->
                         if (change.changedToDown()) {
-                            buttonState = ButtonState.DOWN
-                            onStateChanged(ButtonState.DOWN)
+                            buttonState = NesButtonState.DOWN
+                            onStateChanged(NesButtonState.DOWN)
                         } else if (change.changedToUp()) {
-                            buttonState = ButtonState.UP
-                            onStateChanged(ButtonState.UP)
+                            buttonState = NesButtonState.UP
+                            onStateChanged(NesButtonState.UP)
                         }
                     }
                 }
@@ -67,7 +68,7 @@ fun OptionButton(
                 topLeft = Offset(0f, 0f),
                 size = Size(width, height),
                 cornerRadius = CornerRadius(x = 25f, y = 25f),
-                color = if (buttonState == ButtonState.DOWN) Color.Gray else Color.DarkGray
+                color = if (buttonState == NesButtonState.DOWN) Color.Gray else Color.DarkGray
             )
         }
     }

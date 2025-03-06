@@ -8,8 +8,8 @@ import com.onandor.nesemu.navigation.NavigationManager
 import com.onandor.nesemu.emulation.nes.NesException
 import com.onandor.nesemu.emulation.nes.NesListener
 import com.onandor.nesemu.ui.components.NesRenderer
-import com.onandor.nesemu.ui.components.controls.Button
-import com.onandor.nesemu.ui.components.controls.ButtonState
+import com.onandor.nesemu.input.NesButton
+import com.onandor.nesemu.input.NesButtonState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,15 +27,15 @@ class GameViewModel @Inject constructor(
     private val emulator: Emulator
 ) : ViewModel() {
 
-    val buttonStateMap = mutableMapOf<Button, ButtonState>(
-        Button.DPAD_RIGHT to ButtonState.UP,
-        Button.DPAD_LEFT to ButtonState.UP,
-        Button.DPAD_DOWN to ButtonState.UP,
-        Button.DPAD_UP to ButtonState.UP,
-        Button.START to ButtonState.UP,
-        Button.SELECT to ButtonState.UP,
-        Button.B to ButtonState.UP,
-        Button.A to ButtonState.UP
+    val buttonStateMap = mutableMapOf<NesButton, NesButtonState>(
+        NesButton.DPAD_RIGHT to NesButtonState.UP,
+        NesButton.DPAD_LEFT to NesButtonState.UP,
+        NesButton.DPAD_DOWN to NesButtonState.UP,
+        NesButton.DPAD_UP to NesButtonState.UP,
+        NesButton.START to NesButtonState.UP,
+        NesButton.SELECT to NesButtonState.UP,
+        NesButton.B to NesButtonState.UP,
+        NesButton.A to NesButtonState.UP
     )
 
     val renderer: NesRenderer = NesRenderer(256, 240)
@@ -91,11 +91,11 @@ class GameViewModel @Inject constructor(
         navManager.navigateTo(NavActions.debugScreen())
     }
 
-    fun buttonStateChanged(button: Button, state: ButtonState) {
+    fun buttonStateChanged(button: NesButton, state: NesButtonState) {
         buttonStateMap[button] = state
     }
 
-    fun dpadStateChanged(state: Map<Button, ButtonState>) {
+    fun dpadStateChanged(state: Map<NesButton, NesButtonState>) {
         buttonStateMap.putAll(state)
     }
 

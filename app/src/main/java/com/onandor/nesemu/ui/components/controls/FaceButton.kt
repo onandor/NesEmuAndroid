@@ -19,14 +19,15 @@ import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import com.onandor.nesemu.input.NesButtonState
 
 @Composable
 fun FaceButton(
     modifier: Modifier = Modifier,
     text: String,
-    onStateChanged: (ButtonState) -> Unit
+    onStateChanged: (NesButtonState) -> Unit
 ) {
-    var buttonState by remember { mutableStateOf(ButtonState.UP) }
+    var buttonState by remember { mutableStateOf(NesButtonState.UP) }
 
     val canvasModifier = Modifier
         .width(60.dp)
@@ -37,11 +38,11 @@ fun FaceButton(
                     val event = awaitPointerEvent(PointerEventPass.Main)
                     event.changes.forEach { change ->
                         if (change.changedToDown()) {
-                            buttonState = ButtonState.DOWN
-                            onStateChanged(ButtonState.DOWN)
+                            buttonState = NesButtonState.DOWN
+                            onStateChanged(NesButtonState.DOWN)
                         } else if (change.changedToUp()) {
-                            buttonState = ButtonState.UP
-                            onStateChanged(ButtonState.UP)
+                            buttonState = NesButtonState.UP
+                            onStateChanged(NesButtonState.UP)
                         }
                     }
                 }
@@ -67,7 +68,7 @@ fun FaceButton(
             )
 
             drawCircle(
-                brush = if (buttonState == ButtonState.DOWN) downBrush else upBrush
+                brush = if (buttonState == NesButtonState.DOWN) downBrush else upBrush
             )
         }
     }

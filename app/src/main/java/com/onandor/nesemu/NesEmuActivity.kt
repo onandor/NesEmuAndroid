@@ -1,31 +1,28 @@
 package com.onandor.nesemu
 
+import android.annotation.SuppressLint
 import android.os.Bundle
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.onandor.nesemu.emulation.Emulator
+import com.onandor.nesemu.input.NesInputManager
 import com.onandor.nesemu.navigation.NavGraph
 import com.onandor.nesemu.ui.theme.NesEmuTheme
+import com.onandor.nesemu.util.GlobalLifecycleObserver
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class NesEmuActivity : ComponentActivity() {
 
-    @Inject lateinit var emulator: Emulator
+    @Inject lateinit var inputManager: NesInputManager
+    @Inject lateinit var lifecycleObserver: GlobalLifecycleObserver
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        lifecycle.addObserver(emulator)
+        lifecycle.addObserver(lifecycleObserver)
 
         enableEdgeToEdge()
         setContent {
@@ -37,6 +34,15 @@ class NesEmuActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        lifecycle.removeObserver(emulator)
+        lifecycle.removeObserver(lifecycleObserver)
+    }
+
+    @SuppressLint("RestrictedApi")
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        return if (inputManager.onKeyEvent(event)) {
+            true
+        } else {
+            super.dispatchKeyEvent(event)
+        }
     }
 }
