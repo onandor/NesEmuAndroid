@@ -2,6 +2,7 @@ package com.onandor.nesemu.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -26,11 +27,11 @@ fun CheckboxListItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 20.dp, end = 20.dp)
             .clickable {
                 checked = !checked
                 onCheckedChange(checked)
-            },
+            }
+            .padding(start = 20.dp, end = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -42,5 +43,29 @@ fun CheckboxListItem(
                 onCheckedChange(checked)
             }
         )
+    }
+}
+
+@Composable
+fun ClickableListItem(
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    mainText: @Composable() () -> Unit,
+    subText: @Composable() () -> Unit = {},
+    displayItem: @Composable() () -> Unit = {}
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(top = 10.dp, bottom = 10.dp, start = 20.dp, end = 20.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            mainText()
+            subText()
+        }
+        displayItem()
     }
 }

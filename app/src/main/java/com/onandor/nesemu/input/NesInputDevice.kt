@@ -9,5 +9,6 @@ enum class NesInputDeviceType {
 data class NesInputDevice(
     val name: String,
     val id: Int,
+    val descriptor: String,
     val type: NesInputDeviceType
 )

@@ -62,7 +62,7 @@ fun GameScreen(
                 renderer = viewModel.renderer,
                 padding = padding,
                 setRenderCallback = viewModel::setRenderCallback,
-                onShowSettingsOverlay = viewModel::showSettingsOverlay,
+                onNavigateToPreferencesScreen = viewModel::navigateToPreferencesScreen,
                 onQuit = viewModel::quit,
                 onNavigateToDebugScreen = viewModel::navigateToDebugScreen,
                 onButtonStateChanged = viewModel::buttonStateChanged,
@@ -98,7 +98,7 @@ private fun Game(
     padding: PaddingValues,
     renderer: NesRenderer,
     setRenderCallback: (() -> Unit) -> Unit,
-    onShowSettingsOverlay: () -> Unit,
+    onNavigateToPreferencesScreen: () -> Unit,
     onQuit: () -> Unit,
     onNavigateToDebugScreen: () -> Unit,
     onButtonStateChanged: (NesButton, NesButtonState) -> Unit,
@@ -121,7 +121,7 @@ private fun Game(
             )
             Spacer(modifier = Modifier.weight(1f))
             Row(modifier = Modifier.padding(bottom = 10.dp, start = 10.dp, end = 10.dp)) {
-                IconButton(onClick = onShowSettingsOverlay) {
+                IconButton(onClick = onNavigateToPreferencesScreen) {
                     Icon(
                         imageVector = Icons.Default.Settings,
                         contentDescription = null
@@ -163,7 +163,7 @@ private fun Game(
         ) {
             HorizontalControlsLeft(
                 modifier = Modifier.weight(1f),
-                onShowSettingsOverlay = onShowSettingsOverlay,
+                onShowSettingsOverlay = onNavigateToPreferencesScreen,
                 onNavigateToDebugScreen = onNavigateToDebugScreen,
                 onButtonStateChanged = onButtonStateChanged,
                 onDPadStateChanged = onDPadStateChanged,

@@ -80,8 +80,10 @@ class GameViewModel @Inject constructor(
         this.requestRender = requestRender
     }
 
-    fun showSettingsOverlay() {
-        _uiState.update { it.copy(settingsOverlayVisible = true) }
+    fun navigateToPreferencesScreen() {
+        _uiState.update { it.copy(emulationPaused = true) }
+        emulator.stop()
+        navManager.navigateTo(NavActions.preferencesScreen())
     }
 
     fun quit() {

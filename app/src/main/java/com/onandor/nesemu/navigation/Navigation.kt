@@ -5,7 +5,7 @@ object NavDestinations {
     const val MAIN_SCREEN = "mainScreen"
     const val GAME_SCREEN = "gameScreen"
     const val DEBUG_SCREEN = "debugScreen"
-    const val SETTINGS_SCREEN = "settingsScreen"
+    const val PREFERENCES_SCREEN = "preferencesScreen"
 }
 
 object NavActions {
@@ -25,7 +25,7 @@ object NavActions {
         override val destination: String = NavDestinations.DEBUG_SCREEN
     }
 
-    fun settingsScreen() = object : NavAction {
-        override val destination: String = NavDestinations.SETTINGS_SCREEN
+    fun preferencesScreen() = object : NavAction {
+        override val destination: String = NavDestinations.PREFERENCES_SCREEN
     }
 }
