@@ -18,6 +18,7 @@ import androidx.navigation.compose.rememberNavController
 import com.onandor.nesemu.ui.screens.DebugScreen
 import com.onandor.nesemu.ui.screens.GameScreen
 import com.onandor.nesemu.ui.screens.MainScreen
+import com.onandor.nesemu.ui.screens.SettingsScreen
 import com.onandor.nesemu.viewmodels.NavigationViewModel
 
 @Composable
@@ -63,6 +64,9 @@ fun NavGraph(
             }
             composable(NavDestinations.DEBUG_SCREEN) {
                 DebugScreen()
+            }
+            composable(NavDestinations.SETTINGS_SCREEN) {
+                SettingsScreen()
             }
         }
     }
