@@ -2,10 +2,10 @@ package com.onandor.nesemu.viewmodels
 
 import android.view.MotionEvent
 import androidx.lifecycle.ViewModel
+import com.onandor.nesemu.emulation.EmulationListener
 import com.onandor.nesemu.emulation.Emulator
 import com.onandor.nesemu.navigation.NavigationManager
 import com.onandor.nesemu.emulation.nes.DebugFeature
-import com.onandor.nesemu.emulation.nes.NesListener
 import com.onandor.nesemu.ui.components.NesRenderer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.update
 import javax.inject.Inject
 
 data class DebugScreenUiState(
-    val showBottomSheet: Boolean = false,
     val renderPatternTable: Boolean = false,
     val renderNametable: Boolean = false,
     val renderColorPalettes: Boolean = false
@@ -35,16 +34,22 @@ class DebugViewModel @Inject constructor(
     val colorPaletteRenderers = Array(8) { NesRenderer(60, 15) }
     private var requestColorPaletteRender = Array(8) { {} }
 
-    private val nesListener = object : NesListener {
-        override fun onFrameReady() {
-            patternTableRenderer.setTextureData(emulator.nes.ppu.dbgPatternTableFrame)
+    private val emulationListener = object : EmulationListener {
+
+        override fun onFrameReady(
+            frame: IntArray,
+            patternTable: IntArray,
+            nametable: IntArray,
+            colorPalettes: Array<IntArray>
+        ) {
+            patternTableRenderer.setTextureData(patternTable)
             requestPatternTableRender()
 
-            nametableRenderer.setTextureData(emulator.nes.ppu.dbgNametableFrame)
+            nametableRenderer.setTextureData(nametable)
             requestNametableRender()
 
             for (i in 0 ..< 8) {
-                colorPaletteRenderers[i].setTextureData(emulator.nes.ppu.dbgColorPalettes[i])
+                colorPaletteRenderers[i].setTextureData(colorPalettes[i])
                 requestColorPaletteRender[i]()
             }
         }
@@ -54,7 +59,7 @@ class DebugViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     init {
-        emulator.nes.registerListener(nesListener)
+        emulator.registerListener(emulationListener)
     }
 
     fun setPatternTableRenderCallback(requestRender: () -> Unit) {
@@ -100,6 +105,6 @@ class DebugViewModel @Inject constructor(
         emulator.nes.setDebugFeatureBool(DebugFeature.PPU_RENDER_PATTERN_TABLE, false)
         emulator.nes.setDebugFeatureBool(DebugFeature.PPU_RENDER_NAMETABLE, false)
         emulator.nes.setDebugFeatureBool(DebugFeature.PPU_RENDER_COLOR_PALETTES, false)
-        emulator.nes.unregisterListener(nesListener)
+        emulator.unregisterListener(emulationListener)
     }
 }

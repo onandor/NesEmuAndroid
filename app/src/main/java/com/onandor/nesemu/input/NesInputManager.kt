@@ -10,8 +10,8 @@ class NesInputManager(private val inputManager: InputManager) {
     private var availableDevicesMap = mutableMapOf<Int, NesInputDevice>()
     val availableDevices: List<NesInputDevice> = availableDevicesMap.values.toList()
 
-    private val controller1Handler = InputHandler()
-    private val controller2Handler = InputHandler()
+    private val controller1Buttons = initControllerButtons()
+    private val controller2Buttons = initControllerButtons()
     private var controller1Device: NesInputDevice? = null
     private var controller2Device: NesInputDevice? = null
 
@@ -36,6 +36,7 @@ class NesInputManager(private val inputManager: InputManager) {
 
     init {
         refreshAvailableDevices()
+        controller1Device = VIRTUAL_CONTROLLER
     }
 
     private fun getNesInputDevice(device: InputDevice): NesInputDevice? {
@@ -76,23 +77,39 @@ class NesInputManager(private val inputManager: InputManager) {
         }
     }
 
-    fun onKeyEvent(event: KeyEvent): Boolean {
+    fun onInputEvents(deviceId: Int, buttonStates: Map<NesButton, NesButtonState>) {
+        controller1Device?.let {
+            if (it.id == deviceId) {
+                controller1Buttons.putAll(buttonStates)
+            }
+        }
+        controller2Device?.let {
+            if (it.id == deviceId) {
+                controller2Buttons.putAll(buttonStates)
+            }
+        }
+    }
+
+    fun onInputEvent(deviceId: Int, button: NesButton, state: NesButtonState) {
+        controller1Device?.let {
+            if (it.id == deviceId) {
+                controller1Buttons[button] = state
+            }
+        }
+        controller2Device?.let {
+            if (it.id == deviceId) {
+                controller2Buttons[button] = state
+            }
+        }
+    }
+
+    fun onInputEvent(event: KeyEvent): Boolean {
         val button = CONTROLLER_BUTTON_MAP[event.keyCode]
         val state = BUTTON_STATE_MAP[event.action]
         if (button == null || state == null) {
             return false
         }
-
-        controller1Device?.let {
-            if (it.id == event.deviceId) {
-                controller1Handler.onKeyEvent(button, state)
-            }
-        }
-        controller2Device?.let {
-            if (it.id == event.deviceId) {
-                controller2Handler.onKeyEvent(button, state)
-            }
-        }
+        onInputEvent(event.deviceId, button, state)
         return true
     }
 
@@ -105,12 +122,40 @@ class NesInputManager(private val inputManager: InputManager) {
         availableDevicesMap.clear()
     }
 
+    fun getButtonStates(controllerId: Int): Int {
+        val buttonStateMap = if (controllerId == CONTROLLER_1) {
+            controller1Buttons
+        } else {
+            controller2Buttons
+        }
+
+        var buttonStates = 0
+        buttonStateMap.forEach { _, state ->
+            buttonStates = (buttonStates shl 1) or state.ordinal
+        }
+        return buttonStates
+    }
+
+    private fun initControllerButtons(): MutableMap<NesButton, NesButtonState> {
+        return mutableMapOf<NesButton, NesButtonState>(
+            NesButton.DPAD_RIGHT to NesButtonState.UP,
+            NesButton.DPAD_LEFT to NesButtonState.UP,
+            NesButton.DPAD_DOWN to NesButtonState.UP,
+            NesButton.DPAD_UP to NesButtonState.UP,
+            NesButton.START to NesButtonState.UP,
+            NesButton.SELECT to NesButtonState.UP,
+            NesButton.B to NesButtonState.UP,
+            NesButton.A to NesButtonState.UP
+        )
+    }
+
     companion object {
         private const val TAG = "NesInputManager"
 
         const val CONTROLLER_1: Int = 1
         const val CONTROLLER_2: Int = 2
 
+        const val VIRTUAL_CONTROLLER_DEVICE_ID = Int.MIN_VALUE
         private val VIRTUAL_CONTROLLER = NesInputDevice(
             id = Int.MIN_VALUE,
             name = "Virtual controller",

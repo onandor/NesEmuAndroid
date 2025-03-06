@@ -12,10 +12,14 @@ import java.nio.IntBuffer
  */
 
 class Ppu(
-    private val readExternalMemory: (address: Int) -> Int,
-    private val writeExternalMemory: (address: Int, value: Int) -> Unit,
-    private val generateNmi: () -> Unit,
-    private val frameReady: () -> Unit
+    private val onReadExternalMemory: (address: Int) -> Int,
+    private val onWriteExternalMemory: (address: Int, value: Int) -> Unit,
+    private val onGenerateNMI: () -> Unit,
+    private val onFrameReady: (
+        frame: IntArray,
+        patternTable: IntArray,
+        nametable: IntArray,
+        colorPalettes: Array<IntArray>) -> Unit
 ) {
 
     companion object {
@@ -214,8 +218,6 @@ class Ppu(
     private var sprPatternDataLow: IntArray = IntArray(8)
     private var sprPatternDataHigh: IntArray = IntArray(8)
 
-    lateinit var frame: IntArray
-        private set
     private var frameBuffer: IntBuffer = IntBuffer.allocate(SCREEN_WIDTH * SCREEN_HEIGHT)
 
     // Debug variables
@@ -278,7 +280,7 @@ class Ppu(
                 Status.vblank = 1
                 renderFrame()
                 if (Control.enableVBlankNmi > 0) {
-                    generateNmi()
+                    onGenerateNMI()
                 }
             }
 
@@ -419,9 +421,11 @@ class Ppu(
                 dbgColorPalettes[i] = dbgRenderColorPalette(i)
             }
         }
-        frame = frameBuffer.array().copyOf()
+
+        val frame = frameBuffer.array().copyOf()
         frameBuffer.clear()
-        frameReady()
+
+        onFrameReady(frame, dbgPatternTableFrame, dbgNametableFrame, dbgColorPalettes)
     }
 
     private fun fetchTileData() {
@@ -636,7 +640,7 @@ class Ppu(
             }
             palette[paletteAddress]
         } else {
-            readExternalMemory(address)
+            onReadExternalMemory(address)
         }
     }
 
@@ -648,7 +652,7 @@ class Ppu(
             }
             palette[paletteAddress] = value
         } else {
-            writeExternalMemory(address, value)
+            onWriteExternalMemory(address, value)
         }
     }
 
@@ -693,7 +697,7 @@ class Ppu(
                 // Transfer the nametable select bytes from Control into the temporary address
                 t = (t and 0x73FF) or (Control.nametableSelect shl 10)
                 if (Control.enableVBlankNmi > 0 && Status.vblank > 0) {
-                    generateNmi()
+                    onGenerateNMI()
                 }
             }
             Mask.ADDRESS -> Mask.register = valueByte

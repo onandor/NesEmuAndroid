@@ -11,7 +11,15 @@ import com.onandor.nesemu.util.SlidingWindowIntQueue
 import kotlinx.coroutines.delay
 import kotlin.time.TimeSource
 
-class Nes {
+class Nes(
+    private val onFrameReady: (
+        frame: IntArray,
+        patternTable: IntArray,
+        nametable: IntArray,
+        colorPalettes: Array<IntArray>) -> Unit,
+    private val onPollController1: () -> Int,
+    private val onPollController2: () -> Int
+) {
 
     private companion object {
         const val TAG = "Nes"
@@ -40,8 +48,6 @@ class Nes {
     private var numFrames: Int = 0
     var fps: Float = 0f
         private set
-
-    private val listeners = mutableListOf<NesListener>()
 
     fun cpuReadMemory(address: Int): Int {
         lastValueRead = when (address) {
@@ -90,7 +96,10 @@ class Nes {
                 ppu.loadOamData(oamData)
             }
             in 0x4000 .. 0x4015, 0x4017 -> apu.writeRegister(address, value)    // APU registers
-            0x4016 -> pollButtonStates()                                              // Controller
+            0x4016 -> {                                                               // Controllers
+                controller1Buttons = onPollController1() or 0xFF00
+                controller2Buttons = onPollController2() or 0xFF00
+            }
             0x4018, 0x4019 -> lastValueRead                                           // Unused? (open bus set for now)
             in 0x4020 .. 0x5FFF -> mapper.writeUnmappedRange(address, value)    // Usually unmapped
             in 0x6000 .. 0x7FFF -> mapper.writePrgRam(address, value)           // Usually cartridge SRAM
@@ -132,6 +141,16 @@ class Nes {
         }
     }
 
+    private fun ppuFrameReady(
+        frame: IntArray,
+        patternTable: IntArray,
+        nametable: IntArray,
+        colorPalettes: Array<IntArray>
+    ) {
+        isFrameReady = true
+        onFrameReady(frame, patternTable, nametable, colorPalettes)
+    }
+
     fun apuReadMemory(address: Int): Int {
         cpu.stall(4)
         return mapper.readPrgRom(address)   // Address is between 0x8000 - 0xFFFF
@@ -146,11 +165,6 @@ class Nes {
         }
         this.cartridge = cartridge
         ppu.mirroring = cartridge.mirroring
-    }
-
-    private fun ppuFrameReady() {
-        isFrameReady = true
-        listeners.forEach { it.onFrameReady() }
     }
 
     private fun apuSampleReady(sample: Float) {
@@ -193,6 +207,8 @@ class Nes {
         running = true
         audioBuffer.clear()
         audioSampleSizeQueue.clear()
+        controller1Buttons = 0
+        controller2Buttons = 0
 
         cpu.reset()
         ppu.reset()
@@ -229,21 +245,6 @@ class Nes {
                 Log.i(TAG, "FPS: $fps")
             }
         }
-    }
-
-    fun pollButtonStates() {
-        listeners.forEach { listener ->
-            listener.onPollController1Buttons().let { it?.let { controller1Buttons = it or 0xFF00 } }
-            listener.onPollController2Buttons().let { it?.let { controller2Buttons = it or 0xFF00 } }
-        }
-    }
-
-    fun registerListener(listener: NesListener) {
-        this.listeners.add(listener)
-    }
-
-    fun unregisterListener(listener: NesListener) {
-        this.listeners.remove(listener)
     }
 
     // Functions used for debugging

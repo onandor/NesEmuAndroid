@@ -1,6 +1,7 @@
 package com.onandor.nesemu.ui.screens
 
 import android.view.MotionEvent
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -152,6 +153,14 @@ fun DebugScreen(
             item {
                 Spacer(modifier = Modifier.height(10.dp))
             }
+        }
+    }
+
+    BackHandler {
+        if (scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded) {
+            coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
+        } else {
+            viewModel.navigateBack()
         }
     }
 }

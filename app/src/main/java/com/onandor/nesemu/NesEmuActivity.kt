@@ -39,7 +39,7 @@ class NesEmuActivity : ComponentActivity() {
 
     @SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        return if (inputManager.onKeyEvent(event)) {
+        return if (inputManager.onInputEvent(event)) {
             true
         } else {
             super.dispatchKeyEvent(event)

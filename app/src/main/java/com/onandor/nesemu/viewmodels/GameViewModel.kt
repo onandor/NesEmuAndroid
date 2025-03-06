@@ -2,14 +2,15 @@ package com.onandor.nesemu.viewmodels
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import com.onandor.nesemu.emulation.EmulationListener
 import com.onandor.nesemu.emulation.Emulator
 import com.onandor.nesemu.navigation.NavActions
 import com.onandor.nesemu.navigation.NavigationManager
 import com.onandor.nesemu.emulation.nes.NesException
-import com.onandor.nesemu.emulation.nes.NesListener
 import com.onandor.nesemu.ui.components.NesRenderer
 import com.onandor.nesemu.input.NesButton
 import com.onandor.nesemu.input.NesButtonState
+import com.onandor.nesemu.input.NesInputManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,7 +25,8 @@ data class GameUiState(
 @HiltViewModel
 class GameViewModel @Inject constructor(
     private val navManager: NavigationManager,
-    private val emulator: Emulator
+    private val emulator: Emulator,
+    private val inputManager: NesInputManager
 ) : ViewModel() {
 
     val buttonStateMap = mutableMapOf<NesButton, NesButtonState>(
@@ -44,23 +46,21 @@ class GameViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(GameUiState())
     val uiState = _uiState.asStateFlow()
 
-    private val nesListener = object : NesListener {
-        override fun onFrameReady() {
-            renderer.setTextureData(emulator.nes.ppu.frame)
+    private val emulationListener = object : EmulationListener {
+
+        override fun onFrameReady(
+            frame: IntArray,
+            patternTable: IntArray,
+            nametable: IntArray,
+            colorPalettes: Array<IntArray>
+        ) {
+            renderer.setTextureData(frame)
             requestRender()
-        }
-
-        override fun onPollController1Buttons(): Int? {
-            return mapButtonStatesToInt()
-        }
-
-        override fun onPollController2Buttons(): Int? {
-            return 0 // TODO: second controller
         }
     }
 
     init {
-        emulator.nes.registerListener(nesListener)
+        emulator.registerListener(emulationListener)
         emulator.startAudioStream()
 
         try {
@@ -93,22 +93,16 @@ class GameViewModel @Inject constructor(
 
     fun buttonStateChanged(button: NesButton, state: NesButtonState) {
         buttonStateMap[button] = state
+        inputManager.onInputEvent(NesInputManager.VIRTUAL_CONTROLLER_DEVICE_ID, button, state)
     }
 
-    fun dpadStateChanged(state: Map<NesButton, NesButtonState>) {
-        buttonStateMap.putAll(state)
+    fun dpadStateChanged(buttonStates: Map<NesButton, NesButtonState>) {
+        buttonStateMap.putAll(buttonStates)
+        inputManager.onInputEvents(NesInputManager.VIRTUAL_CONTROLLER_DEVICE_ID, buttonStates)
     }
 
     fun errorMessageToastShown() {
         _uiState.update { it.copy(errorMessage = null) }
-    }
-
-    private fun mapButtonStatesToInt(): Int {
-        var buttonStates = 0
-        buttonStateMap.forEach { _, state ->
-            buttonStates = (buttonStates shl 1) or state.ordinal
-        }
-        return buttonStates
     }
 
     fun navigateBack() {
@@ -118,6 +112,6 @@ class GameViewModel @Inject constructor(
     override fun onCleared() {
         emulator.pauseAudioStream()
         emulator.stop()
-        emulator.nes.unregisterListener(nesListener)
+        emulator.unregisterListener(emulationListener)
     }
 }
