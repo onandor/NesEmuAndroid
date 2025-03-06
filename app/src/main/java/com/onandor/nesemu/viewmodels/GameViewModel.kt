@@ -19,7 +19,8 @@ import javax.inject.Inject
 
 data class GameUiState(
     val settingsOverlayVisible: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val emulationPaused: Boolean = false
 )
 
 @HiltViewModel
@@ -103,6 +104,15 @@ class GameViewModel @Inject constructor(
 
     fun errorMessageToastShown() {
         _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    fun setEmulationState(paused: Boolean) {
+        this._uiState.update { it.copy(emulationPaused = paused) }
+        if (paused) {
+            emulator.stop()
+        } else {
+            emulator.start()
+        }
     }
 
     fun navigateBack() {

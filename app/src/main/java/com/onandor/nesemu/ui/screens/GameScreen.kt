@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -31,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.onandor.nesemu.ui.components.NesRenderer
@@ -42,6 +44,7 @@ import com.onandor.nesemu.ui.components.controls.FaceButton
 import com.onandor.nesemu.ui.components.controls.OptionButton
 import com.onandor.nesemu.ui.util.HideSystemBars
 import com.onandor.nesemu.viewmodels.GameViewModel
+import com.onandor.nesemu.R
 
 @Composable
 fun GameScreen(
@@ -63,7 +66,9 @@ fun GameScreen(
                 onQuit = viewModel::quit,
                 onNavigateToDebugScreen = viewModel::navigateToDebugScreen,
                 onButtonStateChanged = viewModel::buttonStateChanged,
-                onDPadStateChanged = viewModel::dpadStateChanged
+                onDPadStateChanged = viewModel::dpadStateChanged,
+                emulationPaused = uiState.emulationPaused,
+                setEmulationPaused = viewModel::setEmulationState
             )
         }
     }
@@ -97,7 +102,9 @@ private fun Game(
     onQuit: () -> Unit,
     onNavigateToDebugScreen: () -> Unit,
     onButtonStateChanged: (NesButton, NesButtonState) -> Unit,
-    onDPadStateChanged: (Map<NesButton, NesButtonState>) -> Unit
+    onDPadStateChanged: (Map<NesButton, NesButtonState>) -> Unit,
+    emulationPaused: Boolean,
+    setEmulationPaused: (Boolean) -> Unit
 ) {
     val configuration = LocalConfiguration.current
 
@@ -127,6 +134,19 @@ private fun Game(
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
+                IconButton(onClick = { setEmulationPaused(!emulationPaused) }) {
+                    if (emulationPaused) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = null
+                        )
+                    } else {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_pause),
+                            contentDescription = null
+                        )
+                    }
+                }
                 IconButton(onClick = onQuit) {
                     Icon(
                         imageVector = Icons.Default.Close,
@@ -146,7 +166,9 @@ private fun Game(
                 onShowSettingsOverlay = onShowSettingsOverlay,
                 onNavigateToDebugScreen = onNavigateToDebugScreen,
                 onButtonStateChanged = onButtonStateChanged,
-                onDPadStateChanged = onDPadStateChanged
+                onDPadStateChanged = onDPadStateChanged,
+                emulationPaused = emulationPaused,
+                setEmulationPaused = setEmulationPaused
             )
             NesSurfaceView(
                 modifier = modifier.fillMaxHeight().aspectRatio(256f / 240f),
@@ -214,7 +236,9 @@ private fun HorizontalControlsLeft(
     onShowSettingsOverlay: () -> Unit,
     onNavigateToDebugScreen: () -> Unit,
     onButtonStateChanged: (NesButton, NesButtonState) -> Unit,
-    onDPadStateChanged: (Map<NesButton, NesButtonState>) -> Unit
+    onDPadStateChanged: (Map<NesButton, NesButtonState>) -> Unit,
+    emulationPaused: Boolean,
+    setEmulationPaused: (Boolean) -> Unit
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         Row(

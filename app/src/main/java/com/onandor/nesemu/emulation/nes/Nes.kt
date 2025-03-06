@@ -43,7 +43,7 @@ class Nes(
     private val audioSampleSizeQueue = SlidingWindowIntQueue(100)
     private var targetAudioBufferSize: Int = 0
 
-    var running: Boolean = true
+    private var running: Boolean = true
     private var isFrameReady: Boolean = false
     private var numFrames: Int = 0
     var fps: Float = 0f
@@ -198,13 +198,12 @@ class Nes(
         return samples
     }
 
-    suspend fun reset() {
+    fun reset() {
         cpuMemory = IntArray(MEMORY_SIZE)
         vram = IntArray(MEMORY_SIZE)
         lastValueRead = 0
         numFrames = 0
         isFrameReady = false
-        running = true
         audioBuffer.clear()
         audioSampleSizeQueue.clear()
         controller1Buttons = 0
@@ -213,7 +212,10 @@ class Nes(
         cpu.reset()
         ppu.reset()
         apu.reset()
+    }
 
+    suspend fun run() {
+        running = true
         val timeSource = TimeSource.Monotonic
         var fpsMeasureStart = timeSource.markNow()
 
@@ -245,6 +247,10 @@ class Nes(
                 Log.i(TAG, "FPS: $fps")
             }
         }
+    }
+
+    fun stop() {
+        running = false
     }
 
     // Functions used for debugging

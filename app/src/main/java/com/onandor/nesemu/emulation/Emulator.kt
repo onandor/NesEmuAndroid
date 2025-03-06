@@ -8,6 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 class Emulator @Inject constructor(private val inputManager: NesInputManager) {
@@ -51,15 +52,23 @@ class Emulator @Inject constructor(private val inputManager: NesInputManager) {
         listeners.forEach { it.onFrameReady(frame, patternTable, nametable, colorPalettes) }
     }
 
-    fun reset() {
+    fun start() {
         nesRunnerJob = CoroutineScope(Dispatchers.Default).launch {
-            nes.reset()
+            nes.run()
         }
     }
 
+    fun reset() {
+        nes.reset()
+        start()
+    }
+
     fun stop() {
-        nes.running = false
+        nes.stop()
         nesRunnerJob?.cancel()
+        runBlocking {
+            nesRunnerJob?.join()
+        }
     }
 
     fun registerListener(listener: EmulationListener) {
