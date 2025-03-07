@@ -12,9 +12,13 @@ import com.onandor.nesemu.input.NesButton
 import com.onandor.nesemu.input.NesButtonState
 import com.onandor.nesemu.input.NesInputManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class GameUiState(
@@ -47,6 +51,8 @@ class GameViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(GameUiState())
     val uiState = _uiState.asStateFlow()
 
+    private var inputManagerEventJob: Job? = null
+
     private val emulationListener = object : EmulationListener {
 
         override fun onFrameReady(
@@ -61,8 +67,8 @@ class GameViewModel @Inject constructor(
     }
 
     init {
+        inputManagerEventJob = collectInputManagerEvents()
         emulator.registerListener(emulationListener)
-        emulator.startAudioStream()
 
         try {
             emulator.reset()
@@ -74,6 +80,8 @@ class GameViewModel @Inject constructor(
                 _uiState.update { it.copy(errorMessage = "An unexpected error occurred") }
             }
         }
+
+        emulator.startAudioStream()
     }
 
     fun setRenderCallback(requestRender: () -> Unit) {
@@ -117,11 +125,23 @@ class GameViewModel @Inject constructor(
         }
     }
 
+    private fun collectInputManagerEvents(): Job = CoroutineScope(Dispatchers.IO).launch {
+        inputManager.events.collect { event ->
+            when (event) {
+                is NesInputManager.Event.OnPauseButtonPressed -> {
+                    val paused = _uiState.value.emulationPaused
+                    setEmulationState(!paused)
+                }
+            }
+        }
+    }
+
     fun navigateBack() {
         navManager.navigateBack()
     }
 
     override fun onCleared() {
+        inputManagerEventJob?.cancel()
         emulator.pauseAudioStream()
         emulator.stop()
         emulator.unregisterListener(emulationListener)

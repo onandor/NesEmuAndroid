@@ -4,9 +4,14 @@ import android.hardware.input.InputManager
 import android.util.Log
 import android.view.InputDevice
 import android.view.KeyEvent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 class NesInputManager(private val inputManager: InputManager) {
 
@@ -15,6 +20,10 @@ class NesInputManager(private val inputManager: InputManager) {
         val controller1Device: NesInputDevice? = null,
         val controller2Device: NesInputDevice? = null
     )
+
+    sealed class Event {
+        data class OnPauseButtonPressed(val device: NesInputDevice) : Event()
+    }
 
     private val availableDevicesMap = mutableMapOf<Int, NesInputDevice>()
 
@@ -28,6 +37,9 @@ class NesInputManager(private val inputManager: InputManager) {
     private val _state = MutableStateFlow(State())
     val state = _state.asStateFlow()
 
+    private val _events = MutableSharedFlow<Event>()
+    val events = _events.asSharedFlow()
+
     private val inputDeviceListener = object : InputManager.InputDeviceListener {
 
         override fun onInputDeviceAdded(deviceId: Int) {
@@ -35,7 +47,7 @@ class NesInputManager(private val inputManager: InputManager) {
             if (device == null || availableDevicesMap.contains(deviceId)) {
                 return
             }
-            getNesInputDevice(device)?.let {
+            createNesInputDevice(device)?.let {
                 availableDevicesMap.put(it.id, it)
                 updateState()
             }
@@ -63,7 +75,7 @@ class NesInputManager(private val inputManager: InputManager) {
         refreshAvailableDevices()
     }
 
-    private fun getNesInputDevice(device: InputDevice): NesInputDevice? {
+    private fun createNesInputDevice(device: InputDevice): NesInputDevice? {
         if (device.isVirtual || !device.isEnabled) {
             return null
         }
@@ -99,7 +111,7 @@ class NesInputManager(private val inputManager: InputManager) {
                 continue
             }
 
-            getNesInputDevice(device)?.let { availableDevicesMap.put(it.id, it) }
+            createNesInputDevice(device)?.let { availableDevicesMap.put(it.id, it) }
         }
 
         updateState()
@@ -155,10 +167,20 @@ class NesInputManager(private val inputManager: InputManager) {
         val button = CONTROLLER_BUTTON_MAP[event.keyCode]
         val state = BUTTON_STATE_MAP[event.action]
         if (button == null || state == null) {
-            return false
+            return checkPauseButtonPressed(event)
         }
         onInputEvent(event.deviceId, button, state)
         return true
+    }
+
+    private fun checkPauseButtonPressed(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_UP
+            && (event.keyCode == KeyEvent.KEYCODE_BUTTON_MODE
+                    || event.keyCode == KeyEvent.KEYCODE_ESCAPE)) {
+            emitEvent(Event.OnPauseButtonPressed(availableDevicesMap[event.deviceId]!!))
+            return true
+        }
+        return false
     }
 
     fun registerListener() {
@@ -207,6 +229,9 @@ class NesInputManager(private val inputManager: InputManager) {
             NesButton.A to NesButtonState.UP
         )
     }
+
+    private fun emitEvent(event: Event) =
+        CoroutineScope(Dispatchers.IO).launch { _events.emit(event) }
 
     companion object {
         private const val TAG = "NesInputManager"
