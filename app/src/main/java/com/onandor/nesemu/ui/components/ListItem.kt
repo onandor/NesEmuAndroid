@@ -4,8 +4,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Checkbox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -31,7 +33,7 @@ fun CheckboxListItem(
                 checked = !checked
                 onCheckedChange(checked)
             }
-            .padding(start = 20.dp, end = 10.dp),
+            .padding(start = 25.dp, end = 15.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -58,14 +60,18 @@ fun ClickableListItem(
         modifier = modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(top = 10.dp, bottom = 10.dp, start = 20.dp, end = 20.dp),
+            .padding(top = 10.dp, bottom = 10.dp, start = 25.dp, end = 25.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+        ) {
             mainText()
             subText()
         }
+        Spacer(modifier = Modifier.width(15.dp))
         displayItem()
     }
 }

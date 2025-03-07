@@ -4,21 +4,29 @@ import android.hardware.input.InputManager
 import android.util.Log
 import android.view.InputDevice
 import android.view.KeyEvent
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 class NesInputManager(private val inputManager: InputManager) {
 
-    private val availableDevicesMap = mutableMapOf<Int, NesInputDevice>()
-    val availableDevices: List<NesInputDevice>
-        get() {
-            return availableDevicesMap.values.toList()
-        }
+    data class State(
+        val availableDevices: List<NesInputDevice> = emptyList(),
+        val controller1Device: NesInputDevice? = null,
+        val controller2Device: NesInputDevice? = null
+    )
 
-    private val controller1Buttons = initControllerButtons()
-    private val controller2Buttons = initControllerButtons()
+    private val availableDevicesMap = mutableMapOf<Int, NesInputDevice>()
+
+    private val controller1Buttons: MutableMap<NesButton, NesButtonState> = initControllerButtons()
+    private val controller2Buttons: MutableMap<NesButton, NesButtonState> = initControllerButtons()
     var controller1Device: NesInputDevice? = null
         private set
     var controller2Device: NesInputDevice? = null
         private set
+
+    private val _state = MutableStateFlow(State())
+    val state = _state.asStateFlow()
 
     private val inputDeviceListener = object : InputManager.InputDeviceListener {
 
@@ -27,12 +35,23 @@ class NesInputManager(private val inputManager: InputManager) {
             if (device == null || availableDevicesMap.contains(deviceId)) {
                 return
             }
-            getNesInputDevice(device)?.let { availableDevicesMap.put(it.id, it) }
+            getNesInputDevice(device)?.let {
+                availableDevicesMap.put(it.id, it)
+                updateState()
+            }
             Log.d(TAG, "Input device added: ${device.name} (id: $deviceId)")
         }
 
         override fun onInputDeviceRemoved(deviceId: Int) {
             val nesDevice = availableDevicesMap.remove(deviceId)
+            nesDevice?.let {
+                if (controller1Device == it) {
+                    controller1Device = null
+                } else if (controller2Device == it) {
+                    controller2Device = null
+                }
+                updateState()
+            }
             Log.d(TAG, "Input device removed: ${nesDevice?.name} (id: ${nesDevice?.id})")
         }
 
@@ -40,8 +59,8 @@ class NesInputManager(private val inputManager: InputManager) {
     }
 
     init {
-        refreshAvailableDevices()
         controller1Device = VIRTUAL_CONTROLLER
+        refreshAvailableDevices()
     }
 
     private fun getNesInputDevice(device: InputDevice): NesInputDevice? {
@@ -53,7 +72,8 @@ class NesInputManager(private val inputManager: InputManager) {
             if (device.supportsSource(InputDevice.SOURCE_GAMEPAD)
                 || device.supportsSource(InputDevice.SOURCE_GAMEPAD)) {
                 NesInputDeviceType.CONTROLLER
-            } else if (device.supportsSource(InputDevice.SOURCE_KEYBOARD)) {
+            } else if (device.supportsSource(InputDevice.SOURCE_KEYBOARD)
+                && device.keyboardType == InputDevice.KEYBOARD_TYPE_ALPHABETIC) {
                 NesInputDeviceType.KEYBOARD
             } else {
                 return null
@@ -67,7 +87,7 @@ class NesInputManager(private val inputManager: InputManager) {
         )
     }
 
-    fun refreshAvailableDevices() {
+    private fun refreshAvailableDevices() {
         availableDevicesMap.clear()
         availableDevicesMap.put(VIRTUAL_CONTROLLER.id, VIRTUAL_CONTROLLER)
 
@@ -81,10 +101,12 @@ class NesInputManager(private val inputManager: InputManager) {
 
             getNesInputDevice(device)?.let { availableDevicesMap.put(it.id, it) }
         }
+
+        updateState()
     }
 
     fun setInputDevice(controllerId: Int, device: NesInputDevice) {
-        if (!availableDevices.contains(device)) {
+        if (!availableDevicesMap.contains(device.id)) {
             return
         }
 
@@ -99,6 +121,8 @@ class NesInputManager(private val inputManager: InputManager) {
                 controller1Device = null
             }
         }
+
+        updateState()
     }
 
     fun onInputEvents(deviceId: Int, buttonStates: Map<NesButton, NesButtonState>) {
@@ -159,6 +183,16 @@ class NesInputManager(private val inputManager: InputManager) {
             buttonStates = (buttonStates shl 1) or state.ordinal
         }
         return buttonStates
+    }
+
+    private fun updateState() {
+        _state.update {
+            it.copy(
+                availableDevices = availableDevicesMap.values.toList(),
+                controller1Device = controller1Device,
+                controller2Device = controller2Device
+            )
+        }
     }
 
     private fun initControllerButtons(): MutableMap<NesButton, NesButtonState> {
