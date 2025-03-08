@@ -123,6 +123,13 @@ class NesInputManager(private val inputManager: InputManager) {
             createNesInputDevice(device)?.let { availableDevicesMap.put(it.id, it) }
         }
 
+        if (!availableDevicesMap.contains(controller1Device?.id)) {
+            controller1Device = null
+        }
+        if (!availableDevicesMap.contains(controller2Device?.id)) {
+            controller2Device = null
+        }
+
         updateState()
     }
 
