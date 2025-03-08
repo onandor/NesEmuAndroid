@@ -13,7 +13,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -24,8 +23,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.onandor.nesemu.viewmodels.MainViewModel
+import com.onandor.nesemu.viewmodels.MainViewModel.Event
 
 @Composable
 fun MainScreen(
@@ -38,7 +37,7 @@ fun MainScreen(
         documentUri?.let {
             val stream = context.contentResolver.openInputStream(it)
             if (stream != null) {
-                viewModel.onRomSelected(stream)
+                viewModel.onEvent(Event.OnRomSelected(stream))
             }
         }
     }
@@ -79,8 +78,8 @@ fun MainScreen(
 
     if (uiState.errorMessage != null) {
         LaunchedEffect(uiState.errorMessage) {
-            Toast.makeText(context, uiState.errorMessage, Toast.LENGTH_LONG).show()
-            viewModel.errorMessageToastShown()
+            Toast.makeText(context, uiState.errorMessage, Toast.LENGTH_SHORT).show()
+            viewModel.onEvent(Event.OnErrorMessageToastShown)
         }
     }
 }

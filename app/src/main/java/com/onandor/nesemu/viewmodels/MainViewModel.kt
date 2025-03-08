@@ -13,20 +13,36 @@ import kotlinx.coroutines.flow.update
 import java.io.InputStream
 import javax.inject.Inject
 
-data class MainScreenUiState(
-    val errorMessage: String? = null
-)
-
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val navManager: NavigationManager,
     private val emulator: Emulator
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(MainScreenUiState())
+    data class UiState(
+        val errorMessage: String? = null
+    )
+
+    sealed class Event {
+        data class OnRomSelected(val inputStream: InputStream) : Event()
+        object OnErrorMessageToastShown : Event()
+    }
+
+    private val _uiState = MutableStateFlow(UiState())
     val uiState = _uiState.asStateFlow()
 
-    fun onRomSelected(stream: InputStream) {
+    fun onEvent(event: Event) {
+        when (event) {
+            is Event.OnRomSelected -> {
+                onRomSelected(event.inputStream)
+            }
+            Event.OnErrorMessageToastShown -> {
+                _uiState.update { it.copy(errorMessage = null) }
+            }
+        }
+    }
+
+    private fun onRomSelected(stream: InputStream) {
         val rom = stream.readBytes()
         stream.close()
 
@@ -45,9 +61,5 @@ class MainViewModel @Inject constructor(
         }
 
         navManager.navigateTo(NavActions.gameScreen())
-    }
-
-    fun errorMessageToastShown() {
-        _uiState.update { it.copy(errorMessage = null) }
     }
 }

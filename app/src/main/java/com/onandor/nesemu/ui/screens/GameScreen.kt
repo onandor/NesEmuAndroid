@@ -44,7 +44,9 @@ import com.onandor.nesemu.ui.components.controls.FaceButton
 import com.onandor.nesemu.ui.components.controls.OptionButton
 import com.onandor.nesemu.ui.util.HideSystemBars
 import com.onandor.nesemu.viewmodels.GameViewModel
+import com.onandor.nesemu.viewmodels.GameViewModel.Event
 import com.onandor.nesemu.R
+import com.onandor.nesemu.navigation.NavActions
 
 @Composable
 fun GameScreen(
@@ -55,41 +57,25 @@ fun GameScreen(
 
     Scaffold { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
-            if (uiState.settingsOverlayVisible) {
-                SettingsOverlay()
-            }
             Game(
                 renderer = viewModel.renderer,
                 padding = padding,
-                setRenderCallback = viewModel::setRenderCallback,
-                onNavigateToPreferencesScreen = viewModel::navigateToPreferencesScreen,
-                onQuit = viewModel::quit,
-                onNavigateToDebugScreen = viewModel::navigateToDebugScreen,
-                onButtonStateChanged = viewModel::buttonStateChanged,
-                onDPadStateChanged = viewModel::dpadStateChanged,
                 emulationPaused = uiState.emulationPaused,
-                setEmulationPaused = viewModel::setEmulationState
+                onEvent = viewModel::onEvent
             )
         }
     }
 
     if (uiState.errorMessage != null) {
         LaunchedEffect(uiState.errorMessage) {
-            Toast.makeText(context, uiState.errorMessage, Toast.LENGTH_LONG).show()
-            viewModel.errorMessageToastShown()
+            Toast.makeText(context, uiState.errorMessage, Toast.LENGTH_SHORT).show()
+            viewModel.onEvent(Event.OnErrorMessageToastShown)
         }
     }
 
     BackHandler {
-        viewModel.navigateBack()
+        viewModel.onEvent(Event.OnNavigateBack)
     }
-}
-
-@Composable
-private fun SettingsOverlay(
-    modifier: Modifier = Modifier
-) {
-
 }
 
 @Composable
@@ -97,44 +83,46 @@ private fun Game(
     modifier: Modifier = Modifier,
     padding: PaddingValues,
     renderer: NesRenderer,
-    setRenderCallback: (() -> Unit) -> Unit,
-    onNavigateToPreferencesScreen: () -> Unit,
-    onQuit: () -> Unit,
-    onNavigateToDebugScreen: () -> Unit,
-    onButtonStateChanged: (NesButton, NesButtonState) -> Unit,
-    onDPadStateChanged: (Map<NesButton, NesButtonState>) -> Unit,
     emulationPaused: Boolean,
-    setEmulationPaused: (Boolean) -> Unit
+    onEvent: (Event) -> Unit
 ) {
     val configuration = LocalConfiguration.current
 
+    HideSystemBars()
     if (configuration.orientation == Configuration.ORIENTATION_PORTRAIT) {
-        Column(modifier = Modifier.padding(padding)) {
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .padding(top = 30.dp, bottom = 20.dp)
+        ) {
             NesSurfaceView(
                 modifier = modifier.fillMaxWidth().aspectRatio(256f / 240f),
                 renderer = renderer,
-                setRenderCallback = setRenderCallback
+                onRenderCallbackCreated = { onEvent(Event.OnRenderCallbackCreated(it)) }
             )
             VerticalControls(
-                onButtonStateChanged = onButtonStateChanged,
-                onDPadStateChanged = onDPadStateChanged
+                onEvent = onEvent
             )
             Spacer(modifier = Modifier.weight(1f))
             Row(modifier = Modifier.padding(bottom = 10.dp, start = 10.dp, end = 10.dp)) {
-                IconButton(onClick = onNavigateToPreferencesScreen) {
+                IconButton(
+                    onClick = { onEvent(Event.OnNavigateTo(NavActions.preferencesScreen())) }
+                ) {
                     Icon(
                         imageVector = Icons.Default.Settings,
                         contentDescription = null
                     )
                 }
-                IconButton(onClick = onNavigateToDebugScreen) {
+                IconButton(
+                    onClick = { onEvent(Event.OnNavigateTo(NavActions.debugScreen())) }
+                ) {
                     Icon(
                         imageVector = Icons.Default.Build,
                         contentDescription = null
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
-                IconButton(onClick = { setEmulationPaused(!emulationPaused) }) {
+                IconButton(onClick = { onEvent(Event.OnSetEmulationPaused(!emulationPaused)) }) {
                     if (emulationPaused) {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
@@ -147,7 +135,7 @@ private fun Game(
                         )
                     }
                 }
-                IconButton(onClick = onQuit) {
+                IconButton(onClick = { onEvent(Event.OnNavigateBack) }) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = null
@@ -156,29 +144,23 @@ private fun Game(
             }
         }
     } else {
-        HideSystemBars()
         Row(
             modifier = Modifier.fillMaxSize(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             HorizontalControlsLeft(
                 modifier = Modifier.weight(1f),
-                onShowSettingsOverlay = onNavigateToPreferencesScreen,
-                onNavigateToDebugScreen = onNavigateToDebugScreen,
-                onButtonStateChanged = onButtonStateChanged,
-                onDPadStateChanged = onDPadStateChanged,
-                emulationPaused = emulationPaused,
-                setEmulationPaused = setEmulationPaused
+                onEvent = onEvent
             )
             NesSurfaceView(
                 modifier = modifier.fillMaxHeight().aspectRatio(256f / 240f),
                 renderer = renderer,
-                setRenderCallback = setRenderCallback
+                onRenderCallbackCreated = { onEvent(Event.OnRenderCallbackCreated(it)) }
             )
             HorizontalControlsRight(
                 modifier = Modifier.weight(1f),
-                onQuit = onQuit,
-                onButtonStateChanged = onButtonStateChanged
+                emulationPaused = emulationPaused,
+                onEvent = onEvent
             )
         }
     }
@@ -187,8 +169,7 @@ private fun Game(
 @Composable
 private fun VerticalControls(
     modifier: Modifier = Modifier,
-    onButtonStateChanged: (NesButton, NesButtonState) -> Unit,
-    onDPadStateChanged: (Map<NesButton, NesButtonState>) -> Unit
+    onEvent: (Event) -> Unit
 ) {
     Column(
         modifier = modifier
@@ -200,16 +181,16 @@ private fun VerticalControls(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Bottom
         ) {
-            DPad(onStateChanged = onDPadStateChanged)
+            DPad(onStateChanged = { onEvent(Event.OnDpadStateChanged(it)) })
             Row {
                 FaceButton(
                     text = "B",
-                    onStateChanged = { onButtonStateChanged(NesButton.B, it) }
+                    onStateChanged = { onEvent(Event.OnButtonStateChanged(NesButton.B, it)) }
                 )
                 Spacer(modifier = Modifier.width(15.dp))
                 FaceButton(
                     text = "A",
-                    onStateChanged = { onButtonStateChanged(NesButton.A, it) }
+                    onStateChanged = { onEvent(Event.OnButtonStateChanged(NesButton.A, it)) }
                 )
             }
         }
@@ -219,12 +200,12 @@ private fun VerticalControls(
         ) {
             OptionButton(
                 text = "SELECT",
-                onStateChanged = { onButtonStateChanged(NesButton.SELECT, it) }
+                onStateChanged = { onEvent(Event.OnButtonStateChanged(NesButton.SELECT, it)) }
             )
             Spacer(modifier = Modifier.width(20.dp))
             OptionButton(
                 text = "START",
-                onStateChanged = { onButtonStateChanged(NesButton.START, it) }
+                onStateChanged = { onEvent(Event.OnButtonStateChanged(NesButton.START, it)) }
             )
         }
     }
@@ -233,12 +214,7 @@ private fun VerticalControls(
 @Composable
 private fun HorizontalControlsLeft(
     modifier: Modifier = Modifier,
-    onShowSettingsOverlay: () -> Unit,
-    onNavigateToDebugScreen: () -> Unit,
-    onButtonStateChanged: (NesButton, NesButtonState) -> Unit,
-    onDPadStateChanged: (Map<NesButton, NesButtonState>) -> Unit,
-    emulationPaused: Boolean,
-    setEmulationPaused: (Boolean) -> Unit
+    onEvent: (Event) -> Unit
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         Row(
@@ -246,13 +222,13 @@ private fun HorizontalControlsLeft(
                 .align(Alignment.TopStart)
                 .padding(bottom = 10.dp, start = 10.dp)
         ) {
-            IconButton(onClick = onShowSettingsOverlay) {
+            IconButton(onClick = { onEvent(Event.OnNavigateTo(NavActions.preferencesScreen())) }) {
                 Icon(
                     imageVector = Icons.Default.Settings,
                     contentDescription = null
                 )
             }
-            IconButton(onClick = onNavigateToDebugScreen) {
+            IconButton(onClick = { onEvent(Event.OnNavigateTo(NavActions.debugScreen())) }) {
                 Icon(
                     imageVector = Icons.Default.Build,
                     contentDescription = null
@@ -261,14 +237,14 @@ private fun HorizontalControlsLeft(
         }
         DPad(
             modifier = Modifier.align(Alignment.Center),
-            onStateChanged = onDPadStateChanged
+            onStateChanged = { onEvent(Event.OnDpadStateChanged(it)) }
         )
         OptionButton(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 70.dp),
             text = "SELECT",
-            onStateChanged = { onButtonStateChanged(NesButton.SELECT, it) }
+            onStateChanged = { onEvent(Event.OnButtonStateChanged(NesButton.SELECT, it)) }
         )
     }
 }
@@ -276,8 +252,8 @@ private fun HorizontalControlsLeft(
 @Composable
 private fun HorizontalControlsRight(
     modifier: Modifier = Modifier,
-    onQuit: () -> Unit,
-    onButtonStateChanged: (NesButton, NesButtonState) -> Unit
+    emulationPaused: Boolean,
+    onEvent: (Event) -> Unit
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         Row(
@@ -285,7 +261,20 @@ private fun HorizontalControlsRight(
                 .align(Alignment.TopEnd)
                 .padding(bottom = 10.dp, end = 10.dp)
         ) {
-            IconButton(onClick = onQuit) {
+            IconButton(onClick = { onEvent(Event.OnSetEmulationPaused(!emulationPaused)) }) {
+                if (emulationPaused) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = null
+                    )
+                } else {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_pause),
+                        contentDescription = null
+                    )
+                }
+            }
+            IconButton(onClick = { onEvent(Event.OnNavigateBack) }) {
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = null
@@ -300,12 +289,12 @@ private fun HorizontalControlsRight(
         ) {
             FaceButton(
                 text = "B",
-                onStateChanged = { onButtonStateChanged(NesButton.B, it) }
+                onStateChanged = { onEvent(Event.OnButtonStateChanged(NesButton.B, it)) }
             )
             Spacer(modifier = Modifier.width(15.dp))
             FaceButton(
                 text = "A",
-                onStateChanged = { onButtonStateChanged(NesButton.A, it) }
+                onStateChanged = { onEvent(Event.OnButtonStateChanged(NesButton.A, it)) }
             )
         }
         OptionButton(
@@ -313,7 +302,7 @@ private fun HorizontalControlsRight(
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 70.dp),
             text = "START",
-            onStateChanged = { onButtonStateChanged(NesButton.START, it) }
+            onStateChanged = { onEvent(Event.OnButtonStateChanged(NesButton.START, it)) }
         )
     }
 }

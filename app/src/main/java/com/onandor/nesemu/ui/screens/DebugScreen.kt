@@ -1,6 +1,5 @@
 package com.onandor.nesemu.ui.screens
 
-import android.view.MotionEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.border
@@ -47,6 +46,7 @@ import com.onandor.nesemu.emulation.nes.DebugFeature
 import com.onandor.nesemu.ui.components.CheckboxListItem
 import com.onandor.nesemu.ui.components.NesRenderer
 import com.onandor.nesemu.viewmodels.DebugViewModel
+import com.onandor.nesemu.viewmodels.DebugViewModel.Event
 import com.onandor.nesemu.ui.components.NesSurfaceView
 import kotlinx.coroutines.launch
 
@@ -64,7 +64,7 @@ fun DebugScreen(
     }
 
     BottomSheetScaffold(
-        topBar = { TopBar(onNavigateBack = viewModel::navigateBack) },
+        topBar = { TopBar(onEvent = viewModel::onEvent) },
         scaffoldState = scaffoldState,
         sheetPeekHeight = 70.dp,
         sheetDragHandle = {
@@ -98,7 +98,7 @@ fun DebugScreen(
             }
         },
         sheetContent = {
-            SheetContent(onSetDebugFeatureBool = viewModel::setDebugFeatureBool)
+            SheetContent(onEvent = viewModel::onEvent)
         }
     ) { padding ->
         LazyColumn(
@@ -113,8 +113,7 @@ fun DebugScreen(
                     )
                     ColorPalettes(
                         renderers = viewModel.colorPaletteRenderers,
-                        setRenderCallback = viewModel::setColorPaletteRenderCallback,
-                        onColorPaletteTouchEvent = viewModel::onColorPaletteTouchEvent
+                        onEvent = viewModel::onEvent
                     )
                     if (uiState.renderPatternTable || uiState.renderNametable) {
                         HorizontalDivider(modifier = Modifier.padding(top = 10.dp))
@@ -130,7 +129,9 @@ fun DebugScreen(
                     NesSurfaceView(
                         modifier = Modifier.fillMaxWidth().aspectRatio(256f / 128f),
                         renderer = viewModel.patternTableRenderer,
-                        setRenderCallback = viewModel::setPatternTableRenderCallback
+                        onRenderCallbackCreated = {
+                            viewModel.onEvent(Event.OnPatternTableRenderCallbackCreated(it))
+                        }
                     )
                     if (uiState.renderNametable) {
                         HorizontalDivider(modifier = Modifier.padding(top = 10.dp))
@@ -146,7 +147,9 @@ fun DebugScreen(
                     NesSurfaceView(
                         modifier = Modifier.fillMaxWidth().aspectRatio(512f / 480f),
                         renderer = viewModel.nametableRenderer,
-                        setRenderCallback = viewModel::setNametableRenderCallback
+                        onRenderCallbackCreated = {
+                            viewModel.onEvent(Event.OnNametableRenderCallbackCreated(it))
+                        }
                     )
                 }
             }
@@ -160,7 +163,7 @@ fun DebugScreen(
         if (scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded) {
             coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
         } else {
-            viewModel.navigateBack()
+            viewModel.onEvent(Event.OnNavigateBack)
         }
     }
 }
@@ -168,12 +171,12 @@ fun DebugScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TopBar(
-    onNavigateBack: () -> Unit
+    onEvent: (Event) -> Unit
 ) {
     TopAppBar(
         title = { Text("Debug view") },
         navigationIcon = {
-            IconButton(onClick = onNavigateBack) {
+            IconButton(onClick = { onEvent(Event.OnNavigateBack) }) {
                 Icon(imageVector = Icons.AutoMirrored.Default.ArrowBack, null)
             }
         }
@@ -183,21 +186,27 @@ private fun TopBar(
 @Composable
 private fun SheetContent(
     modifier: Modifier = Modifier,
-    onSetDebugFeatureBool: (DebugFeature, Boolean) -> Unit
+    onEvent: (Event) -> Unit
 ) {
     Column(modifier = modifier.padding(bottom = 10.dp)) {
         CheckboxListItem(
-            onCheckedChange = { onSetDebugFeatureBool(DebugFeature.PPU_RENDER_COLOR_PALETTES, it) }
+            onCheckedChange = {
+                onEvent(Event.OnSetDebugFeatureBool(DebugFeature.PPU_RENDER_COLOR_PALETTES, it))
+            }
         ) {
             Text(text = "Show color palettes")
         }
         CheckboxListItem(
-            onCheckedChange = { onSetDebugFeatureBool(DebugFeature.PPU_RENDER_PATTERN_TABLE, it) }
+            onCheckedChange = {
+                onEvent(Event.OnSetDebugFeatureBool(DebugFeature.PPU_RENDER_PATTERN_TABLE, it))
+            }
         ) {
             Text(text = "Show pattern tables")
         }
         CheckboxListItem(
-            onCheckedChange = { onSetDebugFeatureBool(DebugFeature.PPU_RENDER_NAMETABLE, it) }
+            onCheckedChange = {
+                onEvent(Event.OnSetDebugFeatureBool(DebugFeature.PPU_RENDER_NAMETABLE, it))
+            }
         ) {
             Text(text = "Show nametables")
         }
@@ -207,8 +216,7 @@ private fun SheetContent(
 @Composable
 private fun ColorPalettes(
     renderers: Array<NesRenderer>,
-    setRenderCallback: (Int, () -> Unit) -> Unit,
-    onColorPaletteTouchEvent: (Int, MotionEvent) -> Unit
+    onEvent: (Event) -> Unit
  ) {
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
@@ -232,10 +240,12 @@ private fun ColorPalettes(
                 NesSurfaceView(
                     modifier = modifier,
                     renderer = renderers[i],
-                    setRenderCallback = { setRenderCallback(i, it) },
+                    onRenderCallbackCreated = {
+                        onEvent(Event.OnColorPaletteRenderCallbackCreated(i, it))
+                    },
                     onTouchEvent = {
                         selectedIdx = i
-                        onColorPaletteTouchEvent(i, it)
+                        onEvent(Event.OnColorPaletteTouch(i, it))
                     }
                 )
             }
@@ -256,10 +266,12 @@ private fun ColorPalettes(
                 NesSurfaceView(
                     modifier = modifier,
                     renderer = renderers[i],
-                    setRenderCallback = { setRenderCallback(i, it) },
+                    onRenderCallbackCreated = {
+                        onEvent(Event.OnColorPaletteRenderCallbackCreated(i, it))
+                    },
                     onTouchEvent = {
                         selectedIdx = i
-                        onColorPaletteTouchEvent(i, it)
+                        onEvent(Event.OnColorPaletteTouch(i, it))
                     }
                 )
             }

@@ -13,17 +13,29 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import javax.inject.Inject
 
-data class DebugScreenUiState(
-    val renderPatternTable: Boolean = false,
-    val renderNametable: Boolean = false,
-    val renderColorPalettes: Boolean = false
-)
-
 @HiltViewModel
 class DebugViewModel @Inject constructor(
     private val navManager: NavigationManager,
     private val emulator: Emulator
 ) : ViewModel() {
+
+    data class UiState(
+        val renderPatternTable: Boolean = false,
+        val renderNametable: Boolean = false,
+        val renderColorPalettes: Boolean = false
+    )
+
+    sealed class Event {
+        data class OnPatternTableRenderCallbackCreated(val requestRender: () -> Unit) : Event()
+        data class OnNametableRenderCallbackCreated(val requestRender: () -> Unit) : Event()
+        data class OnColorPaletteRenderCallbackCreated(
+            val index: Int,
+            val requestRender: () -> Unit
+        ) : Event()
+        data class OnColorPaletteTouch(val index: Int, val motionEvent: MotionEvent) : Event()
+        data class OnSetDebugFeatureBool(val feature: DebugFeature, val value: Boolean) : Event()
+        object OnNavigateBack : Event()
+    }
 
     val patternTableRenderer: NesRenderer = NesRenderer(256, 128)
     private var requestPatternTableRender: () -> Unit = {}
@@ -55,49 +67,48 @@ class DebugViewModel @Inject constructor(
         }
     }
 
-    private val _uiState = MutableStateFlow(DebugScreenUiState())
+    private val _uiState = MutableStateFlow(UiState())
     val uiState = _uiState.asStateFlow()
 
     init {
         emulator.registerListener(emulationListener)
     }
 
-    fun setPatternTableRenderCallback(requestRender: () -> Unit) {
-        this.requestPatternTableRender = requestRender
-    }
-
-    fun setNametableRenderCallback(requestRender: () -> Unit) {
-        this.requestNametableRender = requestRender
-    }
-
-    fun setColorPaletteRenderCallback(idx: Int, requestRender: () -> Unit) {
-        this.requestColorPaletteRender[idx] = requestRender
-    }
-
-    fun onColorPaletteTouchEvent(idx: Int, event: MotionEvent) {
-        if (event.action == MotionEvent.ACTION_DOWN) {
-            emulator.nes.setDebugFeatureInt(DebugFeature.PPU_SET_COLOR_PALETTE, idx)
+    fun onEvent(event: Event) {
+        when (event) {
+            is Event.OnPatternTableRenderCallbackCreated -> {
+                this.requestPatternTableRender = event.requestRender
+            }
+            is Event.OnNametableRenderCallbackCreated -> {
+                this.requestNametableRender = event.requestRender
+            }
+            is Event.OnColorPaletteRenderCallbackCreated -> {
+                this.requestColorPaletteRender[event.index] = event.requestRender
+            }
+            is Event.OnColorPaletteTouch -> {
+                if (event.motionEvent.action == MotionEvent.ACTION_DOWN) {
+                    emulator.nes.setDebugFeatureInt(DebugFeature.PPU_SET_COLOR_PALETTE, event.index)
+                }
+            }
+            is Event.OnSetDebugFeatureBool -> {
+                when (event.feature) {
+                    DebugFeature.PPU_RENDER_PATTERN_TABLE -> {
+                        _uiState.update { it.copy(renderPatternTable = event.value) }
+                    }
+                    DebugFeature.PPU_RENDER_NAMETABLE -> {
+                        _uiState.update { it.copy(renderNametable = event.value) }
+                    }
+                    DebugFeature.PPU_RENDER_COLOR_PALETTES -> {
+                        _uiState.update { it.copy(renderColorPalettes = event.value) }
+                    }
+                    else -> {}
+                }
+                emulator.nes.setDebugFeatureBool(event.feature, event.value)
+            }
+            is Event.OnNavigateBack -> {
+                navManager.navigateBack()
+            }
         }
-    }
-
-    fun setDebugFeatureBool(feature: DebugFeature, value: Boolean) {
-        when (feature) {
-            DebugFeature.PPU_RENDER_PATTERN_TABLE -> {
-                _uiState.update { it.copy(renderPatternTable = value) }
-            }
-            DebugFeature.PPU_RENDER_NAMETABLE -> {
-                _uiState.update { it.copy(renderNametable = value) }
-            }
-            DebugFeature.PPU_RENDER_COLOR_PALETTES -> {
-                _uiState.update { it.copy(renderColorPalettes = value) }
-            }
-            else -> {}
-        }
-        emulator.nes.setDebugFeatureBool(feature, value)
-    }
-
-    fun navigateBack() {
-        navManager.navigateBack()
     }
 
     override fun onCleared() {

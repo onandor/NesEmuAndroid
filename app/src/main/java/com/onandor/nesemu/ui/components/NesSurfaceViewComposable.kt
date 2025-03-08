@@ -9,14 +9,14 @@ import androidx.compose.ui.viewinterop.AndroidView
 fun NesSurfaceView(
     modifier: Modifier,
     renderer: NesRenderer,
-    setRenderCallback: (() -> Unit) -> Unit,
+    onRenderCallbackCreated: (() -> Unit) -> Unit,
     onTouchEvent: (MotionEvent) -> Unit = {}
 ) {
     AndroidView(
         modifier = modifier,
         factory = {
             NesSurfaceView(it, renderer, onTouchEvent).apply {
-                setRenderCallback(this::requestRender)
+                onRenderCallbackCreated(this::requestRender)
             }
         }
     )
