@@ -80,16 +80,10 @@ class NesInputManager(private val inputManager: InputManager) {
             return null
         }
 
-        val deviceType =
-            if (device.supportsSource(InputDevice.SOURCE_GAMEPAD)
-                || device.supportsSource(InputDevice.SOURCE_GAMEPAD)) {
-                NesInputDeviceType.CONTROLLER
-            } else if (device.supportsSource(InputDevice.SOURCE_KEYBOARD)
-                && device.keyboardType == InputDevice.KEYBOARD_TYPE_ALPHABETIC) {
-                NesInputDeviceType.KEYBOARD
-            } else {
-                return null
-            }
+        val deviceType = getDeviceType(device)
+        if (deviceType == null) {
+            return null
+        }
 
         return NesInputDevice(
             name = device.name,
@@ -97,6 +91,21 @@ class NesInputManager(private val inputManager: InputManager) {
             descriptor = device.descriptor,
             type = deviceType
         )
+    }
+
+    private fun getDeviceType(device: InputDevice): NesInputDeviceType? {
+        if (device.supportsSource(InputDevice.SOURCE_KEYBOARD)
+            && device.keyboardType == InputDevice.KEYBOARD_TYPE_ALPHABETIC) {
+            return NesInputDeviceType.KEYBOARD
+        }
+        if ((device.supportsSource(InputDevice.SOURCE_GAMEPAD)
+            || device.supportsSource(InputDevice.SOURCE_JOYSTICK)
+            || device.supportsSource(InputDevice.SOURCE_DPAD))
+            && device.keyboardType != InputDevice.KEYBOARD_TYPE_ALPHABETIC) {
+            return NesInputDeviceType.CONTROLLER
+        }
+
+        return null
     }
 
     private fun refreshAvailableDevices() {
@@ -164,7 +173,7 @@ class NesInputManager(private val inputManager: InputManager) {
     }
 
     fun onInputEvent(event: KeyEvent): Boolean {
-        val button = CONTROLLER_BUTTON_MAP[event.keyCode]
+        val button = BUTTON_MAP[event.keyCode]
         val state = BUTTON_STATE_MAP[event.action]
         if (button == null || state == null) {
             return checkPauseButtonPressed(event)
@@ -248,7 +257,18 @@ class NesInputManager(private val inputManager: InputManager) {
             type = NesInputDeviceType.VIRTUAL_CONTROLLER
         )
 
-        private val CONTROLLER_BUTTON_MAP = mapOf<Int, NesButton>(
+        private val BUTTON_MAP = mapOf<Int, NesButton>(
+            // Keyboard
+            KeyEvent.KEYCODE_D to NesButton.DPAD_RIGHT,
+            KeyEvent.KEYCODE_A to NesButton.DPAD_LEFT,
+            KeyEvent.KEYCODE_S to NesButton.DPAD_DOWN,
+            KeyEvent.KEYCODE_W to NesButton.DPAD_UP,
+            KeyEvent.KEYCODE_I to NesButton.START,
+            KeyEvent.KEYCODE_U to NesButton.SELECT,
+            KeyEvent.KEYCODE_K to NesButton.A,
+            KeyEvent.KEYCODE_J to NesButton.B,
+
+            // Controller
             KeyEvent.KEYCODE_DPAD_RIGHT to NesButton.DPAD_RIGHT,
             KeyEvent.KEYCODE_DPAD_LEFT to NesButton.DPAD_LEFT,
             KeyEvent.KEYCODE_DPAD_DOWN to NesButton.DPAD_DOWN,
