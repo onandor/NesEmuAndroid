@@ -11,6 +11,7 @@ import com.onandor.nesemu.input.NesButton
 import com.onandor.nesemu.input.NesButtonState
 import com.onandor.nesemu.input.NesInputManager
 import com.onandor.nesemu.navigation.NavAction
+import com.onandor.nesemu.navigation.NavDestinations
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,7 +31,8 @@ class GameViewModel @Inject constructor(
 
     data class UiState(
         val errorMessage: String? = null,
-        val emulationPaused: Boolean = false
+        val emulationPaused: Boolean = false,
+        val showPauseMenu: Boolean = false
     )
 
     sealed class Event {
@@ -40,7 +42,10 @@ class GameViewModel @Inject constructor(
         data class OnButtonStateChanged(val button: NesButton, val state: NesButtonState) : Event()
         data class OnDpadStateChanged(val buttonStates: Map<NesButton, NesButtonState>) : Event()
         object OnErrorMessageToastShown : Event()
-        data class OnSetEmulationPaused(val paused: Boolean) : Event()
+
+        object OnShowPauseMenuDialog : Event()
+        object OnHidePauseMenuDialog : Event()
+        object OnResetConsole : Event()
     }
 
     val buttonStateMap = mutableMapOf<NesButton, NesButtonState>(
@@ -61,6 +66,7 @@ class GameViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     private var inputManagerEventJob: Job? = null
+    private var navManagerJob: Job? = null
 
     private val emulationListener = object : EmulationListener {
 
@@ -77,6 +83,7 @@ class GameViewModel @Inject constructor(
 
     init {
         inputManagerEventJob = collectInputManagerEvents()
+        navManagerJob = collectNavigationEvents()
         emulator.registerListener(emulationListener)
 
         try {
@@ -105,23 +112,41 @@ class GameViewModel @Inject constructor(
                 inputManager.onInputEvents(
                     NesInputManager.VIRTUAL_CONTROLLER_DEVICE_ID, event.buttonStates)
             }
-            Event.OnErrorMessageToastShown -> {
+            is Event.OnErrorMessageToastShown -> {
                 _uiState.update { it.copy(errorMessage = null) }
-            }
-            is Event.OnNavigateTo -> {
-                setEmulationPaused(true)
-                navManager.navigateTo(event.action)
-            }
-            is Event.OnNavigateBack -> {
-                navManager.navigateBack()
             }
             is Event.OnRenderCallbackCreated -> {
                 this.requestRender = event.requestRender
             }
-            is Event.OnSetEmulationPaused -> {
-                setEmulationPaused(event.paused)
+
+            // Pause menu events
+            is Event.OnNavigateTo -> {
+                hidePauseMenu()
+                setEmulationPaused(true)
+                navManager.navigateTo(event.action)
+            }
+            is Event.OnNavigateBack -> {
+                hidePauseMenu()
+                navManager.navigateBack()
+            }
+            is Event.OnShowPauseMenuDialog -> {
+                _uiState.update { it.copy(showPauseMenu = true) }
+                setEmulationPaused(true)
+            }
+            is Event.OnHidePauseMenuDialog -> {
+                hidePauseMenu()
+                setEmulationPaused(false)
+            }
+            is Event.OnResetConsole -> {
+                hidePauseMenu()
+                emulator.reset()
+                _uiState.update { it.copy(emulationPaused = false) }
             }
         }
+    }
+
+    private fun hidePauseMenu() {
+        _uiState.update { it.copy(showPauseMenu = false) }
     }
 
     private fun setEmulationPaused(paused: Boolean) {
@@ -137,15 +162,29 @@ class GameViewModel @Inject constructor(
         inputManager.events.collect { event ->
             when (event) {
                 is NesInputManager.Event.OnPauseButtonPressed -> {
-                    val paused = _uiState.value.emulationPaused
-                    setEmulationPaused(!paused)
+                    if (!_uiState.value.showPauseMenu) {
+                        onEvent(Event.OnShowPauseMenuDialog)
+                    } else {
+                        onEvent(Event.OnHidePauseMenuDialog)
+                    }
                 }
+            }
+        }
+    }
+
+    private fun collectNavigationEvents(): Job = CoroutineScope(Dispatchers.IO).launch {
+        navManager.navActions.collect { navAction ->
+            if (navAction?.destination == NavDestinations.BACK
+                && navManager.getCurrentRoute() == NavDestinations.GAME_SCREEN
+                && emulator.nes.running == false) {
+                setEmulationPaused(false)
             }
         }
     }
 
     override fun onCleared() {
         inputManagerEventJob?.cancel()
+        navManagerJob?.cancel()
         emulator.pauseAudioStream()
         emulator.stop()
         emulator.unregisterListener(emulationListener)

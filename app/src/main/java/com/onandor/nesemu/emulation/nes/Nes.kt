@@ -43,7 +43,8 @@ class Nes(
     private val audioSampleSizeQueue = SlidingWindowIntQueue(100)
     private var targetAudioBufferSize: Int = 0
 
-    private var running: Boolean = true
+    var running: Boolean = true
+        private set
     private var isFrameReady: Boolean = false
     private var numFrames: Int = 0
     var fps: Float = 0f
@@ -212,6 +213,7 @@ class Nes(
         cpu.reset()
         ppu.reset()
         apu.reset()
+        cartridge!!.reset()
     }
 
     suspend fun run() {

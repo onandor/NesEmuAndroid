@@ -67,6 +67,22 @@ class Cartridge {
     var isPrgRamBatteryBacked: Boolean = false
         private set
 
+    private lateinit var initialPrgRom: IntArray
+    private lateinit var initialChrRom: IntArray
+
+    fun reset() {
+        prgRom = initialPrgRom.copyOf()
+        if (chrRomBanks > 0) {
+            chrRom = initialChrRom.copyOf()
+        }
+        if (prgRam != null) {
+            prgRam = IntArray(prgRam!!.size)
+        }
+        if (chrRam != null) {
+            chrRam = IntArray(chrRam!!.size)
+        }
+    }
+
     fun parseRom(rom: ByteArray) {
         val stream = rom.inputStream()
         val romFormat = getRomFormat(stream)
@@ -81,6 +97,11 @@ class Cartridge {
                 Log.d(TAG, "\tformat: NES 2.0")
                 val header = parseNes2Header(stream)
                 prepareCartridge(header, stream)
+            }
+
+            initialPrgRom = prgRom.copyOf()
+            if (chrRomBanks > 0) {
+                initialChrRom = chrRom.copyOf()
             }
         } finally {
             stream.close()

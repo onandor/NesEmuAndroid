@@ -53,12 +53,17 @@ class Emulator @Inject constructor(private val inputManager: NesInputManager) {
     }
 
     fun start() {
-        nesRunnerJob = CoroutineScope(Dispatchers.Default).launch {
-            nes.run()
+        if (!nes.running) {
+            nesRunnerJob = CoroutineScope(Dispatchers.Default).launch {
+                nes.run()
+            }
         }
     }
 
     fun reset() {
+        if (nes.running) {
+            stop()
+        }
         nes.reset()
         start()
     }
