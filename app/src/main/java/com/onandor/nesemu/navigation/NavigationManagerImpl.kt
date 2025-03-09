@@ -10,48 +10,48 @@ import java.util.Stack
 
 class NavigationManagerImpl : NavigationManager {
 
-    private val mNavActions: MutableSharedFlow<NavAction?> by lazy { MutableSharedFlow() }
-    override val navActions: SharedFlow<NavAction?> = mNavActions.asSharedFlow()
-    private val mBackStack: Stack<NavAction> = Stack()
-    private var mCurrentRoute: String = ""
+    private val _navActions: MutableSharedFlow<NavAction?> by lazy { MutableSharedFlow() }
+    override val navActions: SharedFlow<NavAction?> = _navActions.asSharedFlow()
+    private val backStack: Stack<NavAction> = Stack()
+    private var currentRoute: String = ""
 
     init {
-        mBackStack.push(NavActions.main())
-        mCurrentRoute = NavActions.main().destination
+        backStack.push(NavActions.main())
+        currentRoute = NavActions.main().destination
     }
 
     override fun navigateTo(navAction: NavAction?) {
         navAction?.let {
             if (navAction.navOptions.popUpToId == 0) {
-                mBackStack.clear()
+                backStack.clear()
             }
-            mBackStack.push(navAction)
-            mCurrentRoute = navAction.destination
+            backStack.push(navAction)
+            currentRoute = navAction.destination
             CoroutineScope(Dispatchers.Main).launch {
-                mNavActions.emit(navAction)
+                _navActions.emit(navAction)
             }
         }
     }
 
     override fun navigateBack() {
-        if (mBackStack.isEmpty()) {
+        if (backStack.isEmpty()) {
             return
         }
-        mBackStack.pop()
-        mCurrentRoute = mBackStack.peek().destination
+        backStack.pop()
+        currentRoute = backStack.peek().destination
         CoroutineScope(Dispatchers.Main).launch {
-            mNavActions.emit(NavActions.back())
+            _navActions.emit(NavActions.back())
         }
     }
 
     override fun getCurrentRoute(): String {
-        return mCurrentRoute
+        return currentRoute
     }
 
     override fun getCurrentNavAction(): NavAction? {
-        if (mBackStack.isEmpty()) {
+        if (backStack.isEmpty()) {
             return null
         }
-        return mBackStack.peek()
+        return backStack.peek()
     }
 }
