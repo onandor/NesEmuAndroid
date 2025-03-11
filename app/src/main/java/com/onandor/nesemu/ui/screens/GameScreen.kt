@@ -279,7 +279,9 @@ private fun PauseMenuDialog(
     TitleDialog(
         modifier = Modifier.onKeyEvent {
             val event = it.nativeKeyEvent
-            if (event.keyCode == KeyEvent.KEYCODE_ESCAPE && event.action == KeyEvent.ACTION_UP) {
+            if (event.action == KeyEvent.ACTION_UP
+                && (event.keyCode == KeyEvent.KEYCODE_ESCAPE
+                        || event.keyCode == KeyEvent.KEYCODE_BUTTON_MODE)) {
                 onEvent(Event.OnHidePauseMenuDialog)
             }
             true

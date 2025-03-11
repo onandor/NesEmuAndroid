@@ -162,6 +162,9 @@ class GameViewModel @Inject constructor(
         inputManager.events.collect { event ->
             when (event) {
                 is NesInputManager.Event.OnPauseButtonPressed -> {
+                    if (navManager.getCurrentRoute() != NavDestinations.GAME_SCREEN) {
+                        return@collect
+                    }
                     if (!_uiState.value.showPauseMenu) {
                         onEvent(Event.OnShowPauseMenuDialog)
                     } else {

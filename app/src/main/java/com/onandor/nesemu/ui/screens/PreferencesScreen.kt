@@ -16,8 +16,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -27,7 +29,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -67,7 +72,13 @@ fun PreferencesScreen(
                         fontWeight = FontWeight.SemiBold
                     )
                 },
-                subText = { InputDeviceText(uiState.controller1Device?.name ?: "not connected") },
+                subText = {
+                    InputDeviceText(
+                        deviceName = uiState.controller1Device?.name ?: "not connected",
+                        available = uiState.controller1Device == null ||
+                                uiState.controller1Device!!.id != null
+                    )
+                },
                 displayItem = {
                     InputDeviceIcon(
                         modifier = Modifier.size(35.dp),
@@ -89,7 +100,13 @@ fun PreferencesScreen(
                         overflow = TextOverflow.Ellipsis
                     )
                 },
-                subText = { InputDeviceText(uiState.controller2Device?.name ?: "not connected") },
+                subText = {
+                    InputDeviceText(
+                        deviceName = uiState.controller2Device?.name ?: "not connected",
+                        available = uiState.controller2Device == null ||
+                                uiState.controller2Device!!.id != null
+                    )
+                },
                 displayItem = {
                     InputDeviceIcon(
                         modifier = Modifier.size(35.dp),
@@ -160,10 +177,16 @@ private fun DeviceSelectionDialog(
                     ClickableListItem(
                         modifier = Modifier.height(70.dp),
                         onClick = { onEvent(Event.OnDeviceSelected(controllerId, device)) },
-                        mainText = { InputDeviceText(device.name) },
+                        mainText = { InputDeviceText(device.name, true) },
                         displayItem = { InputDeviceIcon(device = device) }
                     )
                 }
+                HorizontalDivider()
+                ClickableListItem(
+                    modifier = Modifier.height(70.dp),
+                    onClick = { onEvent(Event.OnDeviceSelected(controllerId, null)) },
+                    mainText = { InputDeviceText("None", true) }
+                )
             }
         }
     }
@@ -186,10 +209,20 @@ private fun InputDeviceIcon(modifier: Modifier = Modifier, device: NesInputDevic
 }
 
 @Composable
-private fun InputDeviceText(deviceName: String) {
-    Text(
-        text = deviceName,
-        maxLines = 2,
-        overflow = TextOverflow.Ellipsis
-    )
+private fun InputDeviceText(deviceName: String, available: Boolean) {
+    if (available) {
+        Text(
+            text = deviceName,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+    } else {
+        Text(
+            text = deviceName,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textDecoration = TextDecoration.LineThrough,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+        )
+    }
 }

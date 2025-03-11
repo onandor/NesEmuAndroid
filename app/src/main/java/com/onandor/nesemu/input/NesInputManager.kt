@@ -4,6 +4,8 @@ import android.hardware.input.InputManager
 import android.util.Log
 import android.view.InputDevice
 import android.view.KeyEvent
+import com.onandor.nesemu.di.IODispatcher
+import com.onandor.nesemu.preferences.PreferenceManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -13,7 +15,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class NesInputManager(private val inputManager: InputManager) {
+class NesInputManager(
+    private val inputManager: InputManager,
+    private val prefManager: PreferenceManager,
+    @IODispatcher private val coroutineScope: CoroutineScope
+) {
 
     data class State(
         val availableDevices: List<NesInputDevice> = emptyList(),
@@ -22,7 +28,7 @@ class NesInputManager(private val inputManager: InputManager) {
     )
 
     sealed class Event {
-        data class OnPauseButtonPressed(val device: NesInputDevice) : Event()
+        object OnPauseButtonPressed : Event()
     }
 
     private val availableDevicesMap = mutableMapOf<Int, NesInputDevice>()
@@ -48,7 +54,12 @@ class NesInputManager(private val inputManager: InputManager) {
                 return
             }
             createNesInputDevice(device)?.let {
-                availableDevicesMap.put(it.id, it)
+                availableDevicesMap.put(it.id!!, it)
+                if (controller1Device?.descriptor == it.descriptor) {
+                    controller1Device = it
+                } else if (controller2Device?.descriptor == it.descriptor) {
+                    controller2Device = it
+                }
                 updateState()
             }
             Log.d(TAG, "Input device added: ${device.name} (id: $deviceId)")
@@ -58,11 +69,12 @@ class NesInputManager(private val inputManager: InputManager) {
             val nesDevice = availableDevicesMap.remove(deviceId)
             nesDevice?.let {
                 if (controller1Device == it) {
-                    controller1Device = null
+                    controller1Device = controller1Device?.copy(id = null)
                 } else if (controller2Device == it) {
-                    controller2Device = null
+                    controller2Device = controller2Device?.copy(id = null)
                 }
                 updateState()
+                saveState()
             }
             Log.d(TAG, "Input device removed: ${nesDevice?.name} (id: ${nesDevice?.id})")
         }
@@ -71,8 +83,8 @@ class NesInputManager(private val inputManager: InputManager) {
     }
 
     init {
-        controller1Device = VIRTUAL_CONTROLLER
         refreshAvailableDevices()
+        loadPreferences()
     }
 
     private fun createNesInputDevice(device: InputDevice): NesInputDevice? {
@@ -110,7 +122,7 @@ class NesInputManager(private val inputManager: InputManager) {
 
     private fun refreshAvailableDevices() {
         availableDevicesMap.clear()
-        availableDevicesMap.put(VIRTUAL_CONTROLLER.id, VIRTUAL_CONTROLLER)
+        availableDevicesMap.put(VIRTUAL_CONTROLLER.id!!, VIRTUAL_CONTROLLER)
 
         val deviceIds = InputDevice.getDeviceIds()
 
@@ -120,37 +132,62 @@ class NesInputManager(private val inputManager: InputManager) {
                 continue
             }
 
-            createNesInputDevice(device)?.let { availableDevicesMap.put(it.id, it) }
+            createNesInputDevice(device)?.let { availableDevicesMap.put(it.id!!, it) }
         }
 
-        if (!availableDevicesMap.contains(controller1Device?.id)) {
-            controller1Device = null
+        // Updating the devices if they become connected/disconnected while the app is in the
+        // background
+        if (controller1Device?.id != null && !availableDevicesMap.contains(controller1Device?.id)) {
+            controller1Device = controller1Device?.copy(id = null)
+        } else {
+            val device = availableDevicesMap.values
+                .filter { it.descriptor == controller1Device?.descriptor }
+                .firstOrNull()
+            if (device != null) {
+                controller1Device = device
+            }
         }
-        if (!availableDevicesMap.contains(controller2Device?.id)) {
-            controller2Device = null
+
+        if (controller2Device?.id != null && !availableDevicesMap.contains(controller2Device?.id)) {
+            controller2Device = controller2Device?.copy(id = null)
+        } else {
+            val device = availableDevicesMap.values
+                .filter { it.descriptor == controller2Device?.descriptor }
+                .firstOrNull()
+            if (device != null) {
+                controller2Device = device
+            }
         }
 
         updateState()
+        saveState()
     }
 
-    fun setInputDevice(controllerId: Int, device: NesInputDevice) {
-        if (!availableDevicesMap.contains(device.id)) {
-            return
-        }
-
-        if (controllerId == CONTROLLER_1) {
-            controller1Device = device
-            if (controller2Device == device) {
+    fun setInputDevice(controllerId: Int, device: NesInputDevice?) {
+        if (device == null) {
+            if (controllerId == CONTROLLER_1) {
+                controller1Device = null
+            } else {
                 controller2Device = null
             }
+        } else if (!availableDevicesMap.contains(device.id)) {
+            return
         } else {
-            controller2Device = device
-            if (controller1Device == device) {
-                controller1Device = null
+            if (controllerId == CONTROLLER_1) {
+                controller1Device = device
+                if (controller2Device == device) {
+                    controller2Device = null
+                }
+            } else {
+                controller2Device = device
+                if (controller1Device == device) {
+                    controller1Device = null
+                }
             }
         }
 
         updateState()
+        saveState()
     }
 
     fun onInputEvents(deviceId: Int, buttonStates: Map<NesButton, NesButtonState>) {
@@ -193,10 +230,38 @@ class NesInputManager(private val inputManager: InputManager) {
         if (event.action == KeyEvent.ACTION_UP
             && (event.keyCode == KeyEvent.KEYCODE_BUTTON_MODE
                     || event.keyCode == KeyEvent.KEYCODE_ESCAPE)) {
-            emitEvent(Event.OnPauseButtonPressed(availableDevicesMap[event.deviceId]!!))
+            emitEvent(Event.OnPauseButtonPressed)
             return true
         }
         return false
+    }
+
+    private fun loadPreferences() = coroutineScope.launch {
+        controller1Device = prefManager.getController1Device()
+        controller2Device = prefManager.getController2Device()
+
+        controller1Device?.let { controllerDevice ->
+            val device = availableDevicesMap.values
+                .filter { it.descriptor == controllerDevice.descriptor }
+                .firstOrNull()
+            if (device != null) {
+                controller1Device = device
+            }
+        }
+        controller2Device?.let { controllerDevice ->
+            val device = availableDevicesMap.values
+                .filter { it.descriptor == controllerDevice.descriptor }
+                .firstOrNull()
+            if (device != null) {
+                controller2Device = device
+            }
+        }
+
+        if (controller1Device == null && controller2Device == null) {
+            controller1Device = VIRTUAL_CONTROLLER
+        }
+
+        updateState()
     }
 
     fun registerListener() {
@@ -231,6 +296,10 @@ class NesInputManager(private val inputManager: InputManager) {
                 controller2Device = controller2Device
             )
         }
+    }
+
+    private fun saveState() = coroutineScope.launch {
+        prefManager.updateControllerDevices(controller1Device, controller2Device)
     }
 
     private fun initControllerButtons(): MutableMap<NesButton, NesButtonState> {

@@ -1,9 +1,43 @@
+import org.gradle.internal.extensions.stdlib.capitalized
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.dagger.hilt)
     alias(libs.plugins.google.ksp)
+    alias(libs.plugins.google.protobuf)
+}
+
+// Workaround for a KSP build issue (from 2023!!) - https://github.com/google/ksp/issues/1590
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        afterEvaluate {
+            val capName = variant.name.capitalized()
+            tasks.getByName<KotlinCompile>("ksp${capName}Kotlin") {
+                setSource(tasks.getByName("generate${capName}Proto").outputs)
+            }
+        }
+    }
+}
+
+protobuf {
+    protoc {
+        artifact = libs.google.protobuf.protoc.get().toString()
+    }
+    generateProtoTasks {
+        all().configureEach {
+            builtins {
+                register("java") {
+                    option("lite")
+                }
+                register("kotlin") {
+                    option("lite")
+                }
+            }
+        }
+    }
 }
 
 android {
@@ -79,6 +113,11 @@ dependencies {
     ksp(libs.hilt.android.compiler)
     // DataStore
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.datastore)
+    implementation(libs.androidx.datastore.core)
+    // Protobuf
+    implementation(libs.google.protobuf.javalite)
+    implementation(libs.google.protobuf.kotlin.lite)
     // Gson
     implementation(libs.google.code.gson)
     // Oboe

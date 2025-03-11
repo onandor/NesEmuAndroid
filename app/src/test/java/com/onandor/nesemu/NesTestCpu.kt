@@ -23,7 +23,7 @@ class NesTestCpu {
         private const val NUM_TEST_INSTRUCTIONS = 8991
     }
 
-    private val nes = Nes()
+    private val nes = Nes({ a, b, c, d -> }, { 0 }, { 0 })
     private val traceList = mutableListOf<String>()
 
     private fun createNesTestTrace(PC: Int, SP: Int, A: Int, X: Int, Y: Int, PS: Int, cycles: Int) {

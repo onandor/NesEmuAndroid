@@ -1,0 +1,26 @@
+syntax = "proto3";
+package nesemu;
+
+option java_package = "com.onandor.nesemu.preferences.proto";
+option java_multiple_files = true;
+
+message Preferences {
+  InputPreferences inputPreferences = 1;
+}
+
+message InputPreferences {
+  optional InputDevicePref controller1Device = 1;
+  optional InputDevicePref controller2Device = 2;
+}
+
+message InputDevicePref {
+  string name = 1;
+  string descriptor = 2;
+  InputDeviceTypePref type = 3;
+
+  enum InputDeviceTypePref {
+    CONTROLLER = 0;
+    VIRTUAL_CONTROLLER = 1;
+    KEYBOARD = 2;
+  }
+}

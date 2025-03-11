@@ -1,4 +1,4 @@
-package com.onandor.nesemu.util
+package com.onandor.nesemu.preferences
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -11,23 +11,16 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
-object Preferences {
-    object Input {
-        val CONTROLLER_1_DESCRIPTOR = stringPreferencesKey("input.controller_1_descriptor")
-        val CONTROLLER_2_DESCRIPTOR = stringPreferencesKey("input.controller_2_descriptor")
-    }
-}
-
 class PreferenceStore @Inject constructor(
     private val dataStore: DataStore<Preferences>
 ) {
-    fun <T> observe(key: Preferences.Key<T>, missingValue: T): Flow<T> {
+    fun <T> observe(key: Preferences.Key<T>, missingValue: T?): Flow<T?> {
         return dataStore.data
             .catch { emit(emptyPreferences()) }
             .map { prefs -> prefs[key] ?: missingValue }
     }
 
-    suspend fun <T> get(key: Preferences.Key<T>, missingValue: T): T {
+    suspend fun <T> get(key: Preferences.Key<T>, missingValue: T?): T? {
         return observe(key, missingValue).first()
     }
 
