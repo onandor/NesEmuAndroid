@@ -290,29 +290,24 @@ private fun PauseMenuDialog(
         onDismissRequest = { onEvent(Event.OnHidePauseMenuDialog) }
     ) {
         ClickableListItem(
-            modifier = Modifier.height(70.dp),
             onClick = { onEvent(Event.OnHidePauseMenuDialog) },
             mainText = { Text("Resume") }
         )
         HorizontalDivider()
         ClickableListItem(
-            modifier = Modifier.height(70.dp),
             onClick = { onEvent(Event.OnNavigateTo(NavActions.preferencesScreen())) },
             mainText = { Text("Preferences") }
         )
         ClickableListItem(
-            modifier = Modifier.height(70.dp),
             onClick = { onEvent(Event.OnNavigateTo(NavActions.debugScreen())) },
             mainText = { Text("Debug view") }
         )
         HorizontalDivider()
         ClickableListItem(
-            modifier = Modifier.height(70.dp),
             onClick = { onEvent(Event.OnResetConsole) },
             mainText = { Text("Reset console") }
         )
         ClickableListItem(
-            modifier = Modifier.height(70.dp),
             onClick = { onEvent(Event.OnNavigateBack) },
             mainText = { Text("Quit game") }
         )

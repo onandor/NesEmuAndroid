@@ -1,6 +1,7 @@
 package com.onandor.nesemu.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -28,11 +30,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,6 +47,10 @@ import com.onandor.nesemu.ui.components.ClickableListItem
 import com.onandor.nesemu.viewmodels.PreferencesViewModel
 import com.onandor.nesemu.viewmodels.PreferencesViewModel.Event
 import com.onandor.nesemu.R
+import com.onandor.nesemu.ui.components.ListDropdownMenu
+import com.onandor.nesemu.ui.components.SelectionType
+import com.onandor.nesemu.ui.components.ToggleButton
+import com.onandor.nesemu.ui.components.ToggleButtonOption
 
 @Composable
 fun PreferencesScreen(
@@ -59,60 +65,20 @@ fun PreferencesScreen(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
         ) {
-            ClickableListItem(
-                onClick = {
-                    viewModel
-                        .onEvent(Event.OnOpenDeviceSelectionDialog(NesInputManager.CONTROLLER_1))
-                },
-                mainText = {
-                    Text(
-                        text = "Controller 1",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                },
-                subText = {
-                    InputDeviceText(
-                        deviceName = uiState.controller1Device?.name ?: "not connected",
-                        available = uiState.controller1Device == null ||
-                                uiState.controller1Device!!.id != null
-                    )
-                },
-                displayItem = {
-                    InputDeviceIcon(
-                        modifier = Modifier.size(35.dp),
-                        device = uiState.controller1Device
-                    )
-                }
+            InputDeviceSelection(
+                controller1Device = uiState.controller1Device,
+                controller2Device = uiState.controller2Device,
+                onEvent = viewModel::onEvent
             )
-            ClickableListItem(
-                onClick = {
-                    viewModel
-                        .onEvent(Event.OnOpenDeviceSelectionDialog(NesInputManager.CONTROLLER_2))
-                },
-                mainText = {
-                    Text(
-                        text = "Controller 2",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                },
-                subText = {
-                    InputDeviceText(
-                        deviceName = uiState.controller2Device?.name ?: "not connected",
-                        available = uiState.controller2Device == null ||
-                                uiState.controller2Device!!.id != null
-                    )
-                },
-                displayItem = {
-                    InputDeviceIcon(
-                        modifier = Modifier.size(35.dp),
-                        device = uiState.controller2Device
-                    )
-                }
+            HorizontalDivider()
+            ButtonMapping(
+                controllerId = uiState.buttonMappingControllerId,
+                inputDeviceType = uiState.buttonMappingDeviceType,
+                controllerDropdownExpanded = uiState.controllerDropdownExpanded,
+                inputDeviceDropdownExpanded = uiState.inputDeviceDropdownExpanded,
+                onEvent = viewModel::onEvent
             )
         }
     }
@@ -128,6 +94,153 @@ fun PreferencesScreen(
     BackHandler {
         viewModel.onEvent(Event.OnNavigateBack)
     }
+}
+
+@Composable
+private fun InputDeviceSelection(
+    controller1Device: NesInputDevice?,
+    controller2Device: NesInputDevice?,
+    onEvent: (Event) -> Unit
+) {
+    ClickableListItem(
+        onClick = { onEvent(Event.OnOpenDeviceSelectionDialog(NesInputManager.CONTROLLER_1)) },
+        mainText = {
+            Text(
+                text = "Controller 1",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        },
+        subText = {
+            InputDeviceText(
+                deviceName = controller1Device?.name ?: "not connected",
+                available = controller1Device == null || controller1Device.id != null
+            )
+        },
+        displayItem = {
+            InputDeviceIcon(
+                modifier = Modifier.size(35.dp),
+                device = controller1Device
+            )
+        }
+    )
+    ClickableListItem(
+        onClick = { onEvent(Event.OnOpenDeviceSelectionDialog(NesInputManager.CONTROLLER_2)) },
+        mainText = {
+            Text(
+                text = "Controller 2",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        },
+        subText = {
+            InputDeviceText(
+                deviceName = controller2Device?.name ?: "not connected",
+                available = controller2Device == null || controller2Device.id != null
+            )
+        },
+        displayItem = {
+            InputDeviceIcon(
+                modifier = Modifier.size(35.dp),
+                device = controller2Device
+            )
+        }
+    )
+}
+
+@Composable
+private fun ButtonMapping(
+    controllerId: Int,
+    inputDeviceType: NesInputDeviceType,
+    controllerDropdownExpanded: Boolean,
+    inputDeviceDropdownExpanded: Boolean,
+    onEvent: (Event) -> Unit
+) {
+    Image(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(20.dp),
+        painter = painterResource(R.drawable.nes_controller),
+        contentDescription = null,
+        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
+        contentScale = ContentScale.FillWidth
+    )
+
+    ClickableListItem(
+        onClick = { onEvent(Event.OnControllerDropdownStateChanged(true)) },
+        mainText = {
+            Text(
+                text = "NES controller",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        },
+        subText = {
+            val text = if (controllerId == NesInputManager.CONTROLLER_1) {
+                "Controller 1"
+            } else {
+                "Controller 2"
+            }
+            Text(text)
+        },
+        displayItem = {
+            ListDropdownMenu(
+                expanded = controllerDropdownExpanded,
+                onDismissRequest = { onEvent(Event.OnControllerDropdownStateChanged(false)) }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Controller 1") },
+                    onClick = {
+                        onEvent(Event.OnButtonMappingControllerIdChanged(NesInputManager.CONTROLLER_1))
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Controller 2") },
+                    onClick = {
+                        onEvent(Event.OnButtonMappingControllerIdChanged(NesInputManager.CONTROLLER_2))
+                    }
+                )
+            }
+        }
+    )
+
+    ClickableListItem(
+        onClick = { onEvent(Event.OnInputDeviceDropdownStateChanged(true)) },
+        mainText = {
+            Text(
+                text = "Input device type",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        },
+        subText = {
+            val text = if (inputDeviceType == NesInputDeviceType.CONTROLLER) {
+                "Controller"
+            } else {
+                "Keyboard"
+            }
+            Text(text)
+        },
+        displayItem = {
+            ListDropdownMenu(
+                expanded = inputDeviceDropdownExpanded,
+                onDismissRequest = { onEvent(Event.OnInputDeviceDropdownStateChanged(false)) }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Controller") },
+                    onClick = {
+                        onEvent(Event.OnButtonMappingDeviceTypeChanged(NesInputDeviceType.CONTROLLER))
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Keyboard") },
+                    onClick = {
+                        onEvent(Event.OnButtonMappingDeviceTypeChanged(NesInputDeviceType.VIRTUAL_CONTROLLER))
+                    }
+                )
+            }
+        }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -175,7 +288,6 @@ private fun DeviceSelectionDialog(
             ) {
                 availableDevices.forEach { device ->
                     ClickableListItem(
-                        modifier = Modifier.height(70.dp),
                         onClick = { onEvent(Event.OnDeviceSelected(controllerId, device)) },
                         mainText = { InputDeviceText(device.name, true) },
                         displayItem = { InputDeviceIcon(device = device) }
@@ -183,7 +295,6 @@ private fun DeviceSelectionDialog(
                 }
                 HorizontalDivider()
                 ClickableListItem(
-                    modifier = Modifier.height(70.dp),
                     onClick = { onEvent(Event.OnDeviceSelected(controllerId, null)) },
                     mainText = { InputDeviceText("None", true) }
                 )

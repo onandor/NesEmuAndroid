@@ -26,6 +26,7 @@ class MainViewModel @Inject constructor(
     sealed class Event {
         data class OnRomSelected(val inputStream: InputStream) : Event()
         object OnErrorMessageToastShown : Event()
+        object OnNavigateToPreferences : Event()
     }
 
     private val _uiState = MutableStateFlow(UiState())
@@ -38,6 +39,9 @@ class MainViewModel @Inject constructor(
             }
             Event.OnErrorMessageToastShown -> {
                 _uiState.update { it.copy(errorMessage = null) }
+            }
+            Event.OnNavigateToPreferences -> {
+                navManager.navigateTo(NavActions.preferencesScreen())
             }
         }
     }

@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -59,6 +60,7 @@ fun ClickableListItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .defaultMinSize(minHeight = 70.dp)
             .clickable { onClick() }
             .padding(top = 10.dp, bottom = 10.dp, start = 25.dp, end = 25.dp),
         horizontalArrangement = Arrangement.SpaceBetween,

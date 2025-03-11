@@ -72,6 +72,9 @@ fun MainScreen(
                     fontSize = 20.sp
                 )
             }
+            Button(onClick = { viewModel.onEvent(Event.OnNavigateToPreferences) }) {
+                Text("Preferences")
+            }
             Spacer(modifier = Modifier.height(200.dp))
         }
     }
