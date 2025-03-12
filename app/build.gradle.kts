@@ -122,4 +122,6 @@ dependencies {
     implementation(libs.google.code.gson)
     // Oboe
     implementation(libs.google.oboe)
+    // guava
+    implementation(libs.google.guava)
 }

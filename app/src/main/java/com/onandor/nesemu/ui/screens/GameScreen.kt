@@ -50,7 +50,7 @@ import com.onandor.nesemu.viewmodels.GameViewModel
 import com.onandor.nesemu.viewmodels.GameViewModel.Event
 import com.onandor.nesemu.R
 import com.onandor.nesemu.navigation.NavActions
-import com.onandor.nesemu.ui.components.ClickableListItem
+import com.onandor.nesemu.ui.components.ListItem
 import com.onandor.nesemu.ui.components.TitleDialog
 
 @Composable
@@ -289,25 +289,25 @@ private fun PauseMenuDialog(
         text = "Menu",
         onDismissRequest = { onEvent(Event.OnHidePauseMenuDialog) }
     ) {
-        ClickableListItem(
+        ListItem(
             onClick = { onEvent(Event.OnHidePauseMenuDialog) },
             mainText = { Text("Resume") }
         )
         HorizontalDivider()
-        ClickableListItem(
+        ListItem(
             onClick = { onEvent(Event.OnNavigateTo(NavActions.preferencesScreen())) },
             mainText = { Text("Preferences") }
         )
-        ClickableListItem(
+        ListItem(
             onClick = { onEvent(Event.OnNavigateTo(NavActions.debugScreen())) },
             mainText = { Text("Debug view") }
         )
         HorizontalDivider()
-        ClickableListItem(
+        ListItem(
             onClick = { onEvent(Event.OnResetConsole) },
             mainText = { Text("Reset console") }
         )
-        ClickableListItem(
+        ListItem(
             onClick = { onEvent(Event.OnNavigateBack) },
             mainText = { Text("Quit game") }
         )

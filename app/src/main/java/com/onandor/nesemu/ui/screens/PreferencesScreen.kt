@@ -1,5 +1,6 @@
 package com.onandor.nesemu.ui.screens
 
+import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -31,8 +32,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,14 +46,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.onandor.nesemu.input.NesInputDevice
 import com.onandor.nesemu.input.NesInputDeviceType
 import com.onandor.nesemu.input.NesInputManager
-import com.onandor.nesemu.ui.components.ClickableListItem
+import com.onandor.nesemu.ui.components.ListItem
 import com.onandor.nesemu.viewmodels.PreferencesViewModel
 import com.onandor.nesemu.viewmodels.PreferencesViewModel.Event
 import com.onandor.nesemu.R
+import com.onandor.nesemu.input.ButtonMapping
+import com.onandor.nesemu.input.NesButton
 import com.onandor.nesemu.ui.components.ListDropdownMenu
-import com.onandor.nesemu.ui.components.SelectionType
-import com.onandor.nesemu.ui.components.ToggleButton
-import com.onandor.nesemu.ui.components.ToggleButtonOption
+import com.onandor.nesemu.ui.components.TitleDialog
 
 @Composable
 fun PreferencesScreen(
@@ -68,26 +71,33 @@ fun PreferencesScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             InputDeviceSelection(
-                controller1Device = uiState.controller1Device,
-                controller2Device = uiState.controller2Device,
+                controller1Device = uiState.player1Device,
+                controller2Device = uiState.player2Device,
                 onEvent = viewModel::onEvent
             )
             HorizontalDivider()
             ButtonMapping(
-                controllerId = uiState.buttonMappingControllerId,
+                playerId = uiState.buttonMappingPlayerId,
                 inputDeviceType = uiState.buttonMappingDeviceType,
                 controllerDropdownExpanded = uiState.controllerDropdownExpanded,
                 inputDeviceDropdownExpanded = uiState.inputDeviceDropdownExpanded,
+                currentMapping = uiState.displayedButtonMapping,
                 onEvent = viewModel::onEvent
             )
         }
     }
 
-    if (uiState.deviceSelectionControllerId != null) {
+    if (uiState.deviceSelectionPlayerId != null) {
         DeviceSelectionDialog(
-            controllerId = uiState.deviceSelectionControllerId!!,
+            playerId = uiState.deviceSelectionPlayerId!!,
             availableDevices = uiState.availableDevices,
-            onEvent = { viewModel.onEvent(it) }
+            onEvent = viewModel::onEvent
+        )
+    }
+
+    if (uiState.editedButton != null) {
+        EditButtonMappingDialog(
+            onEvent = viewModel::onEvent
         )
     }
 
@@ -102,8 +112,8 @@ private fun InputDeviceSelection(
     controller2Device: NesInputDevice?,
     onEvent: (Event) -> Unit
 ) {
-    ClickableListItem(
-        onClick = { onEvent(Event.OnOpenDeviceSelectionDialog(NesInputManager.CONTROLLER_1)) },
+    ListItem(
+        onClick = { onEvent(Event.OnOpenDeviceSelectionDialog(NesInputManager.PLAYER_1)) },
         mainText = {
             Text(
                 text = "Controller 1",
@@ -124,8 +134,8 @@ private fun InputDeviceSelection(
             )
         }
     )
-    ClickableListItem(
-        onClick = { onEvent(Event.OnOpenDeviceSelectionDialog(NesInputManager.CONTROLLER_2)) },
+    ListItem(
+        onClick = { onEvent(Event.OnOpenDeviceSelectionDialog(NesInputManager.PLAYER_2)) },
         mainText = {
             Text(
                 text = "Controller 2",
@@ -150,10 +160,11 @@ private fun InputDeviceSelection(
 
 @Composable
 private fun ButtonMapping(
-    controllerId: Int,
+    playerId: Int,
     inputDeviceType: NesInputDeviceType,
     controllerDropdownExpanded: Boolean,
     inputDeviceDropdownExpanded: Boolean,
+    currentMapping: Map<NesButton, Int>,
     onEvent: (Event) -> Unit
 ) {
     Image(
@@ -165,8 +176,7 @@ private fun ButtonMapping(
         colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
         contentScale = ContentScale.FillWidth
     )
-
-    ClickableListItem(
+    ListItem(
         onClick = { onEvent(Event.OnControllerDropdownStateChanged(true)) },
         mainText = {
             Text(
@@ -176,10 +186,10 @@ private fun ButtonMapping(
             )
         },
         subText = {
-            val text = if (controllerId == NesInputManager.CONTROLLER_1) {
-                "Controller 1"
+            val text = if (playerId == NesInputManager.PLAYER_1) {
+                "Player 1"
             } else {
-                "Controller 2"
+                "Player 2"
             }
             Text(text)
         },
@@ -189,22 +199,21 @@ private fun ButtonMapping(
                 onDismissRequest = { onEvent(Event.OnControllerDropdownStateChanged(false)) }
             ) {
                 DropdownMenuItem(
-                    text = { Text("Controller 1") },
+                    text = { Text("Player 1") },
                     onClick = {
-                        onEvent(Event.OnButtonMappingControllerIdChanged(NesInputManager.CONTROLLER_1))
+                        onEvent(Event.OnButtonMappingPlayerIdChanged(NesInputManager.PLAYER_1))
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("Controller 2") },
+                    text = { Text("Player 2") },
                     onClick = {
-                        onEvent(Event.OnButtonMappingControllerIdChanged(NesInputManager.CONTROLLER_2))
+                        onEvent(Event.OnButtonMappingPlayerIdChanged(NesInputManager.PLAYER_2))
                     }
                 )
             }
         }
     )
-
-    ClickableListItem(
+    ListItem(
         onClick = { onEvent(Event.OnInputDeviceDropdownStateChanged(true)) },
         mainText = {
             Text(
@@ -235,12 +244,136 @@ private fun ButtonMapping(
                 DropdownMenuItem(
                     text = { Text("Keyboard") },
                     onClick = {
-                        onEvent(Event.OnButtonMappingDeviceTypeChanged(NesInputDeviceType.VIRTUAL_CONTROLLER))
+                        onEvent(Event.OnButtonMappingDeviceTypeChanged(NesInputDeviceType.KEYBOARD))
                     }
                 )
             }
         }
     )
+    ButtonMappingEdit(
+        inputDeviceType = inputDeviceType,
+        mapping = currentMapping,
+        onEvent = onEvent
+    )
+}
+
+@Composable
+private fun ButtonMappingEdit(
+    inputDeviceType: NesInputDeviceType,
+    mapping: Map<NesButton, Int>,
+    onEvent: (Event) -> Unit
+) {
+    if (inputDeviceType == NesInputDeviceType.KEYBOARD) {
+        ButtonMappingListItem(
+            buttonName = "DPad up",
+            button = NesButton.DPAD_UP,
+            deviceType = inputDeviceType,
+            mapping = mapping,
+            onStartEdit = { onEvent(Event.OnShowEditButtonDialog(NesButton.DPAD_UP)) }
+        )
+        ButtonMappingListItem(
+            buttonName = "DPad down",
+            button = NesButton.DPAD_DOWN,
+            deviceType = inputDeviceType,
+            mapping = mapping,
+            onStartEdit = { onEvent(Event.OnShowEditButtonDialog(NesButton.DPAD_DOWN)) }
+        )
+        ButtonMappingListItem(
+            buttonName = "DPad left",
+            button = NesButton.DPAD_LEFT,
+            deviceType = inputDeviceType,
+            mapping = mapping,
+            onStartEdit = { onEvent(Event.OnShowEditButtonDialog(NesButton.DPAD_LEFT)) }
+        )
+        ButtonMappingListItem(
+            buttonName = "DPad right",
+            button = NesButton.DPAD_RIGHT,
+            deviceType = inputDeviceType,
+            mapping = mapping,
+            onStartEdit = { onEvent(Event.OnShowEditButtonDialog(NesButton.DPAD_RIGHT)) }
+        )
+    }
+    ButtonMappingListItem(
+        buttonName = "Button \"A\"",
+        button = NesButton.A,
+        deviceType = inputDeviceType,
+        mapping = mapping,
+        onStartEdit = { onEvent(Event.OnShowEditButtonDialog(NesButton.A)) }
+    )
+    ButtonMappingListItem(
+        buttonName = "Button \"B\"",
+        button = NesButton.B,
+        deviceType = inputDeviceType,
+        mapping = mapping,
+        onStartEdit = { onEvent(Event.OnShowEditButtonDialog(NesButton.B)) }
+    )
+    ButtonMappingListItem(
+        buttonName = "Button \"START\"",
+        button = NesButton.START,
+        deviceType = inputDeviceType,
+        mapping = mapping,
+        onStartEdit = { onEvent(Event.OnShowEditButtonDialog(NesButton.START)) }
+    )
+    ButtonMappingListItem(
+        buttonName = "Button \"SELECT\"",
+        button = NesButton.SELECT,
+        deviceType = inputDeviceType,
+        mapping = mapping,
+        onStartEdit = { onEvent(Event.OnShowEditButtonDialog(NesButton.SELECT)) }
+    )
+}
+
+@Composable
+private fun ButtonMappingListItem(
+    buttonName: String,
+    button: NesButton,
+    deviceType: NesInputDeviceType,
+    mapping: Map<NesButton, Int>,
+    onStartEdit: () -> Unit
+) {
+    ListItem(
+        modifier = Modifier.height(50.dp),
+        onClick = onStartEdit,
+        mainText = { Text(buttonName) },
+        displayItem = {
+            val iconResource = if (deviceType == NesInputDeviceType.CONTROLLER) {
+                ButtonMapping.CONTROLLER_KEYCODE_ICON_MAP[mapping[button]]
+            } else {
+                ButtonMapping.KEYBOARD_KEYCODE_ICON_MAP[mapping[button]]
+            }
+
+            if (iconResource == null) {
+                Text("unmapped")
+            } else {
+                Icon(
+                    painter = painterResource(iconResource),
+                    contentDescription = null
+                )
+            }
+        }
+    )
+}
+
+@Composable
+private fun EditButtonMappingDialog(
+    onEvent: (Event) -> Unit
+) {
+    TitleDialog(
+        modifier = Modifier.onKeyEvent {
+            val event = it.nativeKeyEvent
+            if (event.action == KeyEvent.ACTION_UP) {
+                onEvent(Event.OnUpdateEditedButton(event.keyCode))
+            }
+            true
+        },
+        text = "Edit button mapping",
+        onDismissRequest = { onEvent(Event.OnHideEditButtonDialog) }
+    ) {
+        Text(
+            text = "Press a button...",
+            fontStyle = FontStyle.Italic
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -260,7 +393,7 @@ private fun TopBar(
 
 @Composable
 private fun DeviceSelectionDialog(
-    controllerId: Int,
+    playerId: Int,
     availableDevices: List<NesInputDevice>,
     onEvent: (Event) -> Unit
 ) {
@@ -287,15 +420,15 @@ private fun DeviceSelectionDialog(
                     .verticalScroll(rememberScrollState()),
             ) {
                 availableDevices.forEach { device ->
-                    ClickableListItem(
-                        onClick = { onEvent(Event.OnDeviceSelected(controllerId, device)) },
+                    ListItem(
+                        onClick = { onEvent(Event.OnDeviceSelected(playerId, device)) },
                         mainText = { InputDeviceText(device.name, true) },
                         displayItem = { InputDeviceIcon(device = device) }
                     )
                 }
                 HorizontalDivider()
-                ClickableListItem(
-                    onClick = { onEvent(Event.OnDeviceSelected(controllerId, null)) },
+                ListItem(
+                    onClick = { onEvent(Event.OnDeviceSelected(playerId, null)) },
                     mainText = { InputDeviceText("None", true) }
                 )
             }

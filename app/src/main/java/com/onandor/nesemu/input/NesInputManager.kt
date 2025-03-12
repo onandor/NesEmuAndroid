@@ -4,10 +4,12 @@ import android.hardware.input.InputManager
 import android.util.Log
 import android.view.InputDevice
 import android.view.KeyEvent
+import com.google.common.collect.BiMap
+import com.google.common.collect.HashBiMap
 import com.onandor.nesemu.di.IODispatcher
 import com.onandor.nesemu.preferences.PreferenceManager
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -21,10 +23,13 @@ class NesInputManager(
     @IODispatcher private val coroutineScope: CoroutineScope
 ) {
 
+    data class ButtonMapKey(val playerId: Int, val inputDeviceType: NesInputDeviceType)
+
     data class State(
         val availableDevices: List<NesInputDevice> = emptyList(),
         val controller1Device: NesInputDevice? = null,
-        val controller2Device: NesInputDevice? = null
+        val controller2Device: NesInputDevice? = null,
+        val buttonMappings: Map<ButtonMapKey, BiMap<Int, NesButton>> = emptyMap()
     )
 
     sealed class Event {
@@ -33,17 +38,34 @@ class NesInputManager(
 
     private val availableDevicesMap = mutableMapOf<Int, NesInputDevice>()
 
-    private val controller1Buttons: MutableMap<NesButton, NesButtonState> = initControllerButtons()
-    private val controller2Buttons: MutableMap<NesButton, NesButtonState> = initControllerButtons()
-    var controller1Device: NesInputDevice? = null
+    val buttonMappings: Map<ButtonMapKey, BiMap<Int, NesButton>> = mapOf(
+        ButtonMapKey(PLAYER_1, NesInputDeviceType.CONTROLLER)
+                to HashBiMap.create(ButtonMapping.DEFAULT_CONTROLLER_BUTTON_MAP),
+        ButtonMapKey(PLAYER_1, NesInputDeviceType.KEYBOARD)
+                to HashBiMap.create(ButtonMapping.DEFAULT_KEYBOARD_BUTTON_MAP),
+        ButtonMapKey(PLAYER_2, NesInputDeviceType.CONTROLLER)
+                to HashBiMap.create(ButtonMapping.DEFAULT_CONTROLLER_BUTTON_MAP),
+        ButtonMapKey(PLAYER_2, NesInputDeviceType.KEYBOARD)
+                to HashBiMap.create(ButtonMapping.DEFAULT_KEYBOARD_BUTTON_MAP)
+    )
+
+    private val player1Buttons: MutableMap<NesButton, NesButtonState> = initControllerButtons()
+    private val player2Buttons: MutableMap<NesButton, NesButtonState> = initControllerButtons()
+    var player1Device: NesInputDevice? = null
         private set
-    var controller2Device: NesInputDevice? = null
+    var player2Device: NesInputDevice? = null
         private set
+
+    // TODO: set this to false whenever menus need to be controlled
+    private var gameRunning: Boolean = true
 
     private val _state = MutableStateFlow(State())
     val state = _state.asStateFlow()
 
-    private val _events = MutableSharedFlow<Event>()
+    private val _events = MutableSharedFlow<Event>(
+        extraBufferCapacity = 32,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
     val events = _events.asSharedFlow()
 
     private val inputDeviceListener = object : InputManager.InputDeviceListener {
@@ -55,10 +77,10 @@ class NesInputManager(
             }
             createNesInputDevice(device)?.let {
                 availableDevicesMap.put(it.id!!, it)
-                if (controller1Device?.descriptor == it.descriptor) {
-                    controller1Device = it
-                } else if (controller2Device?.descriptor == it.descriptor) {
-                    controller2Device = it
+                if (player1Device?.descriptor == it.descriptor) {
+                    player1Device = it
+                } else if (player2Device?.descriptor == it.descriptor) {
+                    player2Device = it
                 }
                 updateState()
             }
@@ -68,13 +90,13 @@ class NesInputManager(
         override fun onInputDeviceRemoved(deviceId: Int) {
             val nesDevice = availableDevicesMap.remove(deviceId)
             nesDevice?.let {
-                if (controller1Device == it) {
-                    controller1Device = controller1Device?.copy(id = null)
-                } else if (controller2Device == it) {
-                    controller2Device = controller2Device?.copy(id = null)
+                if (player1Device == it) {
+                    player1Device = player1Device?.copy(id = null)
+                } else if (player2Device == it) {
+                    player2Device = player2Device?.copy(id = null)
                 }
                 updateState()
-                saveState()
+                persistState()
             }
             Log.d(TAG, "Input device removed: ${nesDevice?.name} (id: ${nesDevice?.id})")
         }
@@ -137,128 +159,137 @@ class NesInputManager(
 
         // Updating the devices if they become connected/disconnected while the app is in the
         // background
-        if (controller1Device?.id != null && !availableDevicesMap.contains(controller1Device?.id)) {
-            controller1Device = controller1Device?.copy(id = null)
+        if (player1Device?.id != null && !availableDevicesMap.contains(player1Device?.id)) {
+            player1Device = player1Device?.copy(id = null)
         } else {
             val device = availableDevicesMap.values
-                .filter { it.descriptor == controller1Device?.descriptor }
+                .filter { it.descriptor == player1Device?.descriptor }
                 .firstOrNull()
             if (device != null) {
-                controller1Device = device
+                player1Device = device
             }
         }
 
-        if (controller2Device?.id != null && !availableDevicesMap.contains(controller2Device?.id)) {
-            controller2Device = controller2Device?.copy(id = null)
+        if (player2Device?.id != null && !availableDevicesMap.contains(player2Device?.id)) {
+            player2Device = player2Device?.copy(id = null)
         } else {
             val device = availableDevicesMap.values
-                .filter { it.descriptor == controller2Device?.descriptor }
+                .filter { it.descriptor == player2Device?.descriptor }
                 .firstOrNull()
             if (device != null) {
-                controller2Device = device
+                player2Device = device
             }
         }
 
         updateState()
-        saveState()
+        persistState()
     }
 
-    fun setInputDevice(controllerId: Int, device: NesInputDevice?) {
+    fun setInputDevice(playerId: Int, device: NesInputDevice?) {
         if (device == null) {
-            if (controllerId == CONTROLLER_1) {
-                controller1Device = null
+            if (playerId == PLAYER_1) {
+                player1Device = null
             } else {
-                controller2Device = null
+                player2Device = null
             }
         } else if (!availableDevicesMap.contains(device.id)) {
             return
         } else {
-            if (controllerId == CONTROLLER_1) {
-                controller1Device = device
-                if (controller2Device == device) {
-                    controller2Device = null
+            if (playerId == PLAYER_1) {
+                player1Device = device
+                if (player2Device == device) {
+                    player2Device = null
                 }
             } else {
-                controller2Device = device
-                if (controller1Device == device) {
-                    controller1Device = null
+                player2Device = device
+                if (player1Device == device) {
+                    player1Device = null
                 }
             }
         }
 
         updateState()
-        saveState()
+        persistState()
     }
 
     fun onInputEvents(deviceId: Int, buttonStates: Map<NesButton, NesButtonState>) {
-        controller1Device?.let {
-            if (it.id == deviceId) {
-                controller1Buttons.putAll(buttonStates)
-            }
-        }
-        controller2Device?.let {
-            if (it.id == deviceId) {
-                controller2Buttons.putAll(buttonStates)
-            }
+        if (player1Device?.id == deviceId) {
+            player1Buttons.putAll(buttonStates)
+        } else if (player2Device?.id == deviceId) {
+            player2Buttons.putAll(buttonStates)
         }
     }
 
     fun onInputEvent(deviceId: Int, button: NesButton, state: NesButtonState) {
-        controller1Device?.let {
-            if (it.id == deviceId) {
-                controller1Buttons[button] = state
-            }
-        }
-        controller2Device?.let {
-            if (it.id == deviceId) {
-                controller2Buttons[button] = state
-            }
+        if (player1Device?.id == deviceId) {
+            player1Buttons[button] = state
+        } else if (player2Device?.id == deviceId) {
+            player2Buttons[button] = state
         }
     }
 
     fun onInputEvent(event: KeyEvent): Boolean {
-        val button = BUTTON_MAP[event.keyCode]
-        val state = BUTTON_STATE_MAP[event.action]
-        if (button == null || state == null) {
+        val device = availableDevicesMap[event.deviceId]
+        if (device == null) {
+            // The event came from a device which is not a valid controller
+            return gameRunning
+        }
+
+        val playerId = if (player1Device?.id == device.id) {
+            PLAYER_1
+        } else if (player2Device?.id == device.id) {
+            PLAYER_2
+        } else {
+            // The event came from a device which is currently not mapped to either NES controllers
+            // Pause requests are handled for all controllers
             return checkPauseButtonPressed(event)
         }
+
+        val buttonMap = buttonMappings[ButtonMapKey(playerId, device.type)]!!
+
+        val button = buttonMap[event.keyCode]
+        val state = BUTTON_STATE_MAP[event.action]
+        if (button == null || state == null) {
+            // The event came from a mapped device, but the actual button is not mapped
+            return checkPauseButtonPressed(event)
+        }
+
         onInputEvent(event.deviceId, button, state)
-        return true
+        return gameRunning
     }
 
     private fun checkPauseButtonPressed(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_UP
             && (event.keyCode == KeyEvent.KEYCODE_BUTTON_MODE
                     || event.keyCode == KeyEvent.KEYCODE_ESCAPE)) {
-            emitEvent(Event.OnPauseButtonPressed)
-            return true
+            _events.tryEmit(Event.OnPauseButtonPressed)
         }
-        return false
+        return gameRunning
     }
 
     private fun loadPreferences() = coroutineScope.launch {
-        controller1Device = prefManager.getController1Device()
-        controller2Device = prefManager.getController2Device()
+        player1Device = prefManager.getController1Device()
+        player2Device = prefManager.getController2Device()
 
-        controller1Device?.let { controllerDevice ->
+        player1Device?.let { controllerDevice ->
             val device = availableDevicesMap.values
                 .filter { it.descriptor == controllerDevice.descriptor }
                 .firstOrNull()
             if (device != null) {
-                controller1Device = device
+                player1Device = device
             }
         }
-        controller2Device?.let { controllerDevice ->
+        player2Device?.let { controllerDevice ->
             val device = availableDevicesMap.values
                 .filter { it.descriptor == controllerDevice.descriptor }
                 .firstOrNull()
             if (device != null) {
-                controller2Device = device
+                player2Device = device
             }
         }
 
-        if (controller1Device == null && controller2Device == null) {
-            controller1Device = VIRTUAL_CONTROLLER
+        if (player1Device == null && player2Device == null) {
+            player1Device = VIRTUAL_CONTROLLER
         }
 
         updateState()
@@ -274,13 +305,8 @@ class NesInputManager(
         availableDevicesMap.clear()
     }
 
-    fun getButtonStates(controllerId: Int): Int {
-        val buttonStateMap = if (controllerId == CONTROLLER_1) {
-            controller1Buttons
-        } else {
-            controller2Buttons
-        }
-
+    fun getButtonStates(playerId: Int): Int {
+        val buttonStateMap = if (playerId == PLAYER_1) player1Buttons else player2Buttons
         var buttonStates = 0
         buttonStateMap.forEach { _, state ->
             buttonStates = (buttonStates shl 1) or state.ordinal
@@ -288,18 +314,42 @@ class NesInputManager(
         return buttonStates
     }
 
+    fun changeButtonMapping(
+        keyCode: Int,
+        button: NesButton,
+        playerId: Int,
+        deviceType: NesInputDeviceType
+    ) {
+        val keyCodeMap = if (deviceType == NesInputDeviceType.CONTROLLER) {
+            ButtonMapping.CONTROLLER_KEYCODE_ICON_MAP
+        } else {
+            ButtonMapping.KEYBOARD_KEYCODE_ICON_MAP
+        }
+
+        if (!keyCodeMap.contains(keyCode)) {
+            return
+        }
+
+        buttonMappings[ButtonMapKey(playerId, deviceType)]!!.forcePut(keyCode, button)
+
+        updateState()
+        persistState()
+    }
+
     private fun updateState() {
         _state.update {
             it.copy(
                 availableDevices = availableDevicesMap.values.toList(),
-                controller1Device = controller1Device,
-                controller2Device = controller2Device
+                controller1Device = player1Device,
+                controller2Device = player2Device,
+                buttonMappings = buttonMappings
             )
         }
     }
 
-    private fun saveState() = coroutineScope.launch {
-        prefManager.updateControllerDevices(controller1Device, controller2Device)
+    private fun persistState() = coroutineScope.launch {
+        prefManager.updateControllerDevices(player1Device, player2Device)
+        // TODO: persist mappings
     }
 
     private fun initControllerButtons(): MutableMap<NesButton, NesButtonState> {
@@ -315,14 +365,11 @@ class NesInputManager(
         )
     }
 
-    private fun emitEvent(event: Event) =
-        CoroutineScope(Dispatchers.IO).launch { _events.emit(event) }
-
     companion object {
         private const val TAG = "NesInputManager"
 
-        const val CONTROLLER_1: Int = 1
-        const val CONTROLLER_2: Int = 2
+        const val PLAYER_1: Int = 1
+        const val PLAYER_2: Int = 2
 
         const val VIRTUAL_CONTROLLER_DEVICE_ID = Int.MIN_VALUE
         const val VIRTUAL_CONTROLLER_DEVICE_DESCRIPTOR = "VIRTUAL_CONTROLLER"
@@ -331,28 +378,6 @@ class NesInputManager(
             id = VIRTUAL_CONTROLLER_DEVICE_ID,
             descriptor = VIRTUAL_CONTROLLER_DEVICE_DESCRIPTOR,
             type = NesInputDeviceType.VIRTUAL_CONTROLLER
-        )
-
-        private val BUTTON_MAP = mapOf<Int, NesButton>(
-            // Keyboard
-            KeyEvent.KEYCODE_D to NesButton.DPAD_RIGHT,
-            KeyEvent.KEYCODE_A to NesButton.DPAD_LEFT,
-            KeyEvent.KEYCODE_S to NesButton.DPAD_DOWN,
-            KeyEvent.KEYCODE_W to NesButton.DPAD_UP,
-            KeyEvent.KEYCODE_I to NesButton.START,
-            KeyEvent.KEYCODE_U to NesButton.SELECT,
-            KeyEvent.KEYCODE_K to NesButton.A,
-            KeyEvent.KEYCODE_J to NesButton.B,
-
-            // Controller
-            KeyEvent.KEYCODE_DPAD_RIGHT to NesButton.DPAD_RIGHT,
-            KeyEvent.KEYCODE_DPAD_LEFT to NesButton.DPAD_LEFT,
-            KeyEvent.KEYCODE_DPAD_DOWN to NesButton.DPAD_DOWN,
-            KeyEvent.KEYCODE_DPAD_UP to NesButton.DPAD_UP,
-            KeyEvent.KEYCODE_BUTTON_START to NesButton.START,
-            KeyEvent.KEYCODE_BUTTON_SELECT to NesButton.SELECT,
-            KeyEvent.KEYCODE_BUTTON_B to NesButton.A,
-            KeyEvent.KEYCODE_BUTTON_A to NesButton.B
         )
 
         private val BUTTON_STATE_MAP = mapOf<Int, NesButtonState>(

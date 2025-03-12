@@ -19,8 +19,8 @@ class Emulator @Inject constructor(private val inputManager: NesInputManager) {
 
     val nes = Nes(
         onFrameReady = ::notifyListenersFrameReady,
-        onPollController1 = { inputManager.getButtonStates(NesInputManager.CONTROLLER_1) },
-        onPollController2 = { inputManager.getButtonStates(NesInputManager.CONTROLLER_2) }
+        onPollController1 = { inputManager.getButtonStates(NesInputManager.PLAYER_1) },
+        onPollController2 = { inputManager.getButtonStates(NesInputManager.PLAYER_2) }
     )
     private lateinit var cartridge: Cartridge
     private val audioPlayer = AudioPlayer(::setAudioSampleRate, ::provideAudioSamples)

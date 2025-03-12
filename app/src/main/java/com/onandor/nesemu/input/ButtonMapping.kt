@@ -104,7 +104,7 @@ class ButtonMapping {
             KeyEvent.KEYCODE_BUTTON_L2 to R.drawable.ic_controller_lt,
             KeyEvent.KEYCODE_BUTTON_R1 to R.drawable.ic_controller_rb,
             KeyEvent.KEYCODE_BUTTON_R2 to R.drawable.ic_controller_rt,
-            KeyEvent.KEYCODE_BUTTON_MODE to R.drawable.ic_controller_button_menu,
+            KeyEvent.KEYCODE_BUTTON_START to R.drawable.ic_controller_button_menu,
             KeyEvent.KEYCODE_BUTTON_SELECT to R.drawable.ic_controller_button_view
         )
 

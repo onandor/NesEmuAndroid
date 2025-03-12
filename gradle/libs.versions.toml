@@ -16,6 +16,7 @@ gson = "2.11.0"
 oboe = "1.9.3"
 protobuf = "4.30.0"
 protobufGradle = "0.9.4"
+guava = "33.4.0-android"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -48,6 +49,8 @@ google-oboe = { group = "com.google.oboe", name = "oboe", version.ref = "oboe"}
 google-protobuf-javalite = { group = "com.google.protobuf", name = "protobuf-javalite", version.ref = "protobuf" }
 google-protobuf-kotlin-lite = { group = "com.google.protobuf", name = "protobuf-kotlin-lite", version.ref = "protobuf" }
 google-protobuf-protoc = { group = "com.google.protobuf", name = "protoc", version.ref = "protobuf" }
+# guava
+google-guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

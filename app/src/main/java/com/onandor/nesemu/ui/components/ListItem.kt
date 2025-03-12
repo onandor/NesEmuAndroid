@@ -50,18 +50,19 @@ fun CheckboxListItem(
 }
 
 @Composable
-fun ClickableListItem(
+fun ListItem(
     modifier: Modifier = Modifier,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)? = null,
     mainText: @Composable() () -> Unit,
     subText: @Composable() () -> Unit = {},
     displayItem: @Composable() () -> Unit = {}
 ) {
+    val modifier = if (onClick != null) modifier.clickable { onClick() } else modifier
+
     Row(
         modifier = modifier
             .fillMaxWidth()
             .defaultMinSize(minHeight = 70.dp)
-            .clickable { onClick() }
             .padding(top = 10.dp, bottom = 10.dp, start = 25.dp, end = 25.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
