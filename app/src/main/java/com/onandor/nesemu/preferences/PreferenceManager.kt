@@ -1,19 +1,20 @@
 package com.onandor.nesemu.preferences
 
-import com.onandor.nesemu.di.IODispatcher
+import com.google.common.collect.BiMap
+import com.google.common.collect.HashBiMap
+import com.onandor.nesemu.input.NesButton
 import com.onandor.nesemu.input.NesInputDevice
 import com.onandor.nesemu.input.NesInputDeviceType
+import com.onandor.nesemu.input.NesInputManager
+import com.onandor.nesemu.input.NesInputManager.ButtonMapKey
 import com.onandor.nesemu.preferences.proto.InputDevicePref
 import com.onandor.nesemu.preferences.proto.InputDevicePref.InputDeviceTypePref
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 class PreferenceManager @Inject constructor(
-    private val prefStore: ProtoPreferenceStore,
-    @IODispatcher private val coroutineScope: CoroutineScope
+    private val prefStore: ProtoPreferenceStore
 ) {
 
     fun observeInputPreferences() = prefStore.observe().map { it.inputPreferences }
@@ -26,10 +27,35 @@ class PreferenceManager @Inject constructor(
         .map { it.inputPreferences.controller2Device.toNesDevice() }
         .first()
 
-    fun updateControllerDevices(device1: NesInputDevice?, device2: NesInputDevice?) {
-        coroutineScope.launch {
-            prefStore.updateControllerDevices(device1.toPrefDevice(), device2.toPrefDevice())
+    suspend fun getButtonMappings() = prefStore.observe()
+        .map {
+            mapOf(
+                ButtonMapKey(NesInputManager.PLAYER_1, NesInputDeviceType.CONTROLLER)
+                        to it.inputPreferences.player1ControllerMappingMap.toButtonBiMap(),
+                ButtonMapKey(NesInputManager.PLAYER_1, NesInputDeviceType.KEYBOARD)
+                        to it.inputPreferences.player1KeyboardMappingMap.toButtonBiMap(),
+                ButtonMapKey(NesInputManager.PLAYER_2, NesInputDeviceType.CONTROLLER)
+                        to it.inputPreferences.player2ControllerMappingMap.toButtonBiMap(),
+                ButtonMapKey(NesInputManager.PLAYER_2, NesInputDeviceType.KEYBOARD)
+                        to it.inputPreferences.player2KeyboardMappingMap.toButtonBiMap()
+            )
         }
+        .first()
+
+    suspend fun updateInputDevices(device1: NesInputDevice?, device2: NesInputDevice?) {
+        prefStore.updateInputDevices(device1.toPrefDevice(), device2.toPrefDevice())
+    }
+
+    suspend fun updateButtonMappings(mappings: Map<ButtonMapKey, BiMap<Int, NesButton>>) {
+        val prefMappings = mappings.mapValues { (_, biMap) ->
+            biMap.mapValues { (_, button) -> button.ordinal }
+        }
+        prefStore.updateButtonMappings(
+            prefMappings[ButtonMapKey(NesInputManager.PLAYER_1, NesInputDeviceType.CONTROLLER)]!!,
+            prefMappings[ButtonMapKey(NesInputManager.PLAYER_1, NesInputDeviceType.KEYBOARD)]!!,
+            prefMappings[ButtonMapKey(NesInputManager.PLAYER_2, NesInputDeviceType.CONTROLLER)]!!,
+            prefMappings[ButtonMapKey(NesInputManager.PLAYER_2, NesInputDeviceType.KEYBOARD)]!!
+        )
     }
 
     private fun NesInputDevice?.toPrefDevice(): InputDevicePref? {
@@ -60,6 +86,12 @@ class PreferenceManager @Inject constructor(
         return this.name == ""
                 && this.descriptor == ""
                 && this.type == InputDeviceTypePref.entries[0]
+    }
+
+    private fun Map<Int, Int>.toButtonBiMap(): BiMap<Int, NesButton> {
+        return HashBiMap.create<Int, NesButton>(
+            this.mapValues { (_, buttonOrdinal) -> NesButton.entries[buttonOrdinal] }
+        )
     }
 
     companion object {

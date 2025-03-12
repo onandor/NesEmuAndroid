@@ -15,25 +15,58 @@ class ProtoPreferenceStore @Inject constructor(
 
     suspend fun get() = observe().first()
 
-    suspend fun updateControllerDevices(device1: InputDevicePref?, device2: InputDevicePref?) {
+    suspend fun updateInputDevices(device1: InputDevicePref?, device2: InputDevicePref?) {
         dataStore.updateData { prefs ->
             prefs.toBuilder()
-                .setInputPreferences(
-                    setInputDevicePreferences(
-                        prefs.inputPreferences,
-                        device1,
-                        device2
-                    )
-                ).build()
+                .setInputPreferences(prefs.inputPreferences.setInputDevices(device1, device2))
+                .build()
         }
     }
 
-    private fun setInputDevicePreferences(
-        inputPreferences: InputPreferences,
+    suspend fun updateButtonMappings(
+        player1ControllerMapping: Map<Int, Int>,
+        player1KeyboardMapping: Map<Int, Int>,
+        player2ControllerMapping: Map<Int, Int>,
+        player2KeyboardMapping: Map<Int, Int>
+    ) {
+        dataStore.updateData { prefs ->
+            prefs.toBuilder()
+                .setInputPreferences(
+                    prefs.inputPreferences.setButtonMappings(
+                        player1ControllerMapping = player1ControllerMapping,
+                        player1KeyboardMapping = player1KeyboardMapping,
+                        player2ControllerMapping = player2ControllerMapping,
+                        player2KeyboardMapping = player2KeyboardMapping
+                    )
+                )
+                .build()
+        }
+    }
+
+    private fun InputPreferences.setButtonMappings(
+        player1ControllerMapping: Map<Int, Int>,
+        player1KeyboardMapping: Map<Int, Int>,
+        player2ControllerMapping: Map<Int, Int>,
+        player2KeyboardMapping: Map<Int, Int>
+    ): InputPreferences {
+        return this.toBuilder().run {
+            clearPlayer1ControllerMapping()
+            clearPlayer1KeyboardMapping()
+            clearPlayer2ControllerMapping()
+            clearPlayer2KeyboardMapping()
+            putAllPlayer1ControllerMapping(player1ControllerMapping)
+            putAllPlayer1KeyboardMapping(player1KeyboardMapping)
+            putAllPlayer2ControllerMapping(player2ControllerMapping)
+            putAllPlayer2KeyboardMapping(player2KeyboardMapping)
+            build()
+        }
+    }
+
+    private fun InputPreferences.setInputDevices(
         device1: InputDevicePref?,
         device2: InputDevicePref?
     ): InputPreferences {
-        return inputPreferences.toBuilder().run {
+        return this.toBuilder().run {
             if (device1 != null) {
                 setController1Device(device1)
             } else {

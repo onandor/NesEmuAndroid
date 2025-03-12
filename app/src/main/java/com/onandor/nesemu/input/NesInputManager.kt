@@ -10,6 +10,7 @@ import com.onandor.nesemu.di.IODispatcher
 import com.onandor.nesemu.preferences.PreferenceManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -38,7 +39,7 @@ class NesInputManager(
 
     private val availableDevicesMap = mutableMapOf<Int, NesInputDevice>()
 
-    val buttonMappings: Map<ButtonMapKey, BiMap<Int, NesButton>> = mapOf(
+    private val buttonMappings: MutableMap<ButtonMapKey, BiMap<Int, NesButton>> = mutableMapOf(
         ButtonMapKey(PLAYER_1, NesInputDeviceType.CONTROLLER)
                 to HashBiMap.create(ButtonMapping.DEFAULT_CONTROLLER_BUTTON_MAP),
         ButtonMapKey(PLAYER_1, NesInputDeviceType.KEYBOARD)
@@ -96,7 +97,7 @@ class NesInputManager(
                     player2Device = player2Device?.copy(id = null)
                 }
                 updateState()
-                persistState()
+                persistInputDevices()
             }
             Log.d(TAG, "Input device removed: ${nesDevice?.name} (id: ${nesDevice?.id})")
         }
@@ -106,7 +107,8 @@ class NesInputManager(
 
     init {
         refreshAvailableDevices()
-        loadPreferences()
+        loadSavedInputDevices()
+        loadSavedButtonMappings()
     }
 
     private fun createNesInputDevice(device: InputDevice): NesInputDevice? {
@@ -182,7 +184,7 @@ class NesInputManager(
         }
 
         updateState()
-        persistState()
+        persistInputDevices()
     }
 
     fun setInputDevice(playerId: Int, device: NesInputDevice?) {
@@ -209,7 +211,7 @@ class NesInputManager(
         }
 
         updateState()
-        persistState()
+        persistInputDevices()
     }
 
     fun onInputEvents(deviceId: Int, buttonStates: Map<NesButton, NesButtonState>) {
@@ -267,21 +269,21 @@ class NesInputManager(
         return gameRunning
     }
 
-    private fun loadPreferences() = coroutineScope.launch {
+    private fun loadSavedInputDevices() = coroutineScope.launch {
         player1Device = prefManager.getController1Device()
         player2Device = prefManager.getController2Device()
 
-        player1Device?.let { controllerDevice ->
+        player1Device?.let { playerDevice ->
             val device = availableDevicesMap.values
-                .filter { it.descriptor == controllerDevice.descriptor }
+                .filter { it.descriptor == playerDevice.descriptor }
                 .firstOrNull()
             if (device != null) {
                 player1Device = device
             }
         }
-        player2Device?.let { controllerDevice ->
+        player2Device?.let { playerDevice ->
             val device = availableDevicesMap.values
-                .filter { it.descriptor == controllerDevice.descriptor }
+                .filter { it.descriptor == playerDevice.descriptor }
                 .firstOrNull()
             if (device != null) {
                 player2Device = device
@@ -293,6 +295,14 @@ class NesInputManager(
         }
 
         updateState()
+    }
+
+    private fun loadSavedButtonMappings() = coroutineScope.launch {
+        prefManager.getButtonMappings().forEach { key, value ->
+            if (value.isNotEmpty()) {
+                buttonMappings[key] = value
+            }
+        }
     }
 
     fun registerListener() {
@@ -333,7 +343,7 @@ class NesInputManager(
         buttonMappings[ButtonMapKey(playerId, deviceType)]!!.forcePut(keyCode, button)
 
         updateState()
-        persistState()
+        persistButtonMappings()
     }
 
     private fun updateState() {
@@ -347,9 +357,12 @@ class NesInputManager(
         }
     }
 
-    private fun persistState() = coroutineScope.launch {
-        prefManager.updateControllerDevices(player1Device, player2Device)
-        // TODO: persist mappings
+    private fun persistInputDevices() = coroutineScope.launch {
+        prefManager.updateInputDevices(player1Device, player2Device)
+    }
+
+    private fun persistButtonMappings() = coroutineScope.launch {
+        prefManager.updateButtonMappings(buttonMappings)
     }
 
     private fun initControllerButtons(): MutableMap<NesButton, NesButtonState> {

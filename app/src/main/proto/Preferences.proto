@@ -11,6 +11,12 @@ message Preferences {
 message InputPreferences {
   optional InputDevicePref controller1Device = 1;
   optional InputDevicePref controller2Device = 2;
+
+  // The values are ordinals of the NesButton enum
+  map<int32, int32> player1ControllerMapping = 3;
+  map<int32, int32> player1KeyboardMapping = 4;
+  map<int32, int32> player2ControllerMapping = 5;
+  map<int32, int32> player2KeyboardMapping = 6;
 }
 
 message InputDevicePref {

@@ -146,6 +146,4 @@ class PreferencesViewModel @Inject constructor(
     private fun updateSelectedPlayerId(playerId: Int?) {
         _uiState.update { it.copy(deviceSelectionPlayerId = playerId) }
     }
-
-    private fun Map<Int, NesButton>.reversed() = this.map { (key, value) -> value to key }.toMap()
 }
