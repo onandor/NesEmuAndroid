@@ -1,8 +1,13 @@
 package com.onandor.nesemu.navigation
 
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -19,6 +24,7 @@ import com.onandor.nesemu.ui.screens.DebugScreen
 import com.onandor.nesemu.ui.screens.GameScreen
 import com.onandor.nesemu.ui.screens.MainScreen
 import com.onandor.nesemu.ui.screens.PreferencesScreen
+import com.onandor.nesemu.ui.util.HideSystemBars
 import com.onandor.nesemu.viewmodels.NavigationViewModel
 
 @Composable
@@ -46,27 +52,32 @@ fun NavGraph(
         }
     }
 
-    Surface(
+    Scaffold(
         modifier = Modifier
             .fillMaxSize()
-            .navigationBarsPadding(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        NavHost(
-            navController = navController,
-            startDestination = startDestination
+            .consumeWindowInsets(PaddingValues()),
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+    ) { _ ->
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
         ) {
-            composable(NavDestinations.MAIN_SCREEN) {
-                MainScreen()
-            }
-            composable(NavDestinations.GAME_SCREEN) {
-                GameScreen()
-            }
-            composable(NavDestinations.DEBUG_SCREEN) {
-                DebugScreen()
-            }
-            composable(NavDestinations.PREFERENCES_SCREEN) {
-                PreferencesScreen()
+            NavHost(
+                navController = navController,
+                startDestination = startDestination
+            ) {
+                composable(NavDestinations.MAIN_SCREEN) {
+                    MainScreen()
+                }
+                composable(NavDestinations.GAME_SCREEN) {
+                    GameScreen()
+                }
+                composable(NavDestinations.DEBUG_SCREEN) {
+                    DebugScreen()
+                }
+                composable(NavDestinations.PREFERENCES_SCREEN) {
+                    PreferencesScreen()
+                }
             }
         }
     }

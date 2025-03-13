@@ -45,7 +45,6 @@ import com.onandor.nesemu.input.NesButton
 import com.onandor.nesemu.ui.components.controls.DPad
 import com.onandor.nesemu.ui.components.controls.FaceButton
 import com.onandor.nesemu.ui.components.controls.OptionButton
-import com.onandor.nesemu.ui.util.HideSystemBars
 import com.onandor.nesemu.viewmodels.GameViewModel
 import com.onandor.nesemu.viewmodels.GameViewModel.Event
 import com.onandor.nesemu.R
@@ -64,7 +63,6 @@ fun GameScreen(
         Box(modifier = Modifier.fillMaxSize()) {
             Game(
                 renderer = viewModel.renderer,
-                padding = padding,
                 emulationPaused = uiState.emulationPaused,
                 onEvent = viewModel::onEvent
             )
@@ -90,18 +88,15 @@ fun GameScreen(
 @Composable
 private fun Game(
     modifier: Modifier = Modifier,
-    padding: PaddingValues,
     renderer: NesRenderer,
     emulationPaused: Boolean,
     onEvent: (Event) -> Unit
 ) {
     val configuration = LocalConfiguration.current
 
-    HideSystemBars()
     if (configuration.orientation == Configuration.ORIENTATION_PORTRAIT) {
         Column(
             modifier = Modifier
-                .padding(padding)
                 .padding(top = 30.dp, bottom = 30.dp)
         ) {
             Box(

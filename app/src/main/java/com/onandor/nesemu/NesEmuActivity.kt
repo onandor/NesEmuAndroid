@@ -6,6 +6,9 @@ import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.onandor.nesemu.input.NesInputManager
 import com.onandor.nesemu.navigation.NavGraph
 import com.onandor.nesemu.ui.theme.NesEmuTheme
@@ -23,6 +26,12 @@ class NesEmuActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         lifecycle.addObserver(lifecycleObserver)
+
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+        insetsController.hide(WindowInsetsCompat.Type.systemBars())
+        insetsController.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
 
         enableEdgeToEdge()
         setContent {

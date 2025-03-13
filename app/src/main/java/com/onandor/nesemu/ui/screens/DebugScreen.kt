@@ -102,7 +102,6 @@ fun DebugScreen(
         }
     ) { padding ->
         LazyColumn(
-            modifier = Modifier.padding(padding),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             if (uiState.renderColorPalettes) {
