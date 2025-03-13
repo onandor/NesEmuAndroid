@@ -50,6 +50,7 @@ import com.onandor.nesemu.viewmodels.GameViewModel.Event
 import com.onandor.nesemu.R
 import com.onandor.nesemu.navigation.NavActions
 import com.onandor.nesemu.ui.components.ListItem
+import com.onandor.nesemu.ui.components.StatusBarScaffold
 import com.onandor.nesemu.ui.components.TitleDialog
 
 @Composable
@@ -59,9 +60,10 @@ fun GameScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
 
-    Scaffold { padding ->
+    StatusBarScaffold { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
             Game(
+                scaffoldPadding = padding,
                 renderer = viewModel.renderer,
                 emulationPaused = uiState.emulationPaused,
                 onEvent = viewModel::onEvent
@@ -88,6 +90,7 @@ fun GameScreen(
 @Composable
 private fun Game(
     modifier: Modifier = Modifier,
+    scaffoldPadding: PaddingValues,
     renderer: NesRenderer,
     emulationPaused: Boolean,
     onEvent: (Event) -> Unit
@@ -97,7 +100,8 @@ private fun Game(
     if (configuration.orientation == Configuration.ORIENTATION_PORTRAIT) {
         Column(
             modifier = Modifier
-                .padding(top = 30.dp, bottom = 30.dp)
+                .padding(scaffoldPadding)
+                .padding(bottom = 30.dp)
         ) {
             Box(
                 modifier = Modifier

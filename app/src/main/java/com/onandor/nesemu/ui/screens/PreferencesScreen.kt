@@ -5,10 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,9 +23,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -56,7 +51,9 @@ import com.onandor.nesemu.R
 import com.onandor.nesemu.input.ButtonMapping
 import com.onandor.nesemu.input.NesButton
 import com.onandor.nesemu.ui.components.ListDropdownMenu
+import com.onandor.nesemu.ui.components.StatusBarScaffold
 import com.onandor.nesemu.ui.components.TitleDialog
+import com.onandor.nesemu.ui.components.TopBar
 
 @Composable
 fun PreferencesScreen(
@@ -64,12 +61,13 @@ fun PreferencesScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Scaffold(
+    StatusBarScaffold(
         topBar = { TopBar { viewModel.onEvent(Event.OnNavigateBack) } }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(padding)
                 .verticalScroll(rememberScrollState())
         ) {
             InputDeviceSelection(
@@ -383,8 +381,8 @@ private fun EditButtonMappingDialog(
 private fun TopBar(
     onNavigateBack: () -> Unit
 ) {
-    TopAppBar(
-        title = { Text("Preferences") },
+    TopBar(
+        title = "Preferences",
         navigationIcon = {
             IconButton(onClick = onNavigateBack) {
                 Icon(imageVector = Icons.AutoMirrored.Default.ArrowBack, null)

@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.onandor.nesemu.ui.components.StatusBarScaffold
 import com.onandor.nesemu.viewmodels.MainViewModel
 import com.onandor.nesemu.viewmodels.MainViewModel.Event
 
@@ -44,7 +45,7 @@ fun MainScreen(
 
     val uiState by viewModel.uiState.collectAsState()
 
-    Scaffold { padding ->
+    StatusBarScaffold { padding ->
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
