@@ -370,6 +370,7 @@ private fun EditButtonMappingDialog(
         onDismissRequest = { onEvent(Event.OnHideEditButtonDialog) }
     ) {
         Text(
+            modifier = Modifier.padding(start = 20.dp, top = 10.dp, bottom = 10.dp),
             text = "Press a button...",
             fontStyle = FontStyle.Italic
         )
@@ -397,41 +398,27 @@ private fun DeviceSelectionDialog(
     availableDevices: List<NesInputDevice>,
     onEvent: (Event) -> Unit
 ) {
-    Dialog(onDismissRequest = { onEvent(Event.OnCloseDeviceSelectionDialog) }) {
-        Card(shape = RoundedCornerShape(16.dp)) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 20.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    modifier = Modifier.padding(bottom = 20.dp),
-                    text = "Select input device",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 10.dp)
-                    .verticalScroll(rememberScrollState()),
-            ) {
-                availableDevices.forEach { device ->
-                    ListItem(
-                        onClick = { onEvent(Event.OnDeviceSelected(playerId, device)) },
-                        mainText = { InputDeviceText(device.name, true) },
-                        displayItem = { InputDeviceIcon(device = device) }
-                    )
-                }
-                HorizontalDivider()
+    TitleDialog(
+        text = "Select input device",
+        onDismissRequest = { onEvent(Event.OnCloseDeviceSelectionDialog) }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+        ) {
+            availableDevices.forEach { device ->
                 ListItem(
-                    onClick = { onEvent(Event.OnDeviceSelected(playerId, null)) },
-                    mainText = { InputDeviceText("None", true) }
+                    onClick = { onEvent(Event.OnDeviceSelected(playerId, device)) },
+                    mainText = { InputDeviceText(device.name, true) },
+                    displayItem = { InputDeviceIcon(device = device) }
                 )
             }
+            HorizontalDivider()
+            ListItem(
+                onClick = { onEvent(Event.OnDeviceSelected(playerId, null)) },
+                mainText = { InputDeviceText("None", true) }
+            )
         }
     }
 }
