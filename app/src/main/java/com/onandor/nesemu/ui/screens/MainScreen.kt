@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.onandor.nesemu.ui.components.RectangularButton
 import com.onandor.nesemu.ui.components.StatusBarScaffold
 import com.onandor.nesemu.viewmodels.MainViewModel
 import com.onandor.nesemu.viewmodels.MainViewModel.Event
@@ -57,7 +58,7 @@ fun MainScreen(
                 fontSize = 40.sp
             )
             Spacer(modifier = Modifier.weight(1f))
-            Button(
+            RectangularButton(
                 modifier = Modifier
                     .width(250.dp)
                     .height(75.dp),
@@ -71,7 +72,7 @@ fun MainScreen(
                     fontSize = 20.sp
                 )
             }
-            Button(onClick = { viewModel.onEvent(Event.OnNavigateToPreferences) }) {
+            RectangularButton(onClick = { viewModel.onEvent(Event.OnNavigateToPreferences) }) {
                 Text("Preferences")
             }
             Spacer(modifier = Modifier.height(200.dp))

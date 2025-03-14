@@ -3,31 +3,25 @@ package com.onandor.nesemu.ui.screens
 import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
+import com.onandor.nesemu.ui.components.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.key.onKeyEvent
@@ -39,7 +33,6 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.onandor.nesemu.input.NesInputDevice
 import com.onandor.nesemu.input.NesInputDeviceType
@@ -51,6 +44,8 @@ import com.onandor.nesemu.R
 import com.onandor.nesemu.input.ButtonMapping
 import com.onandor.nesemu.input.NesButton
 import com.onandor.nesemu.ui.components.ListDropdownMenu
+import com.onandor.nesemu.ui.components.RectangularButton
+import com.onandor.nesemu.ui.components.RectangularIconButton
 import com.onandor.nesemu.ui.components.StatusBarScaffold
 import com.onandor.nesemu.ui.components.TitleDialog
 import com.onandor.nesemu.ui.components.TopBar
@@ -385,7 +380,7 @@ private fun TopBar(
     TopBar(
         title = "Preferences",
         navigationIcon = {
-            IconButton(onClick = onNavigateBack) {
+            RectangularIconButton(onClick = onNavigateBack) {
                 Icon(imageVector = Icons.AutoMirrored.Default.ArrowBack, null)
             }
         }
@@ -432,7 +427,7 @@ private fun InputDeviceIcon(modifier: Modifier = Modifier, device: NesInputDevic
             NesInputDeviceType.KEYBOARD -> R.drawable.ic_keyboard
         }
         Icon(
-            modifier = modifier,
+            modifier = modifier.size(38.dp),
             painter = painterResource(icon),
             contentDescription = null
         )

@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 
 @Composable
@@ -20,7 +21,8 @@ fun ListDropdownMenu(
         )
         DropdownMenu(
             expanded = expanded,
-            onDismissRequest = onDismissRequest
+            onDismissRequest = onDismissRequest,
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
         ) {
             items()
         }

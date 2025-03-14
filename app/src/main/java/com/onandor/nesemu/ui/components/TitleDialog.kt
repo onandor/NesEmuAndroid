@@ -33,9 +33,8 @@ fun TitleDialog(
     onDismissRequest: () -> Unit,
     content: @Composable() () -> Unit
 ) {
-    val focusRequester = remember { FocusRequester() }
-
     Dialog(onDismissRequest = onDismissRequest) {
+        val focusRequester = remember { FocusRequester() }
         Card(
             modifier = modifier
                 .focusRequester(focusRequester)
@@ -61,10 +60,10 @@ fun TitleDialog(
                 Spacer(modifier = Modifier.height(10.dp))
             }
         }
-    }
 
-    // Requesting focus so the escape key event can be caught in the pause menu
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
+        // Requesting focus so the escape key event can be caught in the pause menu
+        LaunchedEffect(Unit) {
+            focusRequester.requestFocus()
+        }
     }
 }

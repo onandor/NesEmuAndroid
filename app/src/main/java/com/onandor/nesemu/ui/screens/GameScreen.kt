@@ -21,9 +21,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material3.HorizontalDivider
+import com.onandor.nesemu.ui.components.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -49,6 +48,7 @@ import com.onandor.nesemu.viewmodels.GameViewModel.Event
 import com.onandor.nesemu.R
 import com.onandor.nesemu.navigation.NavActions
 import com.onandor.nesemu.ui.components.ListItem
+import com.onandor.nesemu.ui.components.RectangularIconButton
 import com.onandor.nesemu.ui.components.StatusBarScaffold
 import com.onandor.nesemu.ui.components.TitleDialog
 
@@ -122,7 +122,7 @@ private fun Game(
             Spacer(modifier = Modifier.weight(1f))
             Row(modifier = Modifier.padding(start = 10.dp, end = 20.dp)) {
                 Spacer(modifier = Modifier.weight(1f))
-                IconButton(onClick = { onEvent(Event.OnShowPauseMenuDialog) }) {
+                RectangularIconButton(onClick = { onEvent(Event.OnShowPauseMenuDialog) }) {
                     Icon(
                         imageVector = Icons.Default.Menu,
                         contentDescription = null
@@ -237,7 +237,7 @@ private fun HorizontalControlsRight(
                 .align(Alignment.TopEnd)
                 .padding(top = 20.dp, end = 20.dp)
         ) {
-            IconButton(onClick = { onEvent(Event.OnShowPauseMenuDialog) }) {
+            RectangularIconButton(onClick = { onEvent(Event.OnShowPauseMenuDialog) }) {
                 Icon(
                     imageVector = Icons.Default.Menu,
                     contentDescription = null

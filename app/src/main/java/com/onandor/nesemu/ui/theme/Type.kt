@@ -40,6 +40,13 @@ val Typography = Typography(
         fontWeight = FontWeight.Normal,
         fontSize = 19.sp,
         lineHeight = 24.sp,
-        letterSpacing = 0.8.sp
+        letterSpacing = 0.7.sp
+    ),
+    labelLarge = TextStyle(
+        fontFamily = GemunuLibre,
+        fontWeight = FontWeight.Normal,
+        fontSize = 18.sp,
+        lineHeight = 24.sp,
+        letterSpacing = 0.7.sp
     )
 )
