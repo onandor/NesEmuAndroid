@@ -1,4 +1,4 @@
-package com.onandor.nesemu.emulation.nes.audio
+package com.onandor.nesemu.emulation.nes.apu
 
 // https://www.nesdev.org/wiki/APU#Glossary
 class Divider(private val outClock: () -> Unit) : Clockable {

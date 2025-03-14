@@ -1,4 +1,4 @@
-package com.onandor.nesemu.emulation.nes.audio
+package com.onandor.nesemu.emulation.nes.apu
 
 import com.onandor.nesemu.emulation.nes.Cpu
 

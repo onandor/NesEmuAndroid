@@ -2,11 +2,12 @@ package com.onandor.nesemu.emulation.nes
 
 import android.util.Log
 import androidx.collection.mutableFloatListOf
-import com.onandor.nesemu.emulation.nes.audio.Apu
+import com.onandor.nesemu.emulation.nes.apu.Apu
 import com.onandor.nesemu.emulation.nes.mappers.Mapper
 import com.onandor.nesemu.emulation.nes.mappers.Mapper0
 import com.onandor.nesemu.emulation.nes.mappers.Mapper2
 import com.onandor.nesemu.emulation.nes.mappers.Mapper3
+import com.onandor.nesemu.emulation.nes.ppu.Ppu
 import com.onandor.nesemu.util.SlidingWindowIntQueue
 import kotlinx.coroutines.delay
 import kotlin.time.TimeSource
