@@ -24,7 +24,6 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,8 +38,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.onandor.nesemu.ui.components.NesRenderer
-import com.onandor.nesemu.ui.components.NesSurfaceView
+import com.onandor.nesemu.ui.components.game.NesRenderer
+import com.onandor.nesemu.ui.components.game.NesSurfaceView
 import com.onandor.nesemu.input.NesButton
 import com.onandor.nesemu.ui.components.controls.DPad
 import com.onandor.nesemu.ui.components.controls.FaceButton

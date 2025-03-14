@@ -1,11 +1,11 @@
 package com.onandor.nesemu.navigation
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -24,7 +24,6 @@ import com.onandor.nesemu.ui.screens.DebugScreen
 import com.onandor.nesemu.ui.screens.GameScreen
 import com.onandor.nesemu.ui.screens.MainScreen
 import com.onandor.nesemu.ui.screens.PreferencesScreen
-import com.onandor.nesemu.ui.util.HideSystemBars
 import com.onandor.nesemu.viewmodels.NavigationViewModel
 
 @Composable
@@ -66,16 +65,32 @@ fun NavGraph(
                 navController = navController,
                 startDestination = startDestination
             ) {
-                composable(NavDestinations.MAIN_SCREEN) {
+                composable(
+                    route = NavDestinations.MAIN_SCREEN,
+                    enterTransition = { EnterTransition.None },
+                    exitTransition = { ExitTransition.None }
+                ) {
                     MainScreen()
                 }
-                composable(NavDestinations.GAME_SCREEN) {
+                composable(
+                    route = NavDestinations.GAME_SCREEN,
+                    enterTransition = { EnterTransition.None },
+                    exitTransition = { ExitTransition.None }
+                ) {
                     GameScreen()
                 }
-                composable(NavDestinations.DEBUG_SCREEN) {
+                composable(
+                    route = NavDestinations.DEBUG_SCREEN,
+                    enterTransition = { EnterTransition.None },
+                    exitTransition = { ExitTransition.None }
+                ) {
                     DebugScreen()
                 }
-                composable(NavDestinations.PREFERENCES_SCREEN) {
+                composable(
+                    route = NavDestinations.PREFERENCES_SCREEN,
+                    enterTransition = { EnterTransition.None },
+                    exitTransition = { ExitTransition.None }
+                ) {
                     PreferencesScreen()
                 }
             }

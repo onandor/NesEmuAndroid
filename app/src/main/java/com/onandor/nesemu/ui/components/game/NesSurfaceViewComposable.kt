@@ -1,4 +1,4 @@
-package com.onandor.nesemu.ui.components
+package com.onandor.nesemu.ui.components.game
 
 import android.view.MotionEvent
 import androidx.compose.runtime.Composable

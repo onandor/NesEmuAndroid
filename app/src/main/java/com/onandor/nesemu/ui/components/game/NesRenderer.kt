@@ -1,9 +1,8 @@
-package com.onandor.nesemu.ui.components
+package com.onandor.nesemu.ui.components.game
 
 import android.opengl.GLES11Ext.GL_BGRA
 import android.opengl.GLES30.*
 import android.opengl.GLSurfaceView
-import android.opengl.Matrix
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer

@@ -6,7 +6,7 @@ import com.onandor.nesemu.emulation.EmulationListener
 import com.onandor.nesemu.emulation.Emulator
 import com.onandor.nesemu.navigation.NavigationManager
 import com.onandor.nesemu.emulation.nes.NesException
-import com.onandor.nesemu.ui.components.NesRenderer
+import com.onandor.nesemu.ui.components.game.NesRenderer
 import com.onandor.nesemu.input.NesButton
 import com.onandor.nesemu.input.NesButtonState
 import com.onandor.nesemu.input.NesInputManager

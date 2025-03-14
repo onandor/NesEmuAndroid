@@ -44,10 +44,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.onandor.nesemu.emulation.nes.DebugFeature
 import com.onandor.nesemu.ui.components.CheckboxListItem
-import com.onandor.nesemu.ui.components.NesRenderer
+import com.onandor.nesemu.ui.components.game.NesRenderer
 import com.onandor.nesemu.viewmodels.DebugViewModel
 import com.onandor.nesemu.viewmodels.DebugViewModel.Event
-import com.onandor.nesemu.ui.components.NesSurfaceView
+import com.onandor.nesemu.ui.components.game.NesSurfaceView
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -2,6 +2,7 @@ package com.onandor.nesemu.ui.components
 
 import android.content.Context
 import android.os.BatteryManager
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -24,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -42,7 +45,9 @@ fun StatusBarScaffold(
     content: @Composable (PaddingValues) -> Unit
 ) {
     Box (
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
     ) {
         val density = LocalDensity.current
         var topBarHeight by remember { mutableStateOf(0.dp) }
@@ -91,7 +96,8 @@ private fun Clock(modifier: Modifier = Modifier) {
 
     Text(
         modifier = modifier,
-        text = time
+        text = time,
+        fontWeight = FontWeight.SemiBold
     )
 }
 
@@ -110,6 +116,7 @@ private fun BatteryIndicator(modifier: Modifier = Modifier) {
 
     Text(
         modifier = modifier,
-        text = "$batteryLevel%"
+        text = "$batteryLevel%",
+        fontWeight = FontWeight.SemiBold
     )
 }
