@@ -10,7 +10,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import java.io.InputStream
+import okio.FileNotFoundException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -24,7 +24,7 @@ class MainViewModel @Inject constructor(
     )
 
     sealed class Event {
-        data class OnRomSelected(val inputStream: InputStream) : Event()
+        data class OnRomSelected(val uriString: String) : Event()
         object OnErrorMessageToastShown : Event()
         object OnNavigateToPreferences : Event()
     }
@@ -35,7 +35,7 @@ class MainViewModel @Inject constructor(
     fun onEvent(event: Event) {
         when (event) {
             is Event.OnRomSelected -> {
-                onRomSelected(event.inputStream)
+                onRomSelected(event.uriString)
             }
             Event.OnErrorMessageToastShown -> {
                 _uiState.update { it.copy(errorMessage = null) }
@@ -46,24 +46,19 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    private fun onRomSelected(stream: InputStream) {
-        val rom = stream.readBytes()
-        stream.close()
-
+    private fun onRomSelected(uriString: String) {
         try {
-            emulator.parseAndInsertRom(rom)
+            emulator.loadRomFile(uriString)
+            navManager.navigateTo(NavActions.gameScreen())
+        } catch (e: RomParseException) {
+            _uiState.update { it.copy(errorMessage = e.message) }
+        } catch (e: FileNotFoundException) {
+            _uiState.update { it.copy(errorMessage = "The selected ROM file is missing") }
         } catch (e: Exception) {
-            if (e is RomParseException) {
-                _uiState.update { it.copy(errorMessage = e.message) }
-            } else {
-                Log.e("MainViewModel", e.localizedMessage, e)
-                _uiState.update {
-                    it.copy(errorMessage = "An exception occurred while reading the ROM file")
-                }
+            Log.e("MainViewModel", e.localizedMessage, e)
+            _uiState.update {
+                it.copy(errorMessage = "An unexpected error occurred while reading the ROM file")
             }
-            return
         }
-
-        navManager.navigateTo(NavActions.gameScreen())
     }
 }

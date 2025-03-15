@@ -1,6 +1,7 @@
 package com.onandor.nesemu.emulation.nes.mappers
 
 import com.onandor.nesemu.emulation.nes.Cartridge
+import com.onandor.nesemu.emulation.savestate.MapperState
 
 // UxROM - https://www.nesdev.org/wiki/UxROM
 class Mapper2(cartridge: Cartridge) : Mapper(cartridge) {
@@ -35,5 +36,15 @@ class Mapper2(cartridge: Cartridge) : Mapper(cartridge) {
         if (cartridge.chrRam != null) {
             cartridge.chrRam!![address] = value
         }
+    }
+
+    override fun saveState(): MapperState {
+        return MapperState(
+            bankSelect = bankSelect
+        )
+    }
+
+    override fun loadState(state: MapperState) {
+        bankSelect = state.bankSelect!!
     }
 }

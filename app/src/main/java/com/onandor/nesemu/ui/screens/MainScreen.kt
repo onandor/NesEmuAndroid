@@ -1,5 +1,6 @@
 package com.onandor.nesemu.ui.screens
 
+import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,6 +23,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toFile
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.onandor.nesemu.ui.components.RectangularButton
 import com.onandor.nesemu.ui.components.StatusBarScaffold
@@ -37,10 +39,11 @@ fun MainScreen(
         ActivityResultContracts.OpenDocument()
     ) { documentUri ->
         documentUri?.let {
-            val stream = context.contentResolver.openInputStream(it)
-            if (stream != null) {
-                viewModel.onEvent(Event.OnRomSelected(stream))
-            }
+            context.contentResolver.takePersistableUriPermission(
+                it,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+            viewModel.onEvent(Event.OnRomSelected(it.toString()))
         }
     }
 

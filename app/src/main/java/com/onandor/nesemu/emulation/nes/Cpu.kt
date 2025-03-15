@@ -784,12 +784,19 @@ class Cpu(
 
     override fun saveState(): CpuState {
         return CpuState(
-            PC = this.PC,
-            SP = this.SP,
-            A = this.A,
-            X = this.X,
-            Y = this.Y,
-            PS = this.PS
+            PC = PC,
+            SP = SP,
+            A = A,
+            X = X,
+            Y = Y,
+            PS = PS,
+            instruction = instruction,
+            eaddress = eaddress,
+            addressingCycle = addressingCycle,
+            instructionCycle = instructionCycle,
+            totalCycles = totalCycles,
+            interruptCycles = interruptCycles,
+            stallCycles = stallCycles
         )
     }
 
@@ -800,6 +807,13 @@ class Cpu(
         X = state.X
         Y = state.Y
         PS = state.PS
+        instruction = state.instruction
+        eaddress = state.eaddress
+        addressingCycle = state.addressingCycle
+        instructionCycle = state.instructionCycle
+        totalCycles = state.totalCycles
+        interruptCycles = state.interruptCycles
+        stallCycles = state.stallCycles
     }
 
     companion object {

@@ -1,6 +1,7 @@
 package com.onandor.nesemu.emulation.nes.mappers
 
 import com.onandor.nesemu.emulation.nes.Cartridge
+import com.onandor.nesemu.emulation.savestate.MapperState
 
 // CNROM - https://www.nesdev.org/wiki/INES_Mapper_003
 class Mapper3(cartridge: Cartridge) : Mapper(cartridge) {
@@ -21,5 +22,15 @@ class Mapper3(cartridge: Cartridge) : Mapper(cartridge) {
 
     override fun readChrRom(address: Int): Int {
         return cartridge.chrRom[bankSelect * 0x2000 + address]
+    }
+
+    override fun saveState(): MapperState {
+        return MapperState(
+            bankSelect = bankSelect
+        )
+    }
+
+    override fun loadState(state: MapperState) {
+        bankSelect = state.bankSelect!!
     }
 }

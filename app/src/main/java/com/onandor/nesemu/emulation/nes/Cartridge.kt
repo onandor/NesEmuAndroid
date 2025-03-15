@@ -286,18 +286,18 @@ class Cartridge : Savable<CartridgeState> {
 
     override fun saveState(): CartridgeState {
         return CartridgeState(
-            filePath = "",
             prgRom = prgRom,
-            chrRom = chrRom,
+            chrRom = if (chrRomBanks > 0) chrRom else null,
             prgRam = prgRam,
             chrRam = chrRam
         )
     }
 
     override fun loadState(state: CartridgeState) {
-        // TODO: load file and parse file
         prgRom = state.prgRom
-        chrRom = state.chrRom
+        if (chrRomBanks > 0) {
+            chrRom = state.chrRom!!
+        }
         prgRam = state.prgRam
         chrRam = state.chrRam
     }

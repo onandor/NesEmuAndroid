@@ -4,8 +4,10 @@ import android.util.Log
 import com.onandor.nesemu.emulation.nes.Cartridge
 import com.onandor.nesemu.emulation.nes.Mirroring
 import com.onandor.nesemu.emulation.nes.toHexString
+import com.onandor.nesemu.emulation.savestate.MapperState
+import com.onandor.nesemu.emulation.savestate.Savable
 
-abstract class Mapper(open val cartridge: Cartridge) {
+abstract class Mapper(open val cartridge: Cartridge) : Savable<MapperState> {
 
     companion object {
         internal const val TAG = "Mapper"

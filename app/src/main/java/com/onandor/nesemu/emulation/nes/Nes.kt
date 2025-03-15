@@ -8,6 +8,8 @@ import com.onandor.nesemu.emulation.nes.mappers.Mapper0
 import com.onandor.nesemu.emulation.nes.mappers.Mapper2
 import com.onandor.nesemu.emulation.nes.mappers.Mapper3
 import com.onandor.nesemu.emulation.nes.ppu.Ppu
+import com.onandor.nesemu.emulation.savestate.NesState
+import com.onandor.nesemu.emulation.savestate.Savable
 import com.onandor.nesemu.util.SlidingWindowIntQueue
 import kotlinx.coroutines.delay
 import kotlin.time.TimeSource
@@ -20,7 +22,7 @@ class Nes(
         colorPalettes: Array<IntArray>) -> Unit,
     private val onPollController1: () -> Int,
     private val onPollController2: () -> Int
-) {
+) : Savable<NesState> {
 
     private companion object {
         const val TAG = "Nes"
@@ -44,7 +46,7 @@ class Nes(
     private val audioSampleSizeQueue = SlidingWindowIntQueue(100)
     private var targetAudioBufferSize: Int = 0
 
-    var running: Boolean = true
+    var running: Boolean = false
         private set
     private var isFrameReady: Boolean = false
     private var numFrames: Int = 0
@@ -292,5 +294,29 @@ class Nes(
             }
             else -> {}
         }
+    }
+
+    override fun saveState(): NesState {
+        return NesState(
+            cpuMemory = cpuMemory.copyOf(),
+            lastValueRead = lastValueRead,
+            vram = vram.copyOf(),
+            cpu = cpu.saveState(),
+            ppu = ppu.saveState(),
+            apu = apu.saveState(),
+            cartridge = cartridge!!.saveState(),
+            mapper = mapper.saveState()
+        )
+    }
+
+    override fun loadState(state: NesState) {
+        cpuMemory = state.cpuMemory.copyOf()
+        lastValueRead = state.lastValueRead
+        vram = state.vram.copyOf()
+        cpu.loadState(state.cpu)
+        ppu.loadState(state.ppu)
+        apu.loadState(state.apu)
+        cartridge!!.loadState(state.cartridge)
+        mapper.loadState(state.mapper)
     }
 }

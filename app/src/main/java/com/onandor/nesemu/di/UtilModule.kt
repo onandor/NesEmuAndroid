@@ -12,6 +12,7 @@ import com.onandor.nesemu.emulation.Emulator
 import com.onandor.nesemu.input.NesInputManager
 import com.onandor.nesemu.preferences.PreferencesSerializer
 import com.onandor.nesemu.preferences.proto.Preferences
+import com.onandor.nesemu.util.FileAccessor
 import com.onandor.nesemu.util.GlobalLifecycleObserver
 import dagger.Module
 import dagger.Provides
@@ -55,4 +56,10 @@ class UtilModule {
         ),
         produceFile = { context.dataStoreFile("proto_prefs.preferences_pb") }
     )
+
+    @Singleton
+    @Provides
+    fun provideFileAccessor(
+        @ApplicationContext context: Context
+    ): FileAccessor = FileAccessor(context)
 }

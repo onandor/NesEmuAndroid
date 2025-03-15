@@ -1,6 +1,7 @@
 package com.onandor.nesemu.emulation.nes.mappers
 
 import com.onandor.nesemu.emulation.nes.Cartridge
+import com.onandor.nesemu.emulation.savestate.MapperState
 
 // NROM - https://www.nesdev.org/wiki/NROM
 class Mapper0(cartridge: Cartridge) : Mapper(cartridge) {
@@ -40,4 +41,10 @@ class Mapper0(cartridge: Cartridge) : Mapper(cartridge) {
             cartridge.prgRam!![address - 0x6000] = value
         }
     }
+
+    override fun saveState(): MapperState {
+        return MapperState()
+    }
+
+    override fun loadState(state: MapperState) {}
 }
