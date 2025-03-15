@@ -1,6 +1,12 @@
 package com.onandor.nesemu.emulation.nes.apu
 
-class Sweep(private val pulse: PulseChannel, private val channel: Int) : Clockable {
+import com.onandor.nesemu.emulation.savestate.Savable
+import com.onandor.nesemu.emulation.savestate.SweepState
+
+class Sweep(
+    private val pulse: PulseChannel,
+    private val channel: Int
+) : Clockable, Savable<SweepState> {
 
     var isEnabled: Boolean = false
     var isNegated: Boolean = false
@@ -42,5 +48,25 @@ class Sweep(private val pulse: PulseChannel, private val channel: Int) : Clockab
         shiftCount = 0
 
         divider.reset()
+    }
+
+    override fun saveState(): SweepState {
+        return SweepState(
+            isEnabled = isEnabled,
+            isNegated = isNegated,
+            reload = reload,
+            shiftCount = shiftCount,
+            targetPeriod = targetPeriod,
+            divider = divider.saveState()
+        )
+    }
+
+    override fun loadState(state: SweepState) {
+        isEnabled = state.isEnabled
+        isNegated = state.isNegated
+        reload = state.reload
+        shiftCount = state.shiftCount
+        targetPeriod = state.targetPeriod
+        divider.loadState(state.divider)
     }
 }

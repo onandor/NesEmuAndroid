@@ -1,6 +1,9 @@
 package com.onandor.nesemu.emulation.nes.apu
 
-class Envelope : Clockable {
+import com.onandor.nesemu.emulation.savestate.EnvelopeState
+import com.onandor.nesemu.emulation.savestate.Savable
+
+class Envelope : Clockable, Savable<EnvelopeState> {
 
     var isStarted: Boolean = false
     var isLooping: Boolean = false
@@ -34,5 +37,23 @@ class Envelope : Clockable {
         volume = 0
 
         divider.reset()
+    }
+
+    override fun saveState(): EnvelopeState {
+        return EnvelopeState(
+            isStarted = isStarted,
+            isLooping = isLooping,
+            isConstant = isConstant,
+            volume = volume,
+            divider = divider.saveState()
+        )
+    }
+
+    override fun loadState(state: EnvelopeState) {
+        isStarted = state.isStarted
+        isLooping = state.isLooping
+        isConstant = state.isConstant
+        volume = state.volume
+        divider.loadState(state.divider)
     }
 }

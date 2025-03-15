@@ -1,6 +1,9 @@
 package com.onandor.nesemu.emulation.nes.apu
 
-class PulseChannel(channel: Int) : Clockable {
+import com.onandor.nesemu.emulation.savestate.PulseChannelState
+import com.onandor.nesemu.emulation.savestate.Savable
+
+class PulseChannel(channel: Int) : Clockable, Savable<PulseChannelState> {
     var length: Int = 0
     var lengthFrozen: Boolean = false
     var dutyCycle: Int = DUTY_CYCLE_LOOKUP[0]
@@ -18,6 +21,7 @@ class PulseChannel(channel: Int) : Clockable {
 
         divider.reset()
         envelope.reset()
+        sweep.reset()
     }
 
     override fun clock() {
@@ -66,6 +70,28 @@ class PulseChannel(channel: Int) : Clockable {
         } else {
             envelope.getOutput()
         }
+    }
+
+    override fun saveState(): PulseChannelState {
+        return PulseChannelState(
+            length = length,
+            lengthFrozen = lengthFrozen,
+            dutyCycle = dutyCycle,
+            phase = phase,
+            divider = divider.saveState(),
+            envelope = envelope.saveState(),
+            sweep = sweep.saveState()
+        )
+    }
+
+    override fun loadState(state: PulseChannelState) {
+        length = state.length
+        lengthFrozen = state.lengthFrozen
+        dutyCycle = state.dutyCycle
+        phase = state.phase
+        divider.loadState(state.divider)
+        envelope.loadState(state.envelope)
+        sweep.loadState(state.sweep)
     }
 
     companion object {

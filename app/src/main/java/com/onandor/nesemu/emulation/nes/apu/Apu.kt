@@ -1,12 +1,14 @@
 package com.onandor.nesemu.emulation.nes.apu
 
 import com.onandor.nesemu.emulation.nes.Cpu
+import com.onandor.nesemu.emulation.savestate.ApuState
+import com.onandor.nesemu.emulation.savestate.Savable
 
 class Apu(
     onGenerateIRQ: () -> Unit,
     onReadMemory: (Int) -> Int,
     private val onAudioSampleReady: (Float) -> Unit
-) : Clockable {
+) : Clockable, Savable<ApuState> {
 
     private var sampleRate: Int = 48000
     private var cpuCyclesPerSample: Int = Cpu.FREQUENCY_HZ / sampleRate
@@ -190,6 +192,32 @@ class Apu(
         //val pulseSample = pulseTable[pulse1.getOutput() + pulse2.getOutput()]
         //val tndSample = tndTable[3 * triangle.getOutput() + 2 * noise.getOutput() + dmc.getOutput()]
         return pulseSample + tndSample
+    }
+
+    override fun saveState(): ApuState {
+        return ApuState(
+            cpuCyclesSinceSample = cpuCyclesSinceSample,
+            cycles = cycles,
+            cpuCycles = cpuCycles,
+            sequenceCycles = sequenceCycles,
+            pulse1 = pulse1.saveState(),
+            pulse2 = pulse2.saveState(),
+            triangle = triangle.saveState(),
+            noise = noise.saveState(),
+            dmc = dmc.saveState()
+        )
+    }
+
+    override fun loadState(state: ApuState) {
+        cpuCyclesSinceSample = state.cpuCyclesSinceSample
+        cycles = state.cycles
+        cpuCycles = state.cpuCycles
+        sequenceCycles = state.sequenceCycles
+        pulse1.loadState(state.pulse1)
+        pulse2.loadState(state.pulse2)
+        triangle.loadState(state.triangle)
+        noise.loadState(state.noise)
+        dmc.loadState(state.dmc)
     }
 
     companion object {

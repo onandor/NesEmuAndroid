@@ -1,11 +1,16 @@
 package com.onandor.nesemu.emulation.nes.apu
 
+import com.onandor.nesemu.emulation.savestate.DMCOutputState
+import com.onandor.nesemu.emulation.savestate.DMCSampleState
+import com.onandor.nesemu.emulation.savestate.DMCState
+import com.onandor.nesemu.emulation.savestate.Savable
+
 class DMC(
     private val onGenerateIRQ: () -> Unit,
     private val onReadMemory: (address: Int) -> Int
-) {
+) : Savable<DMCState> {
 
-    class Sample {
+    class Sample : Savable<DMCSampleState> {
         var address: Int = 0            // Address of the next byte to be loaded
         var startingAddress: Int = 0    // Starting address of the sample
         var length: Int = 0             // Length of the sample in bytes
@@ -21,9 +26,29 @@ class DMC(
             buffer = 0
             isEmpty = true
         }
+
+        override fun saveState(): DMCSampleState {
+            return DMCSampleState(
+                address = address,
+                startingAddress = startingAddress,
+                length = length,
+                bytesRemaining = bytesRemaining,
+                buffer = buffer,
+                isEmpty = isEmpty
+            )
+        }
+
+        override fun loadState(state: DMCSampleState) {
+            address = state.address
+            startingAddress = state.startingAddress
+            length = state.length
+            bytesRemaining = state.bytesRemaining
+            buffer = state.buffer
+            isEmpty = state.isEmpty
+        }
     }
 
-    class Output {
+    class Output : Savable<DMCOutputState> {
         var bitsRemaining: Int = 0          // Bits remaining in the shifter
         var level: Int = 0                  // Output level, controlled by the shifter
         var isSilenced: Boolean = true      // Set if a new sample byte cannot be loaded from the reader
@@ -34,6 +59,22 @@ class DMC(
             level = 0
             isSilenced = true
             shifter = 0
+        }
+
+        override fun saveState(): DMCOutputState {
+            return DMCOutputState(
+                bitsRemaining = bitsRemaining,
+                level = level,
+                isSilenced = isSilenced,
+                shifter = shifter
+            )
+        }
+
+        override fun loadState(state: DMCOutputState) {
+            bitsRemaining = state.bitsRemaining
+            level = state.level
+            isSilenced = state.isSilenced
+            shifter = state.shifter
         }
     }
 
@@ -124,6 +165,26 @@ class DMC(
     }
 
     fun getOutput(): Int = if (output.isSilenced) 0 else output.level
+
+    override fun saveState(): DMCState {
+        return DMCState(
+            interruptEnable = interruptEnable,
+            isLooping = isLooping,
+            isEnabled = isEnabled,
+            sample = sample.saveState(),
+            output = output.saveState(),
+            divider = divider.saveState()
+        )
+    }
+
+    override fun loadState(state: DMCState) {
+        interruptEnable = state.interruptEnable
+        isLooping = state.isLooping
+        isEnabled = state.isEnabled
+        sample.loadState(state.sample)
+        output.loadState(state.output)
+        divider.loadState(state.divider)
+    }
 
     companion object {
         private val RATE_LOOKUP: IntArray = intArrayOf(

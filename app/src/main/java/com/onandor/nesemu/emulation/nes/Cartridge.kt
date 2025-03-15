@@ -1,6 +1,8 @@
 package com.onandor.nesemu.emulation.nes
 
 import android.util.Log
+import com.onandor.nesemu.emulation.savestate.CartridgeState
+import com.onandor.nesemu.emulation.savestate.Savable
 import okio.internal.commonToUtf8String
 import java.io.ByteArrayInputStream
 import kotlin.math.ceil
@@ -40,7 +42,7 @@ private enum class RomFormat {
     NES2_0
 }
 
-class Cartridge {
+class Cartridge : Savable<CartridgeState> {
 
     // A cartridge has:
     // - PRG ROM chip
@@ -280,6 +282,24 @@ class Cartridge {
         stream.reset()
 
         return if ((flags7 and 0x0C) ushr 2 == 0x02) RomFormat.NES2_0 else RomFormat.INES
+    }
+
+    override fun saveState(): CartridgeState {
+        return CartridgeState(
+            filePath = "",
+            prgRom = prgRom,
+            chrRom = chrRom,
+            prgRam = prgRam,
+            chrRam = chrRam
+        )
+    }
+
+    override fun loadState(state: CartridgeState) {
+        // TODO: load file and parse file
+        prgRom = state.prgRom
+        chrRom = state.chrRom
+        prgRam = state.prgRam
+        chrRam = state.chrRam
     }
 
     companion object {

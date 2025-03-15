@@ -1,6 +1,9 @@
 package com.onandor.nesemu.emulation.nes.apu
 
-class TriangleChannel : Clockable {
+import com.onandor.nesemu.emulation.savestate.Savable
+import com.onandor.nesemu.emulation.savestate.TriangleChannelState
+
+class TriangleChannel : Clockable, Savable<TriangleChannelState> {
 
     var length: Int = 0
     var control: Boolean = false
@@ -66,6 +69,28 @@ class TriangleChannel : Clockable {
         } else {
             SEQUENCE[phase]
         }
+    }
+
+    override fun saveState(): TriangleChannelState {
+        return TriangleChannelState(
+            length = length,
+            control = control,
+            counter = counter,
+            reloadValue = reloadValue,
+            reloadCounter = reloadCounter,
+            phase = phase,
+            divider = divider.saveState()
+        )
+    }
+
+    override fun loadState(state: TriangleChannelState) {
+        length = state.length
+        control = state.control
+        counter = state.counter
+        reloadValue = state.reloadValue
+        reloadCounter = state.reloadCounter
+        phase = state.phase
+        divider.loadState(state.divider)
     }
 
     companion object {

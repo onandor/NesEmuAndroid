@@ -3,6 +3,8 @@ package com.onandor.nesemu.emulation.nes.ppu
 import com.onandor.nesemu.emulation.nes.Mirroring
 import com.onandor.nesemu.emulation.nes.plus8
 import com.onandor.nesemu.emulation.nes.toInt
+import com.onandor.nesemu.emulation.savestate.PpuState
+import com.onandor.nesemu.emulation.savestate.Savable
 import java.nio.IntBuffer
 
 /*
@@ -23,7 +25,7 @@ class Ppu(
         patternTable: IntArray,
         nametable: IntArray,
         colorPalettes: Array<IntArray>) -> Unit
-) {
+) : Savable<PpuState> {
 
     companion object {
         private const val TAG = "Ppu"
@@ -82,8 +84,8 @@ class Ppu(
                                     // PPUADDR
 
     private var cycle: Int = 0
-    private var scanline: Int = 261 // Scanline 261 is the pre-render scanline
-    private var numFrames: Int = -1 // Pre-render frame
+    private var scanline: Int = 261  // Scanline 261 is the pre-render scanline
+    private var oddFrame: Boolean = false
 
     var mirroring: Mirroring = Mirroring.HORIZONTAL
 
@@ -157,7 +159,7 @@ class Ppu(
     fun reset() {
         cycle = 0
         scanline = 261
-        numFrames = -1
+        oddFrame = false
         v = 0
         t = 0
         fineX = 0
@@ -182,11 +184,11 @@ class Ppu(
     }
 
     fun tick() {
-        if (scanline == 261 && cycle == 339 && numFrames % 2 == 1) {
+        if (scanline == 261 && cycle == 339 && oddFrame) {
             // Skipping the last cycle of odd frames
             cycle = 0
             scanline = 0
-            numFrames++
+            oddFrame = false
             return
         }
         if (cycle == 0) {
@@ -211,7 +213,7 @@ class Ppu(
                 scanline++
                 if (scanline == 262) {
                     scanline = 0
-                    numFrames++
+                    oddFrame = !oddFrame
                 }
             }
             return
@@ -252,7 +254,7 @@ class Ppu(
             scanline++
             if (scanline == 262) {
                 scanline = 0
-                numFrames++
+                oddFrame = !oddFrame
             }
         }
     }
@@ -661,6 +663,76 @@ class Ppu(
 
     fun loadOamData(data: IntArray) {
         oamData = data.copyOf()
+    }
+
+    override fun saveState(): PpuState {
+        return PpuState(
+            controlRegister = controlReg.value,
+            maskRegister = maskReg.value,
+            statusRegister = statusReg.value,
+            oamAddressRegister = oamAddressReg.value,
+            oamDataRegister = oamDataReg.value,
+            scrollRegister = scrollReg.value,
+            addressRegister = addressReg.value,
+            dataRegister = dataReg.value,
+            v = v,
+            t = t,
+            fineX = fineX,
+            w = w,
+            cycle = cycle,
+            scanline = scanline,
+            oddFrame = oddFrame,
+            busLatch = busLatch,
+            palette = palette,
+            nametableId = nametableId,
+            attributeId = attributeId,
+            bgTilePatternLow = bgTilePatternLow,
+            bgTilePatternHigh = bgTilePatternHigh,
+            bgPatternDataLow = bgPatternDataLow,
+            bgPatternDataHigh = bgPatternDataHigh,
+            bgAttributeDataLow = bgAttributeDataLow,
+            bgAttributeDataHigh = bgAttributeDataHigh,
+            sprPatternDataLow = sprPatternDataLow,
+            sprPatternDataHigh = sprPatternDataHigh,
+            numSpritesOnScanline = numSpritesOnScanline,
+            oamBuffer = oamBuffer,
+            oamData = oamData,
+            oamClear = oamClear
+        )
+    }
+
+    override fun loadState(state: PpuState) {
+        controlReg.value = state.controlRegister
+        maskReg.value = state.maskRegister
+        statusReg.value = state.statusRegister
+        oamAddressReg.value = state.oamAddressRegister
+        oamDataReg.value = state.oamDataRegister
+        scrollReg.value = state.scrollRegister
+        addressReg.value = state.addressRegister
+        dataReg.value = state.dataRegister
+        v = state.v
+        t = state.t
+        fineX = state.fineX
+        w = state.w
+        cycle = state.cycle
+        scanline = state.scanline
+        oddFrame = state.oddFrame
+        busLatch = state.busLatch
+        palette = state.palette
+        nametableId = state.nametableId
+        attributeId = state.attributeId
+        bgTilePatternLow = state.bgTilePatternLow
+        bgTilePatternHigh = state.bgTilePatternHigh
+        bgPatternDataLow = state.bgPatternDataLow
+        bgPatternDataHigh = state.bgPatternDataHigh
+        bgAttributeDataLow = state.bgAttributeDataLow
+        bgAttributeDataHigh = state.bgAttributeDataHigh
+        sprPatternDataLow = state.sprPatternDataLow
+        sprPatternDataHigh = state.sprPatternDataHigh
+        numSpritesOnScanline = state.numSpritesOnScanline
+        oamBuffer = state.oamBuffer
+        oamData = state.oamData
+        oamClear = state.oamClear
     }
 
     // Functions used for debugging

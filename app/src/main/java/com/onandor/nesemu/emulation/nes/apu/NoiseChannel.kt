@@ -1,6 +1,9 @@
 package com.onandor.nesemu.emulation.nes.apu
 
-class NoiseChannel : Clockable {
+import com.onandor.nesemu.emulation.savestate.NoiseChannelState
+import com.onandor.nesemu.emulation.savestate.Savable
+
+class NoiseChannel : Clockable, Savable<NoiseChannelState> {
 
     var length: Int = 0
     var lengthFrozen: Boolean = false
@@ -58,6 +61,26 @@ class NoiseChannel : Clockable {
         } else {
             envelope.getOutput()
         }
+    }
+
+    override fun saveState(): NoiseChannelState {
+        return NoiseChannelState(
+            length = length,
+            lengthFrozen = lengthFrozen,
+            mode = mode,
+            shifter = shifter,
+            divider = divider.saveState(),
+            envelope = envelope.saveState()
+        )
+    }
+
+    override fun loadState(state: NoiseChannelState) {
+        length = state.length
+        lengthFrozen = state.lengthFrozen
+        mode = state.mode
+        shifter = state.shifter
+        divider.loadState(state.divider)
+        envelope.loadState(state.envelope)
     }
 
     companion object {

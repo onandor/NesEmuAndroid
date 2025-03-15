@@ -1,22 +1,14 @@
 package com.onandor.nesemu.emulation.nes
 
 import android.util.Log
-
-@Suppress("PropertyName")
-data class CpuState(
-    val PC: Int,
-    val SP: Int,
-    val A: Int,
-    val X: Int,
-    val Y: Int,
-    val PS: Int
-)
+import com.onandor.nesemu.emulation.savestate.CpuState
+import com.onandor.nesemu.emulation.savestate.Savable
 
 @Suppress("FunctionName", "PrivatePropertyName", "LocalVariableName")
 class Cpu(
     private val readMemory: (address: Int) -> Int,
     private val writeMemory: (address: Int, value: Int) -> Unit
-) {
+) : Savable<CpuState> {
 
     private object Flags {
         const val CARRY: Int = 0b00000001
@@ -140,26 +132,6 @@ class Cpu(
     private fun setZNFlags(data: Int) {
         setFlag(Flags.ZERO, data == 0)
         setFlag(Flags.NEGATIVE, (data and Flags.NEGATIVE) > 0)
-    }
-
-    fun getState(): CpuState {
-        return CpuState(
-            PC = this.PC,
-            SP = this.SP,
-            A = this.A,
-            X = this.X,
-            Y = this.Y,
-            PS = this.PS
-        )
-    }
-
-    fun setState(state: CpuState) {
-        PC = state.PC
-        SP = state.SP
-        A = state.A
-        X = state.X
-        Y = state.Y
-        PS = state.PS
     }
 
     fun stall(cycles: Int) {
@@ -809,6 +781,26 @@ class Cpu(
         /* E */   2,    6,    2,    8,    3,    3,    5,    5,    2,    2,    2,    2,    4,    4,    6,    6,
         /* F */   2,    5,    2,    8,    4,    4,    6,    6,    2,    4,    2,    7,    4,    4,    7,    7
     )
+
+    override fun saveState(): CpuState {
+        return CpuState(
+            PC = this.PC,
+            SP = this.SP,
+            A = this.A,
+            X = this.X,
+            Y = this.Y,
+            PS = this.PS
+        )
+    }
+
+    override fun loadState(state: CpuState) {
+        PC = state.PC
+        SP = state.SP
+        A = state.A
+        X = state.X
+        Y = state.Y
+        PS = state.PS
+    }
 
     companion object {
         private const val TAG = "Cpu"

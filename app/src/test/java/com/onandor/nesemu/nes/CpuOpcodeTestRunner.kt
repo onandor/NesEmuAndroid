@@ -2,7 +2,7 @@ package com.onandor.nesemu.nes
 
 import com.google.gson.Gson
 import com.onandor.nesemu.emulation.nes.Cpu
-import com.onandor.nesemu.emulation.nes.CpuState
+import com.onandor.nesemu.emulation.savestate.CpuState
 import java.io.File
 
 class CpuOpcodeTestRunner(
@@ -76,7 +76,7 @@ class CpuOpcodeTestRunner(
                 Y = opcodeTest.initialState.Y,
                 PS = opcodeTest.initialState.PS
             )
-            cpu.setState(cpuState)
+            cpu.loadState(cpuState)
             opcodeTest.initialState.memory.forEach { value ->
                 cpuWriteMemory(value[0], value[1])
             }
@@ -150,7 +150,7 @@ class CpuOpcodeTestRunner(
         actualCycles: Int
     ): Boolean {
         var pass = true
-        val cpuState = cpu.getState()
+        val cpuState = cpu.saveState()
 
         if (cpuState.PC == finalState.PC) {
             if (canPrint(Verbosity.OK)) println("PC: OK")
