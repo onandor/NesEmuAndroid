@@ -1,5 +1,8 @@
 package com.onandor.nesemu.emulation.savestate
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class NesState(
     val cpuMemory: IntArray,
     val lastValueRead: Int,

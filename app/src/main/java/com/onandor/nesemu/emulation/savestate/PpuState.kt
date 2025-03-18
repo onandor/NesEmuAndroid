@@ -1,5 +1,8 @@
 package com.onandor.nesemu.emulation.savestate
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class PpuState(
     val controlRegister: Int,
     val maskRegister: Int,
@@ -19,7 +22,6 @@ data class PpuState(
     val scanline: Int,
     val oddFrame: Boolean,
     val busLatch: Int,
-    // mirroring?
 
     val palette: IntArray,
     val nametableId: Int,
@@ -36,6 +38,5 @@ data class PpuState(
 
     val oamBuffer: IntArray,
     val oamData: IntArray,
-    val oamClear: Boolean,
-    // frameBuffer?
+    val oamClear: Boolean
 ) : SaveState()

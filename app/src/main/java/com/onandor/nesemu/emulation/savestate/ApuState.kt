@@ -1,5 +1,8 @@
 package com.onandor.nesemu.emulation.savestate
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class ApuState(
     val cpuCyclesSinceSample: Int,
     val cycles: Int,
@@ -12,6 +15,7 @@ data class ApuState(
     val dmc: DMCState
 ) : SaveState()
 
+@Serializable
 data class PulseChannelState(
     val length: Int,
     val lengthFrozen: Boolean,
@@ -22,6 +26,7 @@ data class PulseChannelState(
     val sweep: SweepState
 ) : SaveState()
 
+@Serializable
 data class TriangleChannelState(
     val length: Int,
     val control: Boolean,
@@ -32,6 +37,7 @@ data class TriangleChannelState(
     val divider: DividerState
 ) : SaveState()
 
+@Serializable
 data class NoiseChannelState(
     val length: Int,
     val lengthFrozen : Boolean,
@@ -41,6 +47,7 @@ data class NoiseChannelState(
     val envelope: EnvelopeState
 ) : SaveState()
 
+@Serializable
 data class DMCState(
     val interruptEnable: Boolean,
     val isLooping: Boolean,
@@ -50,6 +57,7 @@ data class DMCState(
     val divider: DividerState
 ) : SaveState()
 
+@Serializable
 data class DMCSampleState(
     val address: Int,
     val startingAddress: Int,
@@ -59,6 +67,7 @@ data class DMCSampleState(
     val isEmpty: Boolean
 ) : SaveState()
 
+@Serializable
 data class DMCOutputState(
     val bitsRemaining: Int,
     val level: Int,
@@ -66,11 +75,13 @@ data class DMCOutputState(
     val shifter: Int
 ) : SaveState()
 
+@Serializable
 data class DividerState(
     val counter: Int,
     val period: Int
 ) : SaveState()
 
+@Serializable
 data class EnvelopeState(
     val isStarted: Boolean,
     val isLooping: Boolean,
@@ -79,6 +90,7 @@ data class EnvelopeState(
     val divider: DividerState
 ) : SaveState()
 
+@Serializable
 data class SweepState(
     val isEnabled: Boolean,
     val isNegated: Boolean,

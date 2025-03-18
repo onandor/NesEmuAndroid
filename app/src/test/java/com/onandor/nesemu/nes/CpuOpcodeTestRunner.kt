@@ -1,8 +1,8 @@
 package com.onandor.nesemu.nes
 
-import com.google.gson.Gson
 import com.onandor.nesemu.emulation.nes.Cpu
 import com.onandor.nesemu.emulation.savestate.CpuState
+import kotlinx.serialization.json.Json
 import java.io.File
 
 class CpuOpcodeTestRunner(
@@ -61,8 +61,7 @@ class CpuOpcodeTestRunner(
 
             testIdx++
 
-            val opcodeTest: CpuOpcodeTest =
-                Gson().fromJson<CpuOpcodeTest>(testJson, CpuOpcodeTest::class.java)
+            val opcodeTest: CpuOpcodeTest = Json.decodeFromString(testJson)
 
             if (skipDecimalMode && opcodeTest.initialState.PS and 0b00001000 > 0) {
                 continue
@@ -74,7 +73,14 @@ class CpuOpcodeTestRunner(
                 A = opcodeTest.initialState.A,
                 X = opcodeTest.initialState.X,
                 Y = opcodeTest.initialState.Y,
-                PS = opcodeTest.initialState.PS
+                PS = opcodeTest.initialState.PS,
+                instruction = 0,
+                eaddress = 0,
+                addressingCycle = false,
+                instructionCycle = false,
+                totalCycles = 0,
+                interruptCycles = 0,
+                stallCycles = 0
             )
             cpu.loadState(cpuState)
             opcodeTest.initialState.memory.forEach { value ->
@@ -150,7 +156,7 @@ class CpuOpcodeTestRunner(
         actualCycles: Int
     ): Boolean {
         var pass = true
-        val cpuState = cpu.saveState()
+        val cpuState = cpu.createSaveState()
 
         if (cpuState.PC == finalState.PC) {
             if (canPrint(Verbosity.OK)) println("PC: OK")

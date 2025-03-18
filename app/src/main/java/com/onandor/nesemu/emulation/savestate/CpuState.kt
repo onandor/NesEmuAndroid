@@ -1,6 +1,9 @@
 package com.onandor.nesemu.emulation.savestate
 
+import kotlinx.serialization.Serializable
+
 @Suppress("PropertyName")
+@Serializable
 data class CpuState(
     val PC: Int,
     val SP: Int,

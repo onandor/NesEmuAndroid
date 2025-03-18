@@ -233,8 +233,8 @@ class NesInputManager(
     fun onInputEvent(event: KeyEvent): Boolean {
         val device = availableDevicesMap[event.deviceId]
         if (device == null) {
-            // The event came from a device which is not a valid controller
-            return gameRunning
+            // The event came from a device which is not a valid controller, we don't handle it
+            return false
         }
 
         val playerId = if (player1Device?.id == device.id) {

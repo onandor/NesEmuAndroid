@@ -2,6 +2,7 @@ package com.onandor.nesemu.viewmodels
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.onandor.nesemu.emulation.EmulationListener
 import com.onandor.nesemu.emulation.Emulator
 import com.onandor.nesemu.navigation.NavigationManager
@@ -13,8 +14,6 @@ import com.onandor.nesemu.input.NesInputManager
 import com.onandor.nesemu.navigation.NavAction
 import com.onandor.nesemu.navigation.NavDestinations
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -88,16 +87,13 @@ class GameViewModel @Inject constructor(
 
         try {
             emulator.reset()
+            emulator.startAudioStream()
+        } catch (e: NesException) {
+            _uiState.update { it.copy(errorMessage = e.message) }
         } catch (e: Exception) {
-            if (e is NesException) {
-                _uiState.update { it.copy(errorMessage = e.message) }
-            } else {
-                Log.e("GameViewModel", e.localizedMessage, e)
-                _uiState.update { it.copy(errorMessage = "An unexpected error occurred") }
-            }
+            Log.e("GameViewModel", e.localizedMessage, e)
+            _uiState.update { it.copy(errorMessage = "An unexpected error occurred") }
         }
-
-        emulator.startAudioStream()
     }
 
     fun onEvent(event: Event) {
@@ -158,7 +154,7 @@ class GameViewModel @Inject constructor(
         }
     }
 
-    private fun collectInputManagerEvents(): Job = CoroutineScope(Dispatchers.IO).launch {
+    private fun collectInputManagerEvents(): Job = viewModelScope.launch {
         inputManager.events.collect { event ->
             when (event) {
                 is NesInputManager.Event.OnPauseButtonPressed -> {
@@ -175,7 +171,7 @@ class GameViewModel @Inject constructor(
         }
     }
 
-    private fun collectNavigationEvents(): Job = CoroutineScope(Dispatchers.IO).launch {
+    private fun collectNavigationEvents(): Job = viewModelScope.launch {
         navManager.navActions.collect { navAction ->
             if (navAction?.destination == NavDestinations.BACK
                 && navManager.getCurrentRoute() == NavDestinations.GAME_SCREEN

@@ -1,6 +1,7 @@
 package com.onandor.nesemu.nes
 
-import com.google.gson.annotations.SerializedName
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 data class CpuTest(
     val name: String,
@@ -8,19 +9,21 @@ data class CpuTest(
 )
 
 @Suppress("PropertyName")
+@Serializable
 data class TestCpuState(
-    @SerializedName("pc") val PC: Int,
-    @SerializedName("s") val SP: Int,
-    @SerializedName("a") val A: Int,
-    @SerializedName("x") val X: Int,
-    @SerializedName("y") val Y: Int,
-    @SerializedName("p") val PS: Int,
-    @SerializedName("ram") val memory: List<List<Int>>
+    @SerialName("pc") val PC: Int,
+    @SerialName("s") val SP: Int,
+    @SerialName("a") val A: Int,
+    @SerialName("x") val X: Int,
+    @SerialName("y") val Y: Int,
+    @SerialName("p") val PS: Int,
+    @SerialName("ram") val memory: List<List<Int>>
 )
 
+@Serializable
 data class CpuOpcodeTest(
     val name: String,
-    @SerializedName("initial") val initialState: TestCpuState,
-    @SerializedName("final") val finalState: TestCpuState,
-    val cycles: List<List<Any>>
+    @SerialName("initial") val initialState: TestCpuState,
+    @SerialName("final") val finalState: TestCpuState,
+    val cycles: List<List<Unit>>
 )

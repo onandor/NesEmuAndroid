@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.dagger.hilt)
     alias(libs.plugins.google.ksp)
     alias(libs.plugins.google.protobuf)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 // Workaround for a KSP build issue (from 2023!!) - https://github.com/google/ksp/issues/1590
@@ -119,10 +120,14 @@ dependencies {
     // Protobuf
     implementation(libs.google.protobuf.javalite)
     implementation(libs.google.protobuf.kotlin.lite)
-    // Gson
-    implementation(libs.google.code.gson)
     // Oboe
     implementation(libs.google.oboe)
     // guava
     implementation(libs.google.guava)
+    // Room
+    implementation(libs.androidx.room.runtime)
+    ksp(libs.androidx.room.compiler)
+    implementation(libs.androidx.room.ktx)
+    // Kotlinx serialization
+    implementation(libs.kotlinx.serialization.json)
 }

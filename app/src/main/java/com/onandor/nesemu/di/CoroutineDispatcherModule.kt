@@ -23,10 +23,6 @@ annotation class IODispatcher
 @Qualifier
 annotation class MainDispatcher
 
-@Retention(AnnotationRetention.RUNTIME)
-@Qualifier
-annotation class Default
-
 @Module
 @InstallIn(SingletonComponent::class)
 class CoroutineDispatcherModule {
