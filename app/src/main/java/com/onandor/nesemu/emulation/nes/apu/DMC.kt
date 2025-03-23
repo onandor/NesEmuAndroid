@@ -27,7 +27,7 @@ class DMC(
             isEmpty = true
         }
 
-        override fun saveState(): DMCSampleState {
+        override fun createSaveState(): DMCSampleState {
             return DMCSampleState(
                 address = address,
                 startingAddress = startingAddress,
@@ -61,7 +61,7 @@ class DMC(
             shifter = 0
         }
 
-        override fun saveState(): DMCOutputState {
+        override fun createSaveState(): DMCOutputState {
             return DMCOutputState(
                 bitsRemaining = bitsRemaining,
                 level = level,
@@ -166,14 +166,14 @@ class DMC(
 
     fun getOutput(): Int = if (output.isSilenced) 0 else output.level
 
-    override fun saveState(): DMCState {
+    override fun createSaveState(): DMCState {
         return DMCState(
             interruptEnable = interruptEnable,
             isLooping = isLooping,
             isEnabled = isEnabled,
-            sample = sample.saveState(),
-            output = output.saveState(),
-            divider = divider.saveState()
+            sample = sample.createSaveState(),
+            output = output.createSaveState(),
+            divider = divider.createSaveState()
         )
     }
 

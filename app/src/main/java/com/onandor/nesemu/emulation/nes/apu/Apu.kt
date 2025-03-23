@@ -194,17 +194,17 @@ class Apu(
         return pulseSample + tndSample
     }
 
-    override fun saveState(): ApuState {
+    override fun createSaveState(): ApuState {
         return ApuState(
             cpuCyclesSinceSample = cpuCyclesSinceSample,
             cycles = cycles,
             cpuCycles = cpuCycles,
             sequenceCycles = sequenceCycles,
-            pulse1 = pulse1.saveState(),
-            pulse2 = pulse2.saveState(),
-            triangle = triangle.saveState(),
-            noise = noise.saveState(),
-            dmc = dmc.saveState()
+            pulse1 = pulse1.createSaveState(),
+            pulse2 = pulse2.createSaveState(),
+            triangle = triangle.createSaveState(),
+            noise = noise.createSaveState(),
+            dmc = dmc.createSaveState()
         )
     }
 

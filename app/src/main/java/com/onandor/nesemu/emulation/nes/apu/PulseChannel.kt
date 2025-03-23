@@ -72,15 +72,15 @@ class PulseChannel(channel: Int) : Clockable, Savable<PulseChannelState> {
         }
     }
 
-    override fun saveState(): PulseChannelState {
+    override fun createSaveState(): PulseChannelState {
         return PulseChannelState(
             length = length,
             lengthFrozen = lengthFrozen,
             dutyCycle = dutyCycle,
             phase = phase,
-            divider = divider.saveState(),
-            envelope = envelope.saveState(),
-            sweep = sweep.saveState()
+            divider = divider.createSaveState(),
+            envelope = envelope.createSaveState(),
+            sweep = sweep.createSaveState()
         )
     }
 

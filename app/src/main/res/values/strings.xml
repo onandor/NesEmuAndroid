@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">NesEmu</string>
+    <string name="app_database_name">nesemu_db</string>
 </resources>

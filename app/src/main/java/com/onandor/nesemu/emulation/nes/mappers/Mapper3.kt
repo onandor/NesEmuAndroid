@@ -24,7 +24,7 @@ class Mapper3(cartridge: Cartridge) : Mapper(cartridge) {
         return cartridge.chrRom[bankSelect * 0x2000 + address]
     }
 
-    override fun saveState(): MapperState {
+    override fun createSaveState(): MapperState {
         return MapperState(
             bankSelect = bankSelect
         )

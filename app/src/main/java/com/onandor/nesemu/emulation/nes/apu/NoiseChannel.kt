@@ -63,14 +63,14 @@ class NoiseChannel : Clockable, Savable<NoiseChannelState> {
         }
     }
 
-    override fun saveState(): NoiseChannelState {
+    override fun createSaveState(): NoiseChannelState {
         return NoiseChannelState(
             length = length,
             lengthFrozen = lengthFrozen,
             mode = mode,
             shifter = shifter,
-            divider = divider.saveState(),
-            envelope = envelope.saveState()
+            divider = divider.createSaveState(),
+            envelope = envelope.createSaveState()
         )
     }
 

@@ -38,7 +38,7 @@ class Mapper2(cartridge: Cartridge) : Mapper(cartridge) {
         }
     }
 
-    override fun saveState(): MapperState {
+    override fun createSaveState(): MapperState {
         return MapperState(
             bankSelect = bankSelect
         )

@@ -50,14 +50,14 @@ class Sweep(
         divider.reset()
     }
 
-    override fun saveState(): SweepState {
+    override fun createSaveState(): SweepState {
         return SweepState(
             isEnabled = isEnabled,
             isNegated = isNegated,
             reload = reload,
             shiftCount = shiftCount,
             targetPeriod = targetPeriod,
-            divider = divider.saveState()
+            divider = divider.createSaveState()
         )
     }
 

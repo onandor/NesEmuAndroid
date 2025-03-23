@@ -5,12 +5,18 @@ import androidx.room.PrimaryKey
 import com.onandor.nesemu.emulation.savestate.NesState
 import java.time.OffsetDateTime
 
+enum class SaveStateType {
+    Automatic,
+    Manual
+}
+
 @Entity
 data class SaveState(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-    val nesGameId: Long,
-    val playtime: Int,
-    val lastPlayedDate: OffsetDateTime,
-    val nesState: NesState
+    val romHash: Long,
+    val playtime: Long,
+    val modificationDate: OffsetDateTime,
+    val nesState: NesState,
+    val type: SaveStateType
 )

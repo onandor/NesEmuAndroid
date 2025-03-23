@@ -5,6 +5,8 @@ import com.onandor.nesemu.emulation.savestate.CartridgeState
 import com.onandor.nesemu.emulation.savestate.Savable
 import okio.internal.commonToUtf8String
 import java.io.ByteArrayInputStream
+import java.security.MessageDigest
+import java.util.zip.CRC32
 import kotlin.math.ceil
 import kotlin.math.pow
 
@@ -100,13 +102,13 @@ class Cartridge : Savable<CartridgeState> {
                 val header = parseNes2Header(stream)
                 prepareCartridge(header, stream)
             }
-
-            initialPrgRom = prgRom.copyOf()
-            if (chrRomBanks > 0) {
-                initialChrRom = chrRom.copyOf()
-            }
         } finally {
             stream.close()
+        }
+
+        initialPrgRom = prgRom.copyOf()
+        if (chrRomBanks > 0) {
+            initialChrRom = chrRom.copyOf()
         }
     }
 
@@ -154,7 +156,7 @@ class Cartridge : Savable<CartridgeState> {
     }
 
     private fun prepareCartridge(header: Nes2Header, stream: ByteArrayInputStream) {
-        // Check if rom needs special console
+        // Check if rom needs a special console
         if (header.flags7 and 0x03 != 0) {
             Log.e(TAG, "The cartridge ROM requires a special console")
             throw RomParseException("The cartridge ROM requires a special console")
@@ -163,7 +165,7 @@ class Cartridge : Savable<CartridgeState> {
         Log.d(TAG, "\ttiming/region: ${TIMING_REGIONS[header.timing and 0x03]}")
 
         if (header.flags6 and 0x04 > 0) {
-            stream.read(ByteArray(512))
+            stream.read(ByteArray(512)) // Discarding trainer
         }
 
         mapperId = ((header.flags6 and 0xF0) ushr 4) or
@@ -284,7 +286,7 @@ class Cartridge : Savable<CartridgeState> {
         return if ((flags7 and 0x0C) ushr 2 == 0x02) RomFormat.NES2_0 else RomFormat.INES
     }
 
-    override fun saveState(): CartridgeState {
+    override fun createSaveState(): CartridgeState {
         return CartridgeState(
             prgRom = prgRom,
             chrRom = if (chrRomBanks > 0) chrRom else null,
@@ -310,5 +312,11 @@ class Cartridge : Savable<CartridgeState> {
             2 to "multiple",
             3 to "Dendy (UA6538)"
         )
+
+        fun calculateRomHash(rom: ByteArray): Long {
+            MessageDigest.getInstance("SHA-1").run {
+                digest(rom.copyOfRange(16, rom.size))
+            }
+        }
     }
 }

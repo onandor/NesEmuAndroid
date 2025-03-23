@@ -782,7 +782,7 @@ class Cpu(
         /* F */   2,    5,    2,    8,    4,    4,    6,    6,    2,    4,    2,    7,    4,    4,    7,    7
     )
 
-    override fun saveState(): CpuState {
+    override fun createSaveState(): CpuState {
         return CpuState(
             PC = PC,
             SP = SP,

@@ -39,13 +39,13 @@ class Envelope : Clockable, Savable<EnvelopeState> {
         divider.reset()
     }
 
-    override fun saveState(): EnvelopeState {
+    override fun createSaveState(): EnvelopeState {
         return EnvelopeState(
             isStarted = isStarted,
             isLooping = isLooping,
             isConstant = isConstant,
             volume = volume,
-            divider = divider.saveState()
+            divider = divider.createSaveState()
         )
     }
 

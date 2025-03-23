@@ -296,16 +296,16 @@ class Nes(
         }
     }
 
-    override fun saveState(): NesState {
+    override fun createSaveState(): NesState {
         return NesState(
             cpuMemory = cpuMemory.copyOf(),
             lastValueRead = lastValueRead,
             vram = vram.copyOf(),
-            cpu = cpu.saveState(),
-            ppu = ppu.saveState(),
-            apu = apu.saveState(),
-            cartridge = cartridge!!.saveState(),
-            mapper = mapper.saveState()
+            cpu = cpu.createSaveState(),
+            ppu = ppu.createSaveState(),
+            apu = apu.createSaveState(),
+            cartridge = cartridge!!.createSaveState(),
+            mapper = mapper.createSaveState()
         )
     }
 

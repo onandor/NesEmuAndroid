@@ -11,22 +11,15 @@ object NesEmuTypeConverters {
     private val formatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME
 
     @TypeConverter
-    fun toOffsetDateTime(value: String?): OffsetDateTime? {
-        return value?.let { formatter.parse(it, OffsetDateTime::from) }
-    }
+    fun toOffsetDateTime(value: String?): OffsetDateTime? =
+        value?.let { formatter.parse(it, OffsetDateTime::from) }
 
     @TypeConverter
-    fun fromOffsetDateTime(date: OffsetDateTime?): String? {
-        return date?.format(formatter)
-    }
+    fun fromOffsetDateTime(date: OffsetDateTime?): String? = date?.format(formatter)
 
     @TypeConverter
-    fun toNesState(value: String?): NesState? {
-        return value?.let { Json.decodeFromString(it) }
-    }
+    fun toNesState(value: String?): NesState? = value?.let { Json.decodeFromString(it) }
 
     @TypeConverter
-    fun fromNesState(state: NesState?): String? {
-        return state?.let { Json.encodeToString(it) }
-    }
+    fun fromNesState(state: NesState?): String? = state?.let { Json.encodeToString(it) }
 }

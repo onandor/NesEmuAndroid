@@ -665,7 +665,7 @@ class Ppu(
         oamData = data.copyOf()
     }
 
-    override fun saveState(): PpuState {
+    override fun createSaveState(): PpuState {
         return PpuState(
             controlRegister = controlReg.value,
             maskRegister = maskReg.value,

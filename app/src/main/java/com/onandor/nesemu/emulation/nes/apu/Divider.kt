@@ -28,7 +28,7 @@ class Divider(private val outClock: () -> Unit) : Clockable, Savable<DividerStat
         }
     }
 
-    override fun saveState(): DividerState {
+    override fun createSaveState(): DividerState {
         return DividerState(
             counter = counter,
             period = period

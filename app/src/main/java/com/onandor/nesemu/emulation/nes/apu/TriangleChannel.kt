@@ -71,7 +71,7 @@ class TriangleChannel : Clockable, Savable<TriangleChannelState> {
         }
     }
 
-    override fun saveState(): TriangleChannelState {
+    override fun createSaveState(): TriangleChannelState {
         return TriangleChannelState(
             length = length,
             control = control,
@@ -79,7 +79,7 @@ class TriangleChannel : Clockable, Savable<TriangleChannelState> {
             reloadValue = reloadValue,
             reloadCounter = reloadCounter,
             phase = phase,
-            divider = divider.saveState()
+            divider = divider.createSaveState()
         )
     }
 
