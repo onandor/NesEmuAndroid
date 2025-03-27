@@ -14,7 +14,8 @@ enum class SaveStateType {
 data class SaveState(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-    val romHash: Long,
+    val romHash: String,
+    val libraryEntryId: Long,
     val playtime: Long,
     val modificationDate: OffsetDateTime,
     val nesState: NesState,

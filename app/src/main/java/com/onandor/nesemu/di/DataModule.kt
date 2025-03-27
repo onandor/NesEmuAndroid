@@ -10,7 +10,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 import com.onandor.nesemu.R
-import com.onandor.nesemu.data.dao.NesGameDao
+import com.onandor.nesemu.data.dao.LibraryEntryDao
 import com.onandor.nesemu.data.dao.SaveStateDao
 
 @Module
@@ -30,7 +30,7 @@ class DatabaseModule {
     }
 
     @Provides
-    fun provideNesGameDao(database: NesEmuDatabase): NesGameDao = database.nesGameDao()
+    fun provideNesGameDao(database: NesEmuDatabase): LibraryEntryDao = database.libraryEntryDao()
 
     @Provides
     fun provideSaveStateDao(database: NesEmuDatabase): SaveStateDao = database.saveStateDao()

@@ -13,8 +13,13 @@ class SaveStateRepository @Inject constructor(
     private val saveStateDao: SaveStateDao
 ) {
 
-    suspend fun upsertAutosave(romHash: Long, sessionPlaytime: Long, nesState: NesState) {
-        var autosave = saveStateDao.findAutosaveByRomHash(romHash)
+    suspend fun upsertAutosave(
+        libraryEntryId: Long,
+        sessionPlaytime: Long,
+        nesState: NesState,
+        romHash: String
+    ) {
+        var autosave = saveStateDao.findAutosaveByLibraryEntryId(libraryEntryId)
         autosave = if (autosave != null) {
             autosave.copy(
                 playtime = autosave.playtime + sessionPlaytime,
@@ -23,11 +28,12 @@ class SaveStateRepository @Inject constructor(
             )
         } else {
             SaveState(
-                romHash = romHash,
+                libraryEntryId = libraryEntryId,
                 playtime = sessionPlaytime,
                 modificationDate = OffsetDateTime.now(),
                 nesState = nesState,
-                type = SaveStateType.Automatic
+                type = SaveStateType.Automatic,
+                romHash = romHash
             )
         }
         saveStateDao.upsert(autosave)

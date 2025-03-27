@@ -9,6 +9,7 @@ import com.onandor.nesemu.input.NesInputManager
 import com.onandor.nesemu.input.NesInputManager.ButtonMapKey
 import com.onandor.nesemu.preferences.proto.InputDevicePref
 import com.onandor.nesemu.preferences.proto.InputDevicePref.InputDeviceTypePref
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -17,7 +18,9 @@ class PreferenceManager @Inject constructor(
     private val prefStore: ProtoPreferenceStore
 ) {
 
-    fun observeInputPreferences() = prefStore.observe().map { it.inputPreferences }
+    fun observeLibraryUri(): Flow<String> = prefStore.observe().map { it.libraryUri }
+
+    suspend fun getLibraryUri(): String = prefStore.observe().map { it.libraryUri }.first()
 
     suspend fun getController1Device() = prefStore.observe()
         .map { it.inputPreferences.controller1Device.toNesDevice() }
@@ -41,6 +44,10 @@ class PreferenceManager @Inject constructor(
             )
         }
         .first()
+
+    suspend fun updateLibraryUri(libraryUri: String) {
+        prefStore.updateLibraryUri(libraryUri)
+    }
 
     suspend fun updateInputDevices(device1: NesInputDevice?, device2: NesInputDevice?) {
         prefStore.updateInputDevices(device1.toPrefDevice(), device2.toPrefDevice())

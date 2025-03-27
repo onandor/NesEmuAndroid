@@ -5,7 +5,8 @@ option java_package = "com.onandor.nesemu.preferences.proto";
 option java_multiple_files = true;
 
 message Preferences {
-  InputPreferences inputPreferences = 1;
+  string libraryUri = 1;
+  InputPreferences inputPreferences = 2;
 }
 
 message InputPreferences {

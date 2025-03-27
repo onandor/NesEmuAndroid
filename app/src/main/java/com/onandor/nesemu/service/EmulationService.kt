@@ -1,16 +1,15 @@
-package com.onandor.nesemu.emulation
+package com.onandor.nesemu.service
 
-import com.onandor.nesemu.data.entity.NesGame
-import com.onandor.nesemu.data.repository.NesGameRepository
+import com.onandor.nesemu.data.entity.LibraryEntry
+import com.onandor.nesemu.data.repository.LibraryEntryRepository
 import com.onandor.nesemu.data.repository.SaveStateRepository
 import com.onandor.nesemu.data.entity.SaveState
 import com.onandor.nesemu.data.entity.SaveStateType
 import com.onandor.nesemu.di.IODispatcher
-import com.onandor.nesemu.emulation.nes.Cartridge
-import com.onandor.nesemu.util.FileAccessor
+import com.onandor.nesemu.emulation.Emulator
+import com.onandor.nesemu.util.DocumentAccessor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import java.time.OffsetDateTime
 import javax.inject.Inject
 import kotlin.time.TimeSource
@@ -23,15 +22,15 @@ private enum class EmulationState {
     Uninitialized
 }
 
-class EmulationManager @Inject constructor(
+class EmulationService @Inject constructor(
     private val emulator: Emulator,
-    private val nesGameRepository: NesGameRepository,
+    private val libraryEntryRepository: LibraryEntryRepository,
     private val saveStateRepository: SaveStateRepository,
-    private val fileAccessor: FileAccessor,
+    private val documentAccessor: DocumentAccessor,
     @IODispatcher private val coroutineScope: CoroutineScope
 ) {
 
-    private lateinit var loadedGame: NesGame
+    private lateinit var loadedGame: LibraryEntry
     private var loadedSaveState: SaveState? = null
 
     private var state: EmulationState = EmulationState.Uninitialized
@@ -39,38 +38,38 @@ class EmulationManager @Inject constructor(
     private var sessionPlaytime: Long = 0
     private var lastResumed: ValueTimeMark = timeSource.markNow()
 
-    fun load(fileUri: String) {
-        val rom = fileAccessor.readBytes(fileUri)
-        val fileName = fileAccessor.getFileName(fileUri)!!
-        val hash = Cartridge.calculateRomHash(rom)
+//    fun load(fileUri: String) {
+//        val rom = fileAccessor.readBytes(fileUri)
+//        val fileName = fileAccessor.getFileName(fileUri)!!
+//        val hash = Cartridge.calculateRomHash(rom)
+//
+//        val existingGame = runBlocking { libraryEntryRepository.findByRomHash(hash) }
+//
+//        if (existingGame != null) {
+//            if (existingGame.fileUri != fileUri || existingGame.fileName != fileName) {
+//                loadedGame = existingGame.copy(
+//                    fileName = fileName,
+//                    fileUri = fileUri
+//                )
+//                coroutineScope.launch { libraryEntryRepository.upsert(loadedGame) }
+//            } else {
+//                loadedGame = existingGame
+//            }
+//        } else {
+//            loadedGame = NesGame(
+//                fileName = fileName,
+//                fileUri = fileUri,
+//                romHash = hash
+//            )
+//            coroutineScope.launch { libraryEntryRepository.upsert(loadedGame) }
+//        }
+//
+//        emulator.loadRom(rom)
+//        state = EmulationState.Ready
+//    }
 
-        val existingGame = runBlocking { nesGameRepository.findByRomHash(hash) }
-
-        if (existingGame != null) {
-            if (existingGame.fileUri != fileUri || existingGame.fileName != fileName) {
-                loadedGame = existingGame.copy(
-                    fileName = fileName,
-                    fileUri = fileUri
-                )
-                coroutineScope.launch { nesGameRepository.upsert(loadedGame) }
-            } else {
-                loadedGame = existingGame
-            }
-        } else {
-            loadedGame = NesGame(
-                fileName = fileName,
-                fileUri = fileUri,
-                romHash = hash
-            )
-            coroutineScope.launch { nesGameRepository.upsert(loadedGame) }
-        }
-
-        emulator.loadRom(rom)
-        state = EmulationState.Ready
-    }
-
-    fun load(game: NesGame, saveState: SaveState? = null) {
-        val rom = fileAccessor.readBytes(game.fileUri)
+    fun load(game: LibraryEntry, saveState: SaveState? = null) {
+        val rom = documentAccessor.readBytes(game.uri)
         loadedGame = game
         emulator.loadRom(rom)
         saveState?.let {
@@ -89,11 +88,12 @@ class EmulationManager @Inject constructor(
             )
         } else {
             SaveState(
-                romHash = loadedGame.romHash,
+                libraryEntryId = loadedGame.id,
                 playtime = sessionPlaytime,
                 modificationDate = OffsetDateTime.now(),
                 nesState = emulator.createSaveState(),
-                type = SaveStateType.Manual
+                type = SaveStateType.Manual,
+                romHash = loadedGame.romHash
             )
         }
     }
@@ -115,9 +115,10 @@ class EmulationManager @Inject constructor(
 
         coroutineScope.launch {
             saveStateRepository.upsertAutosave(
-                romHash = loadedGame.romHash,
+                libraryEntryId = loadedGame.id,
                 sessionPlaytime = sessionPlaytime,
-                nesState = emulator.createSaveState()
+                nesState = emulator.createSaveState(),
+                romHash = loadedGame.romHash
             )
         }
 

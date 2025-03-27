@@ -6,16 +6,19 @@ import androidx.room.PrimaryKey
 import androidx.room.Relation
 
 @Entity
-data class NesGame(
-    @PrimaryKey
-    val romHash: Long,                  // SHA-1 hash of the ROM file without the header
-    val fileName: String,
-    val fileUri: String                 // Android persistable document URI pointing to the file
+data class LibraryEntry(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val romHash: String,
+    val name: String,
+    val uri: String,
+    val isDirectory: Boolean,
+    val parentDirectoryUri: String
 )
 
-data class NesGameWithSaveStates(
+data class LibraryEntryWithSaveStates(
     @Embedded
-    val game: NesGame,
+    val libraryEntry: LibraryEntry,
     @Relation(
         parentColumn = "romHash",
         entityColumn = "romHash"

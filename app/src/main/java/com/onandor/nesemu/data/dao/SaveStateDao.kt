@@ -13,8 +13,8 @@ interface SaveStateDao {
     @Query("select * from SaveState")
     fun observeAll(): Flow<List<SaveState>>
 
-    @Query("select * from SaveState where (romHash = :romHash and type = 'Automatic')")
-    suspend fun findAutosaveByRomHash(romHash: Long): SaveState?
+    @Query("select * from SaveState where (libraryEntryId = :libraryEntryId and type = 'Automatic')")
+    suspend fun findAutosaveByLibraryEntryId(libraryEntryId: Long): SaveState?
 
     @Upsert
     suspend fun upsert(vararg saveStates: SaveState)

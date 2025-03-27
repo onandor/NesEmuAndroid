@@ -313,10 +313,11 @@ class Cartridge : Savable<CartridgeState> {
             3 to "Dendy (UA6538)"
         )
 
-        fun calculateRomHash(rom: ByteArray): Long {
-            MessageDigest.getInstance("SHA-1").run {
+        fun calculateRomHash(rom: ByteArray): String {
+            val hashBytes = MessageDigest.getInstance("SHA-1").run {
                 digest(rom.copyOfRange(16, rom.size))
             }
+            return hashBytes.joinToString("") { byte -> "%02x".format(byte) }
         }
     }
 }

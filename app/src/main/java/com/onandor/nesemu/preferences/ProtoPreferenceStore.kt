@@ -5,7 +5,6 @@ import com.onandor.nesemu.preferences.proto.InputDevicePref
 import com.onandor.nesemu.preferences.proto.InputPreferences
 import com.onandor.nesemu.preferences.proto.Preferences
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
 class ProtoPreferenceStore @Inject constructor(
@@ -13,7 +12,9 @@ class ProtoPreferenceStore @Inject constructor(
 ) {
     fun observe() = dataStore.data.catch { emit(Preferences.getDefaultInstance()) }
 
-    suspend fun get() = observe().first()
+    suspend fun updateLibraryUri(libraryUri: String) {
+        dataStore.updateData { prefs -> prefs.toBuilder().setLibraryUri(libraryUri).build() }
+    }
 
     suspend fun updateInputDevices(device1: InputDevicePref?, device2: InputDevicePref?) {
         dataStore.updateData { prefs ->
