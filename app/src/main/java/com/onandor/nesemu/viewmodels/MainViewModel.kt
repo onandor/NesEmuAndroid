@@ -11,10 +11,7 @@ import com.onandor.nesemu.navigation.NavigationManager
 import com.onandor.nesemu.emulation.nes.RomParseException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import okio.FileNotFoundException
@@ -32,19 +29,22 @@ class MainViewModel @Inject constructor(
         val showLibraryChooserDialog: Boolean = false,
         val librarySpecified: Boolean = false,
         val libraryLoading: Boolean = false,
-        val displayedEntries: List<LibraryEntry> = emptyList()
+        val displayedEntries: List<LibraryEntry> = emptyList(),
+        val inSubdirectory: Boolean = false
     )
 
     sealed class Event {
         data class OnNewLibrarySelected(val libraryUri: String) : Event()
         object OnShowLibraryChooserDialog : Event()
         object OnHideLibraryChooserDialog : Event()
-        data class OnLibraryEntryOpened(val entry: LibraryEntry) : Event()
+        data class OnOpenLibraryEntry(val entry: LibraryEntry) : Event()
+        object OnNavigateUp : Event()
         object OnErrorMessageToastShown : Event()
         object OnNavigateToPreferences : Event()
     }
 
-    private var libraryUri: String = ""
+    private var libraryDirectory: LibraryEntry? = null
+    private var currentDirectory: LibraryEntry? = null
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState = _uiState.asStateFlow()
@@ -70,15 +70,15 @@ class MainViewModel @Inject constructor(
             Event.OnHideLibraryChooserDialog -> {
                 _uiState.update { it.copy(showLibraryChooserDialog = false) }
             }
-            is Event.OnLibraryEntryOpened -> {
-                viewModelScope.launch {
-                    if (event.entry.isDirectory) {
-                        val displayedEntries = libraryService.getEntriesInDirectory(event.entry.uri)
-                        _uiState.update { it.copy(displayedEntries = displayedEntries) }
-                    } else {
-                        println("file clicked")
-                    }
+            is Event.OnOpenLibraryEntry -> {
+                if (event.entry.isDirectory) {
+                    navigateToDirectory(event.entry)
+                } else {
+                    println("file clicked")
                 }
+            }
+            Event.OnNavigateUp -> {
+                navigateUpOneDirectory()
             }
             Event.OnErrorMessageToastShown -> {
                 _uiState.update { it.copy(errorMessage = null) }
@@ -86,6 +86,33 @@ class MainViewModel @Inject constructor(
             Event.OnNavigateToPreferences -> {
                 navManager.navigateTo(NavActions.preferencesScreen())
             }
+        }
+    }
+
+    private fun navigateToDirectory(directory: LibraryEntry) = viewModelScope.launch {
+        val displayedEntries = libraryService.getEntriesInDirectory(directory)
+        currentDirectory = directory
+        _uiState.update { it.copy(displayedEntries = emptyList()) }
+        _uiState.update {
+            it.copy(
+                inSubdirectory = currentDirectory?.parentDirectoryUri != null,
+                displayedEntries = displayedEntries
+            )
+        }
+    }
+
+    private fun navigateUpOneDirectory() = viewModelScope.launch {
+        if (currentDirectory == null) {
+            return@launch
+        }
+
+        val listing = libraryService.getEntriesInParentDirectory(currentDirectory!!)
+        currentDirectory = if (listing.directory != null) listing.directory else libraryDirectory
+        _uiState.update {
+            it.copy(
+                inSubdirectory = currentDirectory?.parentDirectoryUri != null,
+                displayedEntries = listing.entries
+            )
         }
     }
 
@@ -107,15 +134,20 @@ class MainViewModel @Inject constructor(
 
     private fun collectLibraryServiceState() = viewModelScope.launch {
         libraryService.state.collect { state ->
-            if (libraryUri != state.libraryUri) {
-                libraryUri = state.libraryUri
+            if (state.libraryDirectory != null && libraryDirectory != state.libraryDirectory) {
+                libraryDirectory = state.libraryDirectory
+                currentDirectory = state.libraryDirectory
+                val displayedEntries = libraryService.getEntriesInDirectory(state.libraryDirectory)
                 _uiState.update {
-                    it.copy(displayedEntries = libraryService.getEntriesInDirectory(libraryUri))
+                    it.copy(
+                        inSubdirectory = false,
+                        displayedEntries = displayedEntries
+                    )
                 }
             }
 
-            val showLibraryChooserDialog = libraryUri.isEmpty()
-            val librarySpecified = !libraryUri.isEmpty()
+            val showLibraryChooserDialog = libraryDirectory == null
+            val librarySpecified = libraryDirectory != null
 
             _uiState.update {
                 it.copy(

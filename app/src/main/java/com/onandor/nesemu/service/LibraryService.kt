@@ -3,7 +3,6 @@ package com.onandor.nesemu.service
 import android.net.Uri
 import com.onandor.nesemu.data.entity.LibraryEntry
 import com.onandor.nesemu.data.repository.LibraryEntryRepository
-import com.onandor.nesemu.di.DefaultDispatcher
 import com.onandor.nesemu.di.IODispatcher
 import com.onandor.nesemu.emulation.nes.Cartridge
 import com.onandor.nesemu.preferences.PreferenceManager
@@ -27,34 +26,51 @@ class LibraryService @Inject constructor(
 
     data class State(
         val isLoading: Boolean = false,
-        val libraryUri: String = ""
+        val libraryDirectory: LibraryEntry? = null
+    )
+
+    data class DirectoryListing(
+        val directory: LibraryEntry?,
+        val entries: List<LibraryEntry>
     )
 
     private val _state = MutableStateFlow(State())
     val state = _state.asStateFlow()
 
-    private var libraryUri: String = ""
+    private var libraryDirectory: LibraryEntry? = null
 
     init {
         // Retrieve the current URI first, so that the library only gets refreshed when the uri
         // changes
-        runBlocking { _state.update { it.copy(libraryUri = prefManager.getLibraryUri()) } }
+        runBlocking {
+            val libraryUri = prefManager.getLibraryUri()
+            libraryDirectory = if (libraryUri.isEmpty()) {
+                null
+            } else {
+                libraryEntryRepository.getLibraryRoot()
+            }
+            _state.update { it.copy(libraryDirectory = libraryDirectory) }
+        }
         coroutineScope.launch {
             prefManager.observeLibraryUri().collect { newLibraryUri ->
-                if (newLibraryUri == libraryUri) {
+                if (newLibraryUri.isEmpty() || newLibraryUri == libraryDirectory?.uri) {
                     return@collect
                 }
-                libraryUri = newLibraryUri
+                libraryDirectory = libraryEntryRepository.upsertLibraryDirectory(newLibraryUri)
                 refreshLibrary()
-                _state.update { it.copy(libraryUri = newLibraryUri) }
+                _state.update { it.copy(libraryDirectory = libraryDirectory) }
             }
         }
     }
 
     suspend fun refreshLibrary() {
+        if (libraryDirectory == null) {
+            return
+        }
+
         _state.update { it.copy(isLoading = true) }
 
-        val documents = documentAccessor.traverseDirectory(Uri.parse(libraryUri))
+        val documents = documentAccessor.traverseDirectory(Uri.parse(libraryDirectory!!.uri))
         val entries = documents.map {
             val romHash = if (!it.isDirectory) {
                 Cartridge.calculateRomHash(documentAccessor.readBytes(it.uri.toString()))
@@ -76,8 +92,29 @@ class LibraryService @Inject constructor(
         _state.update { it.copy(isLoading = false) }
     }
 
-    suspend fun getEntriesInDirectory(directoryUri: String): List<LibraryEntry> {
-        return libraryEntryRepository.findAllByParentDirectoryUri(directoryUri)
+    suspend fun getEntriesInParentDirectory(directory: LibraryEntry): DirectoryListing {
+        var parentDirectory: LibraryEntry?
+        var entries: List<LibraryEntry>
+
+        if (directory.parentDirectoryUri == null) {
+            // We are in the root, cannot go up
+            parentDirectory = directory
+            entries = libraryEntryRepository.findAllByParentDirectoryUri(directory.uri)
+                .sortedBy { it.isDirectory }
+        } else {
+            parentDirectory = libraryEntryRepository.findByUri(directory.parentDirectoryUri)
+            entries = libraryEntryRepository.findAllByParentDirectoryUri(directory.parentDirectoryUri)
+                .sortedBy { it.isDirectory }
+        }
+
+        return DirectoryListing(
+            directory = parentDirectory,
+            entries = entries
+        )
+    }
+
+    suspend fun getEntriesInDirectory(directory: LibraryEntry): List<LibraryEntry> {
+        return libraryEntryRepository.findAllByParentDirectoryUri(directory.uri)
             .sortedBy { it.isDirectory }
     }
 

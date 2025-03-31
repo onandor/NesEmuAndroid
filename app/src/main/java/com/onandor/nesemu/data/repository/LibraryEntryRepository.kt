@@ -23,8 +23,33 @@ class LibraryEntryRepository @Inject constructor(
         return libraryEntryDao.findAllByParentDirectoryUri(parentDirectoryUri)
     }
 
+    suspend fun findByUri(uri: String): LibraryEntry? {
+        return libraryEntryDao.findByUri(uri)
+    }
+
     suspend fun upsert(entries: List<LibraryEntry>) {
         libraryEntryDao.upsert(entries)
+    }
+
+    suspend fun getLibraryRoot(): LibraryEntry? {
+        return libraryEntryDao.findByRomHash(LIBRARY_ROOT)
+    }
+
+    suspend fun upsertLibraryDirectory(libraryUri: String): LibraryEntry {
+        var directory = getLibraryRoot()
+        directory = if (directory == null) {
+            LibraryEntry(
+                romHash = LIBRARY_ROOT,
+                name = "",
+                uri = libraryUri,
+                isDirectory = true,
+                parentDirectoryUri = null
+            )
+        } else {
+            directory.copy(uri = libraryUri)
+        }
+        libraryEntryDao.upsert(directory)
+        return directory
     }
 
     suspend fun findByRomHash(romHash: String): LibraryEntry? {
@@ -32,6 +57,10 @@ class LibraryEntryRepository @Inject constructor(
     }
 
     suspend fun deleteAll() {
-        libraryEntryDao.deleteAll()
+        libraryEntryDao.deleteAllExceptRoot()
+    }
+
+    companion object {
+        private const val LIBRARY_ROOT = "library_root"
     }
 }

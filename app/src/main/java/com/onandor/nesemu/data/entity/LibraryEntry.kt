@@ -13,12 +13,13 @@ data class LibraryEntry(
     val name: String,
     val uri: String,
     val isDirectory: Boolean,
-    val parentDirectoryUri: String
+    val parentDirectoryUri: String? = null
 )
 
 data class LibraryEntryWithSaveStates(
     @Embedded
     val libraryEntry: LibraryEntry,
+
     @Relation(
         parentColumn = "romHash",
         entityColumn = "romHash"
