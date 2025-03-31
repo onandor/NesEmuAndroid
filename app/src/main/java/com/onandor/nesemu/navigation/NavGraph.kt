@@ -22,7 +22,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.onandor.nesemu.ui.screens.DebugScreen
 import com.onandor.nesemu.ui.screens.GameScreen
-import com.onandor.nesemu.ui.screens.MainScreen
+import com.onandor.nesemu.ui.screens.LibraryScreen
 import com.onandor.nesemu.ui.screens.PreferencesScreen
 import com.onandor.nesemu.viewmodels.NavigationViewModel
 
@@ -30,7 +30,7 @@ import com.onandor.nesemu.viewmodels.NavigationViewModel
 fun NavGraph(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
-    startDestination: String = NavDestinations.MAIN_SCREEN,
+    startDestination: String = NavDestinations.LIBRARY_SCREEN,
     viewModel: NavigationViewModel = hiltViewModel()
 ) {
     val currentNavBackStackEntry by navController.currentBackStackEntryAsState()
@@ -66,11 +66,11 @@ fun NavGraph(
                 startDestination = startDestination
             ) {
                 composable(
-                    route = NavDestinations.MAIN_SCREEN,
+                    route = NavDestinations.LIBRARY_SCREEN,
                     enterTransition = { EnterTransition.None },
                     exitTransition = { ExitTransition.None }
                 ) {
-                    MainScreen()
+                    LibraryScreen()
                 }
                 composable(
                     route = NavDestinations.GAME_SCREEN,

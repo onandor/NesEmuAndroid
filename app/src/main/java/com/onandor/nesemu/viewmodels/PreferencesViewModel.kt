@@ -10,22 +10,27 @@ import com.onandor.nesemu.input.NesInputManager
 import com.onandor.nesemu.input.NesInputManager.ButtonMapKey
 import com.onandor.nesemu.navigation.NavigationManager
 import com.onandor.nesemu.preferences.PreferenceManager
+import com.onandor.nesemu.service.LibraryService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class PreferencesViewModel @Inject constructor(
     private val navManager: NavigationManager,
-    private val prefManager: PreferenceManager,
-    private val inputManager: NesInputManager
+    private val inputManager: NesInputManager,
+    private val libraryService: LibraryService
 ) : ViewModel() {
 
     data class UiState(
+        // Library
+        val libraryDirectory: String = "",
+
         // Input device selection
         val availableDevices: List<NesInputDevice> = emptyList(),
         val player1Device: NesInputDevice? = null,
@@ -42,6 +47,9 @@ class PreferencesViewModel @Inject constructor(
     )
 
     sealed class Event {
+        // Library
+        data class OnNewLibrarySelected(val libraryUri: String) : Event()
+
         // Input device selection
         data class OnOpenDeviceSelectionDialog(val playerId: Int) : Event()
         object OnCloseDeviceSelectionDialog : Event()
@@ -63,8 +71,8 @@ class PreferencesViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState = combine(
-        _uiState, inputManager.state
-    ) { uiState, inputManagerState ->
+        _uiState, inputManager.state, libraryService.state
+    ) { uiState, inputManagerState, libraryServiceState ->
         buttonMappings = inputManagerState.buttonMappings
         val buttonMapKey = ButtonMapKey(
             playerId = uiState.buttonMappingPlayerId,
@@ -72,6 +80,7 @@ class PreferencesViewModel @Inject constructor(
         )
 
         uiState.copy(
+            libraryDirectory = libraryServiceState.libraryDirectory?.name ?: "<no folder selected>",
             availableDevices = inputManagerState.availableDevices,
             player1Device = inputManagerState.controller1Device,
             player2Device = inputManagerState.controller2Device,
@@ -86,6 +95,11 @@ class PreferencesViewModel @Inject constructor(
 
     fun onEvent(event: Event) {
         when (event) {
+            // Library
+            is Event.OnNewLibrarySelected -> {
+                viewModelScope.launch { libraryService.changeLibraryUri(event.libraryUri) }
+            }
+
             // Input device selection
             is Event.OnOpenDeviceSelectionDialog -> {
                 updateSelectedPlayerId(event.playerId)

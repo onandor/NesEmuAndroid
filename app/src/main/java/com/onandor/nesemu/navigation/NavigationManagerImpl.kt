@@ -16,8 +16,8 @@ class NavigationManagerImpl : NavigationManager {
     private var currentRoute: String = ""
 
     init {
-        backStack.push(NavActions.main())
-        currentRoute = NavActions.main().destination
+        backStack.push(NavActions.library())
+        currentRoute = NavActions.library().destination
     }
 
     override fun navigateTo(navAction: NavAction?) {

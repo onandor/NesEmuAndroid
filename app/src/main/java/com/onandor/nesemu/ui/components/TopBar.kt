@@ -1,6 +1,7 @@
 package com.onandor.nesemu.ui.components
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -36,7 +37,9 @@ fun TopBar(
             )
         }
         Box(modifier = Modifier.align(Alignment.CenterEnd)) {
-            actions()
+            Row {
+                actions()
+            }
         }
     }
 }

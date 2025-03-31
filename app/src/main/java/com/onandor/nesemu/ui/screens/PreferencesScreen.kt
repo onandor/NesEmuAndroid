@@ -1,7 +1,10 @@
 package com.onandor.nesemu.ui.screens
 
+import android.content.Intent
 import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,7 +17,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import com.onandor.nesemu.ui.components.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -26,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -44,7 +47,6 @@ import com.onandor.nesemu.R
 import com.onandor.nesemu.input.ButtonMapping
 import com.onandor.nesemu.input.NesButton
 import com.onandor.nesemu.ui.components.ListDropdownMenu
-import com.onandor.nesemu.ui.components.RectangularButton
 import com.onandor.nesemu.ui.components.RectangularIconButton
 import com.onandor.nesemu.ui.components.StatusBarScaffold
 import com.onandor.nesemu.ui.components.TitleDialog
@@ -54,6 +56,19 @@ import com.onandor.nesemu.ui.components.TopBar
 fun PreferencesScreen(
     viewModel: PreferencesViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
+    val folderPickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { folderUri ->
+        folderUri?.let {
+            context.contentResolver.takePersistableUriPermission(
+                it,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+            viewModel.onEvent(Event.OnNewLibrarySelected(it.toString()))
+        }
+    }
+
     val uiState by viewModel.uiState.collectAsState()
 
     StatusBarScaffold(
@@ -65,20 +80,30 @@ fun PreferencesScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
         ) {
-            InputDeviceSelection(
-                controller1Device = uiState.player1Device,
-                controller2Device = uiState.player2Device,
-                onEvent = viewModel::onEvent
-            )
+            Section("Library") {
+                LibrarySection(libraryDirectory = uiState.libraryDirectory) {
+                    folderPickerLauncher.launch(null)
+                }
+            }
             HorizontalDivider()
-            ButtonMapping(
-                playerId = uiState.buttonMappingPlayerId,
-                inputDeviceType = uiState.buttonMappingDeviceType,
-                controllerDropdownExpanded = uiState.controllerDropdownExpanded,
-                inputDeviceDropdownExpanded = uiState.inputDeviceDropdownExpanded,
-                currentMapping = uiState.displayedButtonMapping,
-                onEvent = viewModel::onEvent
-            )
+            Section("Input Devices") {
+                InputDeviceSection(
+                    controller1Device = uiState.player1Device,
+                    controller2Device = uiState.player2Device,
+                    onEvent = viewModel::onEvent
+                )
+            }
+            HorizontalDivider()
+            Section("Button Mapping") {
+                ButtonMappingSection(
+                    playerId = uiState.buttonMappingPlayerId,
+                    inputDeviceType = uiState.buttonMappingDeviceType,
+                    controllerDropdownExpanded = uiState.controllerDropdownExpanded,
+                    inputDeviceDropdownExpanded = uiState.inputDeviceDropdownExpanded,
+                    currentMapping = uiState.displayedButtonMapping,
+                    onEvent = viewModel::onEvent
+                )
+            }
         }
     }
 
@@ -102,7 +127,41 @@ fun PreferencesScreen(
 }
 
 @Composable
-private fun InputDeviceSelection(
+private fun Section(
+    title: String,
+    content: @Composable () -> Unit
+) {
+    Column {
+        Text(
+            modifier = Modifier.padding(start = 15.dp, top = 15.dp, bottom = 5.dp),
+            text = title,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        content()
+    }
+}
+
+@Composable
+private fun LibrarySection(
+    libraryDirectory: String,
+    onLaunchFolderPicker: () -> Unit
+) {
+    ListItem(
+        mainText = {
+            Text(
+                text = "Folder location",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        },
+        subText = { Text(libraryDirectory) },
+        onClick = onLaunchFolderPicker
+    )
+}
+
+@Composable
+private fun InputDeviceSection(
     controller1Device: NesInputDevice?,
     controller2Device: NesInputDevice?,
     onEvent: (Event) -> Unit
@@ -154,7 +213,7 @@ private fun InputDeviceSelection(
 }
 
 @Composable
-private fun ButtonMapping(
+private fun ButtonMappingSection(
     playerId: Int,
     inputDeviceType: NesInputDeviceType,
     controllerDropdownExpanded: Boolean,
@@ -372,7 +431,6 @@ private fun EditButtonMappingDialog(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TopBar(
     onNavigateBack: () -> Unit

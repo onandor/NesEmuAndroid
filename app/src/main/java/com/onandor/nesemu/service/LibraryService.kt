@@ -51,45 +51,62 @@ class LibraryService @Inject constructor(
             }
             _state.update { it.copy(libraryDirectory = libraryDirectory) }
         }
+
         coroutineScope.launch {
             prefManager.observeLibraryUri().collect { newLibraryUri ->
                 if (newLibraryUri.isEmpty() || newLibraryUri == libraryDirectory?.uri) {
                     return@collect
                 }
-                libraryDirectory = libraryEntryRepository.upsertLibraryDirectory(newLibraryUri)
-                refreshLibrary()
-                _state.update { it.copy(libraryDirectory = libraryDirectory) }
+
+                _state.update { it.copy(isLoading = true) }
+
+                val libraryDirectoryName = documentAccessor.getDocumentName(newLibraryUri) ?: ""
+                libraryDirectory = libraryEntryRepository
+                    .upsertLibraryDirectory(libraryDirectoryName, newLibraryUri)
+
+                persistLibrary()
+
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        libraryDirectory = libraryDirectory
+                    )
+                }
             }
         }
     }
 
-    suspend fun refreshLibrary() {
+    suspend fun rescanLibrary() {
+        _state.update { it.copy(isLoading = true) }
+        persistLibrary()
+        _state.update { it.copy(isLoading = false) }
+    }
+
+    private suspend fun persistLibrary() {
         if (libraryDirectory == null) {
             return
         }
 
-        _state.update { it.copy(isLoading = true) }
-
         val documents = documentAccessor.traverseDirectory(Uri.parse(libraryDirectory!!.uri))
-        val entries = documents.map {
-            val romHash = if (!it.isDirectory) {
-                Cartridge.calculateRomHash(documentAccessor.readBytes(it.uri.toString()))
-            } else {
-                ""
+        val entries = documents
+            .filter { it.isDirectory || it.name.endsWith(".nes") }
+            .map {
+                val romHash = if (!it.isDirectory) {
+                    Cartridge.calculateRomHash(documentAccessor.readBytes(it.uri.toString()))
+                } else {
+                    ""
+                }
+                LibraryEntry(
+                    romHash = romHash,
+                    name = it.name,
+                    uri = it.uri.toString(),
+                    isDirectory = it.isDirectory,
+                    parentDirectoryUri = it.parentDirectoryUri.toString()
+                )
             }
-            LibraryEntry(
-                romHash = romHash,
-                name = it.name,
-                uri = it.uri.toString(),
-                isDirectory = it.isDirectory,
-                parentDirectoryUri = it.parentDirectoryUri.toString()
-            )
-        }
 
         libraryEntryRepository.deleteAll()
         libraryEntryRepository.upsert(entries)
-
-        _state.update { it.copy(isLoading = false) }
     }
 
     suspend fun getEntriesInParentDirectory(directory: LibraryEntry): DirectoryListing {
@@ -100,11 +117,11 @@ class LibraryService @Inject constructor(
             // We are in the root, cannot go up
             parentDirectory = directory
             entries = libraryEntryRepository.findAllByParentDirectoryUri(directory.uri)
-                .sortedBy { it.isDirectory }
+                .sortedBy { !it.isDirectory }
         } else {
             parentDirectory = libraryEntryRepository.findByUri(directory.parentDirectoryUri)
             entries = libraryEntryRepository.findAllByParentDirectoryUri(directory.parentDirectoryUri)
-                .sortedBy { it.isDirectory }
+                .sortedBy { !it.isDirectory }
         }
 
         return DirectoryListing(
@@ -115,7 +132,7 @@ class LibraryService @Inject constructor(
 
     suspend fun getEntriesInDirectory(directory: LibraryEntry): List<LibraryEntry> {
         return libraryEntryRepository.findAllByParentDirectoryUri(directory.uri)
-            .sortedBy { it.isDirectory }
+            .sortedBy { !it.isDirectory }
     }
 
     suspend fun changeLibraryUri(libraryUri: String) {

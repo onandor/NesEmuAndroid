@@ -89,6 +89,9 @@ class DocumentAccessor @Inject constructor(
         return null
     }
 
+    fun getDocumentName(uriString: String): String? =
+        DocumentsContract.getTreeDocumentId(Uri.parse(uriString)).split(":").lastOrNull()
+
     fun readBytes(uriString: String): ByteArray {
         val stream = context.contentResolver.openInputStream(Uri.parse(uriString))
             ?: throw RuntimeException("Unable to open input stream")

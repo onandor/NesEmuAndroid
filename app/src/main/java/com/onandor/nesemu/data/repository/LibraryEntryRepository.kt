@@ -35,18 +35,21 @@ class LibraryEntryRepository @Inject constructor(
         return libraryEntryDao.findByRomHash(LIBRARY_ROOT)
     }
 
-    suspend fun upsertLibraryDirectory(libraryUri: String): LibraryEntry {
+    suspend fun upsertLibraryDirectory(directoryName: String, libraryUri: String): LibraryEntry {
         var directory = getLibraryRoot()
         directory = if (directory == null) {
             LibraryEntry(
                 romHash = LIBRARY_ROOT,
-                name = "",
+                name = directoryName,
                 uri = libraryUri,
                 isDirectory = true,
                 parentDirectoryUri = null
             )
         } else {
-            directory.copy(uri = libraryUri)
+            directory.copy(
+                name = directoryName,
+                uri = libraryUri
+            )
         }
         libraryEntryDao.upsert(directory)
         return directory

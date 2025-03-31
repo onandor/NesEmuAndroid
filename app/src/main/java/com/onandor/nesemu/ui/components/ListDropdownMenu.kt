@@ -2,7 +2,7 @@ package com.onandor.nesemu.ui.components
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -16,7 +16,7 @@ fun ListDropdownMenu(
 ) {
     Box {
         Icon(
-            imageVector = Icons.Default.KeyboardArrowDown,
+            imageVector = Icons.Default.MoreVert,
             contentDescription = null
         )
         DropdownMenu(
