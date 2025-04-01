@@ -130,4 +130,6 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     // Kotlinx serialization
     implementation(libs.kotlinx.serialization.json)
+    // Composables
+    implementation(libs.composables.core)
 }

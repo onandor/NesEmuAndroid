@@ -3,6 +3,7 @@ package com.onandor.nesemu.viewmodels
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import com.onandor.nesemu.data.entity.LibraryEntry
+import com.onandor.nesemu.data.entity.SaveState
 import com.onandor.nesemu.data.repository.SaveStateRepository
 import com.onandor.nesemu.di.IODispatcher
 import com.onandor.nesemu.service.EmulationService
@@ -33,16 +34,22 @@ class LibraryViewModel @Inject constructor(
         val libraryLoading: Boolean = false,
         val displayedEntries: List<LibraryEntry> = emptyList(),
         val inSubdirectory: Boolean = false,
-        val path: String = "/"
+        val path: String = "/",
+
+        // Save state dialog
+        val selectedGame: LibraryEntry? = null,
+        val saveStates: List<SaveState> = emptyList()
     )
 
     sealed class Event {
         data class OnNewLibrarySelected(val libraryUri: String) : Event()
         object OnRescanLibrary : Event()
         data class OnOpenLibraryEntry(val entry: LibraryEntry) : Event()
+        data class OnOpenSaveState(val saveState: SaveState?) : Event()
         object OnNavigateUp : Event()
         object OnErrorMessageToastShown : Event()
         object OnNavigateToPreferences : Event()
+        object OnHideSaveStateDialog : Event()
     }
 
     private var libraryDirectory: LibraryEntry? = null
@@ -77,6 +84,11 @@ class LibraryViewModel @Inject constructor(
                     openGame(event.entry)
                 }
             }
+            is Event.OnOpenSaveState -> {
+                val game = _uiState.value.selectedGame!!
+                _uiState.update { it.copy(selectedGame = null) }
+                launchGame(game, event.saveState)
+            }
             Event.OnNavigateUp -> {
                 navigateUpOneDirectory()
             }
@@ -85,6 +97,9 @@ class LibraryViewModel @Inject constructor(
             }
             Event.OnNavigateToPreferences -> {
                 navManager.navigateTo(NavActions.preferencesScreen())
+            }
+            Event.OnHideSaveStateDialog -> {
+                _uiState.update { it.copy(selectedGame = null) }
             }
         }
     }
@@ -131,26 +146,34 @@ class LibraryViewModel @Inject constructor(
 
     private fun openGame(game: LibraryEntry) = coroutineScope.launch {
         val saveStates = saveStateRepository.findByRomHash(game.romHash)
-        if (saveStates.isEmpty() || !saveStates.isEmpty()) {
-            try {
-                emulationService.loadGame(game, null)
-                navManager.navigateTo(NavActions.gameScreen())
-            } catch (e: RomParseException) {
-                _uiState.update { it.copy(errorMessage = e.message) }
-            } catch (e: Exception) {
-                Log.e("MainViewModel", e.localizedMessage, e)
-                _uiState.update {
-                    it.copy(errorMessage = "An unexpected error occurred while reading the ROM file")
-                }
-            }
+        if (saveStates.isEmpty()) {
+            launchGame(game, null)
         } else {
-            // TODO: show save state dialog
+            _uiState.update {
+                it.copy(
+                    selectedGame = game,
+                    saveStates = saveStates.sortedBy { it.slot }
+                )
+            }
+        }
+    }
+
+    private fun launchGame(game: LibraryEntry, saveState: SaveState?) {
+        try {
+            emulationService.loadGame(game, saveState)
+            navManager.navigateTo(NavActions.gameScreen())
+        } catch (e: RomParseException) {
+            _uiState.update { it.copy(errorMessage = e.message) }
+        } catch (e: Exception) {
+            Log.e("MainViewModel", e.localizedMessage, e)
+            _uiState.update {
+                it.copy(errorMessage = "An unexpected error occurred while reading the ROM file")
+            }
         }
     }
 
     private fun collectLibraryServiceState() = coroutineScope.launch {
         libraryService.state.collect { state ->
-            println(state)
             if (state.libraryDirectory != null && libraryDirectory != state.libraryDirectory) {
                 libraryDirectory = state.libraryDirectory
                 currentDirectory = state.libraryDirectory

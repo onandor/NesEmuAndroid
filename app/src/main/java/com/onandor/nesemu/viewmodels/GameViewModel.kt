@@ -87,7 +87,7 @@ class GameViewModel @Inject constructor(
         emulationService.registerListener(emulationListener)
 
         try {
-            emulationService.resetAndStart()
+            emulationService.start()
         } catch (e: NesException) {
             _uiState.update { it.copy(errorMessage = e.message) }
         } catch (e: Exception) {
@@ -150,7 +150,7 @@ class GameViewModel @Inject constructor(
         if (paused) {
             emulationService.pause()
         } else {
-            emulationService.resume()
+            emulationService.start()
         }
     }
 

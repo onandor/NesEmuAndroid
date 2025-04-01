@@ -19,6 +19,7 @@ protobufGradle = "0.9.4"
 guava = "33.4.0-android"
 room = "2.6.1"
 kotlinxSerialization = "1.8.0"
+composables = "1.20.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -59,6 +60,8 @@ androidx-room-compiler = { group = "androidx.room", name = "room-compiler", vers
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 # Kotlinx serialization
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+# Composables
+composables-core = { group = "com.composables", name = "core", version.ref = "composables" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

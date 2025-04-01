@@ -2,7 +2,6 @@ package com.onandor.nesemu.data.repository
 
 import com.onandor.nesemu.data.dao.SaveStateDao
 import com.onandor.nesemu.data.entity.SaveState
-import com.onandor.nesemu.data.entity.SaveStateType
 import com.onandor.nesemu.emulation.savestate.NesState
 import java.time.OffsetDateTime
 import javax.inject.Inject
@@ -14,12 +13,11 @@ class SaveStateRepository @Inject constructor(
 ) {
 
     suspend fun upsertAutosave(
-        libraryEntryId: Long,
         sessionPlaytime: Long,
         nesState: NesState,
         romHash: String
     ) {
-        var autosave = saveStateDao.findAutosaveByLibraryEntryId(libraryEntryId)
+        var autosave = saveStateDao.findAutosaveByRomHash(romHash)
         autosave = if (autosave != null) {
             autosave.copy(
                 playtime = autosave.playtime + sessionPlaytime,
@@ -28,12 +26,11 @@ class SaveStateRepository @Inject constructor(
             )
         } else {
             SaveState(
-                libraryEntryId = libraryEntryId,
+                romHash = romHash,
                 playtime = sessionPlaytime,
                 modificationDate = OffsetDateTime.now(),
                 nesState = nesState,
-                type = SaveStateType.Automatic,
-                romHash = romHash
+                slot = 0
             )
         }
         saveStateDao.upsert(autosave)

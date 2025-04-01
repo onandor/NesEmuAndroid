@@ -9,7 +9,7 @@ import com.onandor.nesemu.data.entity.LibraryEntry
 import com.onandor.nesemu.data.entity.NesEmuTypeConverters
 import com.onandor.nesemu.data.entity.SaveState
 
-@Database(entities = [LibraryEntry::class, SaveState::class], version = 5, exportSchema = false)
+@Database(entities = [LibraryEntry::class, SaveState::class], version = 6, exportSchema = false)
 @TypeConverters(NesEmuTypeConverters::class)
 abstract class NesEmuDatabase : RoomDatabase() {
     abstract fun libraryEntryDao(): LibraryEntryDao

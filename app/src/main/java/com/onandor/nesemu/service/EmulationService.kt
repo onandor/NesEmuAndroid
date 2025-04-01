@@ -4,7 +4,6 @@ import com.onandor.nesemu.data.entity.LibraryEntry
 import com.onandor.nesemu.data.repository.LibraryEntryRepository
 import com.onandor.nesemu.data.repository.SaveStateRepository
 import com.onandor.nesemu.data.entity.SaveState
-import com.onandor.nesemu.data.entity.SaveStateType
 import com.onandor.nesemu.di.IODispatcher
 import com.onandor.nesemu.emulation.EmulationListener
 import com.onandor.nesemu.emulation.Emulator
@@ -46,6 +45,7 @@ class EmulationService @Inject constructor(
         val rom = documentAccessor.readBytes(game.uri)
         loadedGame = game
         emulator.loadRom(rom)
+        emulator.reset()
         saveState?.let {
             loadedSaveState = it
             emulator.loadSaveState(it.nesState)
@@ -53,7 +53,7 @@ class EmulationService @Inject constructor(
         state = EmulationState.Ready
     }
 
-    fun saveGame() {
+    fun saveGame(slot: Int) {
         loadedSaveState = if (loadedSaveState != null) {
             loadedSaveState!!.copy(
                 playtime = loadedSaveState!!.playtime + sessionPlaytime,
@@ -62,22 +62,21 @@ class EmulationService @Inject constructor(
             )
         } else {
             SaveState(
-                libraryEntryId = loadedGame.id,
                 playtime = sessionPlaytime,
                 modificationDate = OffsetDateTime.now(),
                 nesState = emulator.createSaveState(),
-                type = SaveStateType.Manual,
-                romHash = loadedGame.romHash
+                romHash = loadedGame.romHash,
+                slot = slot
             )
         }
     }
 
-    fun resetAndStart() {
+    fun start() {
         if (state != EmulationState.Ready) {
             return
         }
-        emulator.reset()
         emulator.start()
+        lastResumed = timeSource.markNow()
         state = EmulationState.Running
     }
 
@@ -87,28 +86,21 @@ class EmulationService @Inject constructor(
         }
 
         emulator.stop()
+        if (state == EmulationState.Running) {
+            sessionPlaytime += lastResumed.elapsedNow().inWholeSeconds
+        }
 
         coroutineScope.launch {
             saveStateRepository.upsertAutosave(
-                libraryEntryId = loadedGame.id,
                 sessionPlaytime = sessionPlaytime,
                 nesState = emulator.createSaveState(),
                 romHash = loadedGame.romHash
             )
+            sessionPlaytime = 0
         }
 
         loadedSaveState = null
-        sessionPlaytime = 0
         state = EmulationState.Ready
-    }
-
-    fun resume() {
-        if (state != EmulationState.Paused) {
-            return
-        }
-        emulator.start()
-        lastResumed = timeSource.markNow()
-        state = EmulationState.Running
     }
 
     fun pause() {
