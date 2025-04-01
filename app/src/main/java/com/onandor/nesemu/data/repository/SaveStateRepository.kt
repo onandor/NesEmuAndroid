@@ -43,4 +43,8 @@ class SaveStateRepository @Inject constructor(
     suspend fun upsert(saveState: SaveState) {
         saveStateDao.upsert(saveState)
     }
+
+    suspend fun delete(saveState: SaveState) {
+        saveStateDao.delete(saveState)
+    }
 }

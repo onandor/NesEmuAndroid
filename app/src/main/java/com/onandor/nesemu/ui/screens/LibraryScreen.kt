@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
@@ -113,6 +115,10 @@ fun LibraryScreen(
         LibraryChooserDialog { folderPickerLauncher.launch(null) }
     }
 
+    if (uiState.saveStateToDelete != null) {
+        SaveStateDeletionConfirmationDialog { viewModel.onEvent(Event.OnDeleteSaveState(it)) }
+    }
+
     LaunchedEffect(uiState.selectedGame) {
         if (uiState.selectedGame != null) {
             bottomSheetState.currentDetent = SheetDetent.FullyExpanded
@@ -121,12 +127,14 @@ fun LibraryScreen(
         }
     }
 
-    SaveStateSelectionSheet(
-        sheetState = bottomSheetState,
-        game = uiState.selectedGame,
-        saveStates = uiState.saveStates,
-        onEvent = viewModel::onEvent
-    )
+    if (uiState.selectedGame != null) {
+        SaveStateSelectionSheet(
+            sheetState = bottomSheetState,
+            game = uiState.selectedGame,
+            saveStates = uiState.saveStates,
+            onEvent = viewModel::onEvent
+        )
+    }
 }
 
 @Composable
@@ -213,7 +221,8 @@ private fun SaveStateSelectionSheet(
                 saveStates.forEach { saveState ->
                     SaveStateListItem(
                         saveState = saveState,
-                        onClick = { onEvent(Event.OnOpenSaveState(saveState)) }
+                        onClick = { onEvent(Event.OnOpenSaveState(saveState)) },
+                        onDelete = { onEvent(Event.OnShowSaveStateDeleteDialog(saveState)) }
                     )
                 }
             }
@@ -224,10 +233,11 @@ private fun SaveStateSelectionSheet(
 @Composable
 private fun SaveStateListItem(
     saveState: SaveState,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onDelete: () -> Unit
 ) {
     val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-    val name = if (saveState.slot == 0) "Autosave" else "Slot ${saveState.slot}"
+    val name = if (saveState.slot == 0) "Exit save" else "Slot ${saveState.slot}"
     ListItem(
         mainText = {
             Text(
@@ -248,7 +258,12 @@ private fun SaveStateListItem(
                 )
             }
         },
-        onClick = onClick
+        onClick = onClick,
+        displayItem = {
+            RectangularIconButton(onClick = onDelete) {
+                Icon(Icons.Default.Delete, null)
+            }
+        }
     )
 }
 
@@ -294,6 +309,27 @@ private fun LibraryChooserDialog(
                 RectangularButton(onClick = onLaunchFolderPicker) {
                     Text("Select Folder")
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SaveStateDeletionConfirmationDialog(
+    onResult: (Boolean) -> Unit
+) {
+    TitleDialog(
+        text = "Confirmation",
+        onDismissRequest = { onResult(false) }
+    ) {
+        Column(
+            modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Are you sure you want to delete the selected save state?")
+            Spacer(modifier = Modifier.height(20.dp))
+            RectangularButton(onClick = { onResult(true) }) {
+                Text("Delete")
             }
         }
     }

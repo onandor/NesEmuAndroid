@@ -38,7 +38,8 @@ class LibraryViewModel @Inject constructor(
 
         // Save state dialog
         val selectedGame: LibraryEntry? = null,
-        val saveStates: List<SaveState> = emptyList()
+        val saveStates: List<SaveState> = emptyList(),
+        val saveStateToDelete: SaveState? = null
     )
 
     sealed class Event {
@@ -46,6 +47,8 @@ class LibraryViewModel @Inject constructor(
         object OnRescanLibrary : Event()
         data class OnOpenLibraryEntry(val entry: LibraryEntry) : Event()
         data class OnOpenSaveState(val saveState: SaveState?) : Event()
+        data class OnShowSaveStateDeleteDialog(val saveState: SaveState) : Event()
+        data class OnDeleteSaveState(val confirmed: Boolean) : Event()
         object OnNavigateUp : Event()
         object OnErrorMessageToastShown : Event()
         object OnNavigateToPreferences : Event()
@@ -88,6 +91,21 @@ class LibraryViewModel @Inject constructor(
                 val game = _uiState.value.selectedGame!!
                 _uiState.update { it.copy(selectedGame = null) }
                 launchGame(game, event.saveState)
+            }
+            is Event.OnShowSaveStateDeleteDialog -> {
+                _uiState.update {
+                    it.copy(
+                        saveStateToDelete = event.saveState,
+                        selectedGame = null
+                    )
+                }
+            }
+            is Event.OnDeleteSaveState -> {
+                if (event.confirmed) {
+                    val saveState = _uiState.value.saveStateToDelete!!
+                    coroutineScope.launch { saveStateRepository.delete(saveState) }
+                }
+                _uiState.update { it.copy(saveStateToDelete = null) }
             }
             Event.OnNavigateUp -> {
                 navigateUpOneDirectory()
