@@ -6,22 +6,25 @@ import com.onandor.nesemu.data.repository.SaveStateRepository
 import com.onandor.nesemu.data.entity.SaveState
 import com.onandor.nesemu.data.entity.SaveStateType
 import com.onandor.nesemu.di.IODispatcher
+import com.onandor.nesemu.emulation.EmulationListener
 import com.onandor.nesemu.emulation.Emulator
 import com.onandor.nesemu.util.DocumentAccessor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.time.OffsetDateTime
 import javax.inject.Inject
+import javax.inject.Singleton
 import kotlin.time.TimeSource
 import kotlin.time.TimeSource.Monotonic.ValueTimeMark
 
-private enum class EmulationState {
+enum class EmulationState {
     Running,
     Paused,
     Ready,
     Uninitialized
 }
 
+@Singleton
 class EmulationService @Inject constructor(
     private val emulator: Emulator,
     private val libraryEntryRepository: LibraryEntryRepository,
@@ -33,42 +36,13 @@ class EmulationService @Inject constructor(
     private lateinit var loadedGame: LibraryEntry
     private var loadedSaveState: SaveState? = null
 
-    private var state: EmulationState = EmulationState.Uninitialized
+    var state: EmulationState = EmulationState.Uninitialized
+        private set
     private val timeSource = TimeSource.Monotonic
     private var sessionPlaytime: Long = 0
     private var lastResumed: ValueTimeMark = timeSource.markNow()
 
-//    fun load(fileUri: String) {
-//        val rom = fileAccessor.readBytes(fileUri)
-//        val fileName = fileAccessor.getFileName(fileUri)!!
-//        val hash = Cartridge.calculateRomHash(rom)
-//
-//        val existingGame = runBlocking { libraryEntryRepository.findByRomHash(hash) }
-//
-//        if (existingGame != null) {
-//            if (existingGame.fileUri != fileUri || existingGame.fileName != fileName) {
-//                loadedGame = existingGame.copy(
-//                    fileName = fileName,
-//                    fileUri = fileUri
-//                )
-//                coroutineScope.launch { libraryEntryRepository.upsert(loadedGame) }
-//            } else {
-//                loadedGame = existingGame
-//            }
-//        } else {
-//            loadedGame = NesGame(
-//                fileName = fileName,
-//                fileUri = fileUri,
-//                romHash = hash
-//            )
-//            coroutineScope.launch { libraryEntryRepository.upsert(loadedGame) }
-//        }
-//
-//        emulator.loadRom(rom)
-//        state = EmulationState.Ready
-//    }
-
-    fun load(game: LibraryEntry, saveState: SaveState? = null) {
+    fun loadGame(game: LibraryEntry, saveState: SaveState? = null) {
         val rom = documentAccessor.readBytes(game.uri)
         loadedGame = game
         emulator.loadRom(rom)
@@ -79,7 +53,7 @@ class EmulationService @Inject constructor(
         state = EmulationState.Ready
     }
 
-    fun save() {
+    fun saveGame() {
         loadedSaveState = if (loadedSaveState != null) {
             loadedSaveState!!.copy(
                 playtime = loadedSaveState!!.playtime + sessionPlaytime,
@@ -98,10 +72,11 @@ class EmulationService @Inject constructor(
         }
     }
 
-    fun start() {
+    fun resetAndStart() {
         if (state != EmulationState.Ready) {
             return
         }
+        emulator.reset()
         emulator.start()
         state = EmulationState.Running
     }
@@ -131,7 +106,7 @@ class EmulationService @Inject constructor(
         if (state != EmulationState.Paused) {
             return
         }
-        // TODO
+        emulator.start()
         lastResumed = timeSource.markNow()
         state = EmulationState.Running
     }
@@ -140,12 +115,22 @@ class EmulationService @Inject constructor(
         if (state != EmulationState.Running) {
             return
         }
-        // TODO
+        emulator.stop()
         sessionPlaytime += lastResumed.elapsedNow().inWholeSeconds
         state = EmulationState.Paused
     }
 
     fun reset() {
+        emulator.stop()
         emulator.reset()
+        emulator.start()
+    }
+
+    fun registerListener(listener: EmulationListener) {
+        emulator.registerListener(listener)
+    }
+
+    fun unregisterListener(listener: EmulationListener) {
+        emulator.unregisterListener(listener)
     }
 }

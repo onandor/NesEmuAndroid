@@ -1,18 +1,19 @@
 package com.onandor.nesemu.emulation
 
 import com.onandor.nesemu.audio.AudioPlayer
+import com.onandor.nesemu.di.DefaultDispatcher
 import com.onandor.nesemu.emulation.nes.Cartridge
 import com.onandor.nesemu.emulation.nes.Nes
 import com.onandor.nesemu.emulation.savestate.NesState
 import com.onandor.nesemu.input.NesInputManager
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 class Emulator @Inject constructor(
+    @DefaultDispatcher private val coroutineScope: CoroutineScope,
     private val inputManager: NesInputManager
 ) {
 
@@ -34,7 +35,7 @@ class Emulator @Inject constructor(
     fun loadRom(rom: ByteArray) {
         cartridge = Cartridge()
         cartridge.parseRom(rom)
-        nes.reset()
+        //nes.reset()
         nes.insertCartridge(cartridge)
     }
 
@@ -57,30 +58,22 @@ class Emulator @Inject constructor(
 
     fun start() {
         if (!nes.running) {
-            nesRunnerJob = CoroutineScope(Dispatchers.Default).launch {
-                nes.run()
-            }
+            nesRunnerJob = coroutineScope.launch { nes.run() }
+            audioPlayer.startStream()
+        }
+    }
+
+    fun stop() {
+        if (nes.running) {
+            audioPlayer.pauseStream()
+            nes.stop()
+            nesRunnerJob?.cancel()
+            runBlocking { nesRunnerJob?.join() }
         }
     }
 
     fun reset() {
-        if (nes.running) {
-            stop()
-        }
         nes.reset()
-//        if (nesState != null) {
-//            nes.loadState(nesState!!)
-//        }
-        start()
-    }
-
-    fun stop() {
-        nes.stop()
-        nesRunnerJob?.cancel()
-        runBlocking {
-            nesRunnerJob?.join()
-        }
-//        getNesState()
     }
 
     fun registerListener(listener: EmulationListener) {
@@ -89,14 +82,6 @@ class Emulator @Inject constructor(
 
     fun unregisterListener(listener: EmulationListener) {
         listeners.remove(listener)
-    }
-
-    fun startAudioStream() {
-        audioPlayer.startStream()
-    }
-
-    fun pauseAudioStream() {
-        audioPlayer.pauseStream()
     }
 
     fun initAudioPlayer() {
@@ -113,7 +98,7 @@ class Emulator @Inject constructor(
         if (nes.running) {
             stop()
         }
-        //nes.reset()
+        nes.reset()
         nes.loadState(nesState)
     }
 }

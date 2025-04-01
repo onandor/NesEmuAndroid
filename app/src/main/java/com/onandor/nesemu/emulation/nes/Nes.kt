@@ -12,6 +12,7 @@ import com.onandor.nesemu.emulation.savestate.NesState
 import com.onandor.nesemu.emulation.savestate.Savable
 import com.onandor.nesemu.util.SlidingWindowIntQueue
 import kotlinx.coroutines.delay
+import java.util.concurrent.CountDownLatch
 import kotlin.time.TimeSource
 
 class Nes(
@@ -52,6 +53,8 @@ class Nes(
     private var numFrames: Int = 0
     var fps: Float = 0f
         private set
+
+    private var stopLatch = CountDownLatch(1)
 
     fun cpuReadMemory(address: Int): Int {
         lastValueRead = when (address) {
@@ -252,10 +255,14 @@ class Nes(
                 Log.i(TAG, "FPS: $fps")
             }
         }
+
+        stopLatch.countDown()
     }
 
     fun stop() {
         running = false
+        stopLatch.await()
+        stopLatch = CountDownLatch(1)
     }
 
     // Functions used for debugging

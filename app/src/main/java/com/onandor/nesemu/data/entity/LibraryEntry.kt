@@ -1,9 +1,7 @@
 package com.onandor.nesemu.data.entity
 
-import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import androidx.room.Relation
 
 @Entity
 data class LibraryEntry(
@@ -14,15 +12,4 @@ data class LibraryEntry(
     val uri: String,
     val isDirectory: Boolean,
     val parentDirectoryUri: String? = null
-)
-
-data class LibraryEntryWithSaveStates(
-    @Embedded
-    val libraryEntry: LibraryEntry,
-
-    @Relation(
-        parentColumn = "romHash",
-        entityColumn = "romHash"
-    )
-    val saveStates: List<SaveState>
 )

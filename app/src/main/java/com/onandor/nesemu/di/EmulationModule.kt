@@ -6,6 +6,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineScope
 import javax.inject.Singleton
 
 @Module
@@ -15,6 +16,7 @@ class EmulationModule {
     @Singleton
     @Provides
     fun provideEmulator(
+        @DefaultDispatcher coroutineScope: CoroutineScope,
         inputManager: NesInputManager
-    ): Emulator = Emulator(inputManager)
+    ): Emulator = Emulator(coroutineScope, inputManager)
 }

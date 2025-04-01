@@ -3,6 +3,7 @@ package com.onandor.nesemu.viewmodels
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import com.onandor.nesemu.data.entity.LibraryEntry
+import com.onandor.nesemu.data.repository.SaveStateRepository
 import com.onandor.nesemu.di.IODispatcher
 import com.onandor.nesemu.service.EmulationService
 import com.onandor.nesemu.service.LibraryService
@@ -15,7 +16,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import okio.FileNotFoundException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -23,7 +23,8 @@ class LibraryViewModel @Inject constructor(
     @IODispatcher private val coroutineScope: CoroutineScope,
     private val navManager: NavigationManager,
     private val emulationService: EmulationService,
-    private val libraryService: LibraryService
+    private val libraryService: LibraryService,
+    private val saveStateRepository: SaveStateRepository
 ) : ViewModel() {
 
     data class UiState(
@@ -73,7 +74,7 @@ class LibraryViewModel @Inject constructor(
                 if (event.entry.isDirectory) {
                     navigateToDirectory(event.entry)
                 } else {
-                    println("file clicked")
+                    openGame(event.entry)
                 }
             }
             Event.OnNavigateUp -> {
@@ -94,7 +95,7 @@ class LibraryViewModel @Inject constructor(
             val path = if (directory.uri == libraryDirectory?.uri) {
                 "/"
             } else if (it.path == "/") {
-                "${it.path}${directory.name}"
+                "/${directory.name}"
             } else {
                 "${it.path}/${directory.name}"
             }
@@ -128,19 +129,22 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    private fun onRomSelected(uriString: String) {
-        try {
-            //emulator.loadRomFile(uriString)
-            //navManager.navigateTo(NavActions.gameScreen())
-        } catch (e: RomParseException) {
-            _uiState.update { it.copy(errorMessage = e.message) }
-        } catch (e: FileNotFoundException) {
-            _uiState.update { it.copy(errorMessage = "The selected ROM file is missing") }
-        } catch (e: Exception) {
-            Log.e("MainViewModel", e.localizedMessage, e)
-            _uiState.update {
-                it.copy(errorMessage = "An unexpected error occurred while reading the ROM file")
+    private fun openGame(game: LibraryEntry) = coroutineScope.launch {
+        val saveStates = saveStateRepository.findByRomHash(game.romHash)
+        if (saveStates.isEmpty() || !saveStates.isEmpty()) {
+            try {
+                emulationService.loadGame(game, null)
+                navManager.navigateTo(NavActions.gameScreen())
+            } catch (e: RomParseException) {
+                _uiState.update { it.copy(errorMessage = e.message) }
+            } catch (e: Exception) {
+                Log.e("MainViewModel", e.localizedMessage, e)
+                _uiState.update {
+                    it.copy(errorMessage = "An unexpected error occurred while reading the ROM file")
+                }
             }
+        } else {
+            // TODO: show save state dialog
         }
     }
 

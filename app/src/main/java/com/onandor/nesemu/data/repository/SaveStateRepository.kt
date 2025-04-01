@@ -39,6 +39,10 @@ class SaveStateRepository @Inject constructor(
         saveStateDao.upsert(autosave)
     }
 
+    suspend fun findByRomHash(romHash: String): List<SaveState> {
+        return saveStateDao.findByRomHash(romHash)
+    }
+
     suspend fun upsert(saveState: SaveState) {
         saveStateDao.upsert(saveState)
     }

@@ -3,25 +3,19 @@ package com.onandor.nesemu.data.dao
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Query
-import androidx.room.Transaction
 import androidx.room.Upsert
 import com.onandor.nesemu.data.entity.LibraryEntry
-import com.onandor.nesemu.data.entity.LibraryEntryWithSaveStates
 
 @Dao
 interface LibraryEntryDao {
 
-    @Transaction
-    @Query("select * from LibraryEntry")
-    suspend fun findAllWithSaveStates(): List<LibraryEntryWithSaveStates>
-
     @Query("select * from LibraryEntry")
     suspend fun findAll(): List<LibraryEntry>
 
-    @Query("select * from LibraryEntry where romHash = :romHash")
+    @Query("select * from LibraryEntry where romHash = :romHash limit 1")
     suspend fun findByRomHash(romHash: String): LibraryEntry?
 
-    @Query("select * from LibraryEntry where uri = :uri")
+    @Query("select * from LibraryEntry where uri = :uri limit 1")
     suspend fun findByUri(uri: String): LibraryEntry?
 
     @Query("select * from LibraryEntry where parentDirectoryUri = :parentDirectoryUri")

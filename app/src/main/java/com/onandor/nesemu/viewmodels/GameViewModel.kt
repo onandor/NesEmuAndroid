@@ -4,7 +4,6 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.onandor.nesemu.emulation.EmulationListener
-import com.onandor.nesemu.emulation.Emulator
 import com.onandor.nesemu.navigation.NavigationManager
 import com.onandor.nesemu.emulation.nes.NesException
 import com.onandor.nesemu.ui.components.game.NesRenderer
@@ -13,6 +12,8 @@ import com.onandor.nesemu.input.NesButtonState
 import com.onandor.nesemu.input.NesInputManager
 import com.onandor.nesemu.navigation.NavAction
 import com.onandor.nesemu.navigation.NavDestinations
+import com.onandor.nesemu.service.EmulationService
+import com.onandor.nesemu.service.EmulationState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,7 +25,7 @@ import javax.inject.Inject
 @HiltViewModel
 class GameViewModel @Inject constructor(
     private val navManager: NavigationManager,
-    private val emulator: Emulator,
+    private val emulationService: EmulationService,
     private val inputManager: NesInputManager
 ) : ViewModel() {
 
@@ -83,11 +84,10 @@ class GameViewModel @Inject constructor(
     init {
         inputManagerEventJob = collectInputManagerEvents()
         navManagerJob = collectNavigationEvents()
-        emulator.registerListener(emulationListener)
+        emulationService.registerListener(emulationListener)
 
         try {
-            emulator.reset()
-            emulator.startAudioStream()
+            emulationService.resetAndStart()
         } catch (e: NesException) {
             _uiState.update { it.copy(errorMessage = e.message) }
         } catch (e: Exception) {
@@ -135,7 +135,7 @@ class GameViewModel @Inject constructor(
             }
             is Event.OnResetConsole -> {
                 hidePauseMenu()
-                emulator.reset()
+                emulationService.reset()
                 _uiState.update { it.copy(emulationPaused = false) }
             }
         }
@@ -148,9 +148,9 @@ class GameViewModel @Inject constructor(
     private fun setEmulationPaused(paused: Boolean) {
         this._uiState.update { it.copy(emulationPaused = paused) }
         if (paused) {
-            emulator.stop()
+            emulationService.pause()
         } else {
-            emulator.start()
+            emulationService.resume()
         }
     }
 
@@ -175,7 +175,8 @@ class GameViewModel @Inject constructor(
         navManager.navActions.collect { navAction ->
             if (navAction?.destination == NavDestinations.BACK
                 && navManager.getCurrentRoute() == NavDestinations.GAME_SCREEN
-                && emulator.nes.running == false) {
+                && emulationService.state == EmulationState.Running
+            ) {
                 setEmulationPaused(false)
             }
         }
@@ -184,8 +185,7 @@ class GameViewModel @Inject constructor(
     override fun onCleared() {
         inputManagerEventJob?.cancel()
         navManagerJob?.cancel()
-        emulator.pauseAudioStream()
-        emulator.stop()
-        emulator.unregisterListener(emulationListener)
+        emulationService.stop()
+        emulationService.unregisterListener(emulationListener)
     }
 }
