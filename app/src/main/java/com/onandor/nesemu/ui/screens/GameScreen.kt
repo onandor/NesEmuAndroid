@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import com.onandor.nesemu.ui.components.HorizontalDivider
@@ -323,37 +325,39 @@ private fun PauseMenuDialog(
         text = "Menu",
         onDismissRequest = { onEvent(Event.OnHidePauseMenuDialog) }
     ) {
-        ListItem(
-            onClick = { onEvent(Event.OnHidePauseMenuDialog) },
-            mainText = { Text("Resume") }
-        )
-        HorizontalDivider()
-        ListItem(
-            onClick = { onEvent(Event.OnShowSaveStateSheet(SaveStateSheetType.Save)) },
-            mainText = { Text("Save") }
-        )
-        ListItem(
-            onClick = { onEvent(Event.OnShowSaveStateSheet(SaveStateSheetType.Load)) },
-            mainText = { Text("Load") }
-        )
-        HorizontalDivider()
-        ListItem(
-            onClick = { onEvent(Event.OnNavigateTo(NavActions.preferencesScreen())) },
-            mainText = { Text("Preferences") }
-        )
-        ListItem(
-            onClick = { onEvent(Event.OnNavigateTo(NavActions.debugScreen())) },
-            mainText = { Text("Debug view") }
-        )
-        HorizontalDivider()
-        ListItem(
-            onClick = { onEvent(Event.OnResetConsole) },
-            mainText = { Text("Reset console") }
-        )
-        ListItem(
-            onClick = { onEvent(Event.OnNavigateBack) },
-            mainText = { Text("Quit game") }
-        )
+        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+            ListItem(
+                onClick = { onEvent(Event.OnHidePauseMenuDialog) },
+                mainText = { Text("Resume") }
+            )
+            HorizontalDivider()
+            ListItem(
+                onClick = { onEvent(Event.OnShowSaveStateSheet(SaveStateSheetType.Save)) },
+                mainText = { Text("Save") }
+            )
+            ListItem(
+                onClick = { onEvent(Event.OnShowSaveStateSheet(SaveStateSheetType.Load)) },
+                mainText = { Text("Load") }
+            )
+            HorizontalDivider()
+            ListItem(
+                onClick = { onEvent(Event.OnNavigateTo(NavActions.preferencesScreen())) },
+                mainText = { Text("Preferences") }
+            )
+            ListItem(
+                onClick = { onEvent(Event.OnNavigateTo(NavActions.debugScreen())) },
+                mainText = { Text("Debug view") }
+            )
+            HorizontalDivider()
+            ListItem(
+                onClick = { onEvent(Event.OnResetConsole) },
+                mainText = { Text("Reset console") }
+            )
+            ListItem(
+                onClick = { onEvent(Event.OnNavigateBack) },
+                mainText = { Text("Quit game") }
+            )
+        }
     }
 }
 

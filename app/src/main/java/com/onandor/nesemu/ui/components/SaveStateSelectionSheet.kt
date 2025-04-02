@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Icon
@@ -96,42 +98,48 @@ fun SaveStateSelectionSheet(
                     )
                     HorizontalDivider(modifier = Modifier.padding(top = 10.dp, bottom = 10.dp))
                 }
-                if (saveStates.isEmpty() &&
-                    (type == SaveStateSheetType.Load || type == SaveStateSheetType.LoadAndNew)) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 20.dp, bottom = 20.dp),
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = "No save states",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
-                        )
-                    }
-                } else {
-                    val startIdx = if (type == SaveStateSheetType.Save) 1 else 0
-                    for (slot in startIdx .. 5) {
-                        val saveState = saveStates.find { it.slot == slot }
-                        if (saveState == null && type == SaveStateSheetType.Save) {
-                            ListItem(
-                                mainText = {
-                                    Text(
-                                        text = "Slot $slot",
-                                        fontSize = 22.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                },
-                                onClick = { onSelectSaveState(slot, null) }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    if (saveStates.isEmpty() &&
+                        (type == SaveStateSheetType.Load || type == SaveStateSheetType.LoadAndNew)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 20.dp, bottom = 20.dp),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "No save states",
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
                             )
-                        } else if (saveState != null) {
-                            SaveStateListItem(
-                                saveState = saveState,
-                                onClick = onSelectSaveState,
-                                onDelete = onDeleteSaveState
-                            )
+                        }
+                    } else {
+                        val startIdx = if (type == SaveStateSheetType.Save) 1 else 0
+                        for (slot in startIdx .. 5) {
+                            val saveState = saveStates.find { it.slot == slot }
+                            if (saveState == null && type == SaveStateSheetType.Save) {
+                                ListItem(
+                                    mainText = {
+                                        Text(
+                                            text = "Slot $slot",
+                                            fontSize = 22.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    },
+                                    onClick = { onSelectSaveState(slot, null) }
+                                )
+                            } else if (saveState != null) {
+                                SaveStateListItem(
+                                    saveState = saveState,
+                                    onClick = onSelectSaveState,
+                                    onDelete = onDeleteSaveState
+                                )
+                            }
                         }
                     }
                 }
