@@ -52,7 +52,7 @@ class LibraryViewModel @Inject constructor(
         object OnNavigateUp : Event()
         object OnErrorMessageToastShown : Event()
         object OnNavigateToPreferences : Event()
-        object OnHideSaveStateDialog : Event()
+        object OnHideSaveStateSheet : Event()
     }
 
     private var libraryDirectory: LibraryEntry? = null
@@ -116,7 +116,7 @@ class LibraryViewModel @Inject constructor(
             Event.OnNavigateToPreferences -> {
                 navManager.navigateTo(NavActions.preferencesScreen())
             }
-            Event.OnHideSaveStateDialog -> {
+            Event.OnHideSaveStateSheet -> {
                 _uiState.update { it.copy(selectedGame = null) }
             }
         }

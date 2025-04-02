@@ -37,6 +37,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.composables.core.SheetDetent
+import com.composables.core.rememberModalBottomSheetState
 import com.onandor.nesemu.ui.components.game.NesRenderer
 import com.onandor.nesemu.ui.components.game.NesSurfaceView
 import com.onandor.nesemu.input.NesButton
@@ -47,8 +49,11 @@ import com.onandor.nesemu.viewmodels.GameViewModel
 import com.onandor.nesemu.viewmodels.GameViewModel.Event
 import com.onandor.nesemu.R
 import com.onandor.nesemu.navigation.NavActions
+import com.onandor.nesemu.ui.components.ConfirmationDialog
 import com.onandor.nesemu.ui.components.ListItem
 import com.onandor.nesemu.ui.components.RectangularIconButton
+import com.onandor.nesemu.ui.components.SaveStateSelectionSheet
+import com.onandor.nesemu.ui.components.SaveStateSheetType
 import com.onandor.nesemu.ui.components.StatusBarScaffold
 import com.onandor.nesemu.ui.components.TitleDialog
 
@@ -57,7 +62,9 @@ fun GameScreen(
     viewModel: GameViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+
     val uiState by viewModel.uiState.collectAsState()
+    val bottomSheetState = rememberModalBottomSheetState(initialDetent = SheetDetent.Hidden)
 
     StatusBarScaffold { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
@@ -79,6 +86,35 @@ fun GameScreen(
 
     if (uiState.showPauseMenu) {
         PauseMenuDialog(onEvent = viewModel::onEvent)
+    }
+
+    LaunchedEffect(uiState.saveStateSheetType) {
+        if (uiState.saveStateSheetType != null) {
+            bottomSheetState.currentDetent = SheetDetent.FullyExpanded
+        } else {
+            bottomSheetState.currentDetent = SheetDetent.Hidden
+        }
+    }
+
+    if (uiState.saveStateSheetType != null) {
+        SaveStateSelectionSheet(
+            sheetState = bottomSheetState,
+            saveStates = uiState.saveStates,
+            type = uiState.saveStateSheetType!!,
+            onDismiss = { viewModel.onEvent(Event.OnHideSaveStateSheet) },
+            onSelectSaveState = { slot, saveState ->
+                viewModel.onEvent(Event.OnSelectSaveState(slot, saveState))
+            },
+        )
+    }
+
+    if (uiState.saveStateToOverwrite != null) {
+        ConfirmationDialog(
+            title = "Confirmation",
+            warningText = "Are you sure you want to overwrite the selected save?",
+            confirmButtonLabel = "Overwrite",
+            onResult = { viewModel.onEvent(Event.OnOverwriteSaveState(it)) }
+        )
     }
 
     BackHandler {
@@ -290,6 +326,15 @@ private fun PauseMenuDialog(
         ListItem(
             onClick = { onEvent(Event.OnHidePauseMenuDialog) },
             mainText = { Text("Resume") }
+        )
+        HorizontalDivider()
+        ListItem(
+            onClick = { onEvent(Event.OnShowSaveStateSheet(SaveStateSheetType.Save)) },
+            mainText = { Text("Save") }
+        )
+        ListItem(
+            onClick = { onEvent(Event.OnShowSaveStateSheet(SaveStateSheetType.Load)) },
+            mainText = { Text("Load") }
         )
         HorizontalDivider()
         ListItem(

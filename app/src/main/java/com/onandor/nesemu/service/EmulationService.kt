@@ -2,7 +2,6 @@ package com.onandor.nesemu.service
 
 import android.graphics.Bitmap
 import com.onandor.nesemu.data.entity.LibraryEntry
-import com.onandor.nesemu.data.repository.LibraryEntryRepository
 import com.onandor.nesemu.data.repository.SaveStateRepository
 import com.onandor.nesemu.data.entity.SaveState
 import com.onandor.nesemu.di.IODispatcher
@@ -29,20 +28,21 @@ enum class EmulationState {
 @Singleton
 class EmulationService @Inject constructor(
     private val emulator: Emulator,
-    private val libraryEntryRepository: LibraryEntryRepository,
     private val saveStateRepository: SaveStateRepository,
     private val documentAccessor: DocumentAccessor,
     @IODispatcher private val coroutineScope: CoroutineScope
 ) {
 
-    private lateinit var loadedGame: LibraryEntry
-    private var loadedSaveState: SaveState? = null
+    var loadedGame: LibraryEntry? = null
+        private set
 
     var state: EmulationState = EmulationState.Uninitialized
         private set
     private val timeSource = TimeSource.Monotonic
-    private var sessionPlaytime: Long = 0
+    private var playtime: Long = 0
     private var lastResumed: ValueTimeMark = timeSource.markNow()
+
+    var renderer: NesRenderer? = null
 
     fun loadGame(game: LibraryEntry, saveState: SaveState? = null) {
         val rom = documentAccessor.readBytes(game.uri)
@@ -50,29 +50,41 @@ class EmulationService @Inject constructor(
         emulator.loadRom(rom)
         emulator.reset()
         saveState?.let {
-            loadedSaveState = it
             emulator.loadSaveState(it.nesState)
+            playtime = it.playtime
         }
         state = EmulationState.Ready
     }
 
-    fun saveGame(slot: Int) {
-        loadedSaveState = if (loadedSaveState != null) {
-            loadedSaveState!!.copy(
-                playtime = loadedSaveState!!.playtime + sessionPlaytime,
-                nesState = emulator.createSaveState(),
-                modificationDate = OffsetDateTime.now()
-            )
-        } else {
-            SaveState(
-                playtime = sessionPlaytime,
-                modificationDate = OffsetDateTime.now(),
-                nesState = emulator.createSaveState(),
-                romHash = loadedGame.romHash,
-                slot = slot,
-                preview = ByteArray(0) // TODO
-            )
+    fun loadSave(saveState: SaveState) {
+        if (state == EmulationState.Uninitialized || loadedGame == null) {
+            return
         }
+
+        if (state == EmulationState.Running) {
+            pause()
+        }
+
+        emulator.reset()
+        emulator.loadSaveState(saveState.nesState)
+        playtime = saveState.playtime
+        state = EmulationState.Ready
+    }
+
+    fun saveGame(slot: Int) {
+        if (state != EmulationState.Paused || loadedGame == null) {
+            return
+        }
+
+        val saveState = SaveState(
+            playtime = playtime,
+            modificationDate = OffsetDateTime.now(),
+            nesState = emulator.createSaveState(),
+            romHash = loadedGame!!.romHash,
+            slot = slot,
+            preview = createPreview()
+        )
+        coroutineScope.launch { saveStateRepository.upsert(saveState) }
     }
 
     fun start() {
@@ -84,27 +96,19 @@ class EmulationService @Inject constructor(
         state = EmulationState.Running
     }
 
-    fun stop(renderer: NesRenderer) {
+    fun stop() {
         if (state == EmulationState.Uninitialized) {
             return
         }
 
-        emulator.stop()
         if (state == EmulationState.Running) {
-            sessionPlaytime += lastResumed.elapsedNow().inWholeSeconds
+            pause()
+        } else {
+            emulator.stop()
         }
 
-        coroutineScope.launch {
-            saveStateRepository.upsertAutosave(
-                sessionPlaytime = sessionPlaytime,
-                nesState = emulator.createSaveState(),
-                romHash = loadedGame.romHash,
-                preview = compressBitmap(renderer.captureFrame())
-            )
-            sessionPlaytime = 0
-        }
+        saveGame(0)
 
-        loadedSaveState = null
         state = EmulationState.Ready
     }
 
@@ -113,7 +117,7 @@ class EmulationService @Inject constructor(
             return
         }
         emulator.stop()
-        sessionPlaytime += lastResumed.elapsedNow().inWholeSeconds
+        playtime += lastResumed.elapsedNow().inWholeSeconds
         state = EmulationState.Paused
     }
 
@@ -131,10 +135,13 @@ class EmulationService @Inject constructor(
         emulator.unregisterListener(listener)
     }
 
-    private fun compressBitmap(bitmap: Bitmap): ByteArray {
-        return ByteArrayOutputStream().use { out ->
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 80, out)
-            out.toByteArray()
+    private fun createPreview(): ByteArray {
+        renderer?.let { renderer ->
+            return ByteArrayOutputStream().use { out ->
+                renderer.captureFrame().compress(Bitmap.CompressFormat.JPEG, 80, out)
+                out.toByteArray()
+            }
         }
+        return ByteArray(0)
     }
 }
