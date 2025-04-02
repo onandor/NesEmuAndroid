@@ -25,6 +25,8 @@ import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 
+private val EmptyComposable: @Composable() () -> Unit = {}
+
 @Composable
 fun CheckboxListItem(
     modifier: Modifier = Modifier,
@@ -60,8 +62,8 @@ fun ListItem(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     mainText: @Composable() () -> Unit,
-    subText: @Composable() () -> Unit = {},
-    displayItem: @Composable() () -> Unit = {}
+    subText: @Composable() () -> Unit = EmptyComposable,
+    displayItem: @Composable() () -> Unit = EmptyComposable
 ) {
     var pressed by remember { mutableStateOf(false) }
     var hovered by remember { mutableStateOf(false) }
@@ -109,7 +111,9 @@ fun ListItem(
             mainText()
             subText()
         }
-        Spacer(modifier = Modifier.width(15.dp))
-        displayItem()
+        if (displayItem !== EmptyComposable) {
+            Spacer(modifier = Modifier.width(15.dp))
+            displayItem()
+        }
     }
 }

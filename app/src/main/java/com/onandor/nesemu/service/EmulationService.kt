@@ -1,5 +1,6 @@
 package com.onandor.nesemu.service
 
+import android.graphics.Bitmap
 import com.onandor.nesemu.data.entity.LibraryEntry
 import com.onandor.nesemu.data.repository.LibraryEntryRepository
 import com.onandor.nesemu.data.repository.SaveStateRepository
@@ -7,9 +8,11 @@ import com.onandor.nesemu.data.entity.SaveState
 import com.onandor.nesemu.di.IODispatcher
 import com.onandor.nesemu.emulation.EmulationListener
 import com.onandor.nesemu.emulation.Emulator
+import com.onandor.nesemu.ui.components.game.NesRenderer
 import com.onandor.nesemu.util.DocumentAccessor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import java.io.ByteArrayOutputStream
 import java.time.OffsetDateTime
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -66,13 +69,14 @@ class EmulationService @Inject constructor(
                 modificationDate = OffsetDateTime.now(),
                 nesState = emulator.createSaveState(),
                 romHash = loadedGame.romHash,
-                slot = slot
+                slot = slot,
+                preview = ByteArray(0) // TODO
             )
         }
     }
 
     fun start() {
-        if (state != EmulationState.Ready) {
+        if (state != EmulationState.Ready && state != EmulationState.Paused) {
             return
         }
         emulator.start()
@@ -80,7 +84,7 @@ class EmulationService @Inject constructor(
         state = EmulationState.Running
     }
 
-    fun stop() {
+    fun stop(renderer: NesRenderer) {
         if (state == EmulationState.Uninitialized) {
             return
         }
@@ -94,7 +98,8 @@ class EmulationService @Inject constructor(
             saveStateRepository.upsertAutosave(
                 sessionPlaytime = sessionPlaytime,
                 nesState = emulator.createSaveState(),
-                romHash = loadedGame.romHash
+                romHash = loadedGame.romHash,
+                preview = compressBitmap(renderer.captureFrame())
             )
             sessionPlaytime = 0
         }
@@ -124,5 +129,12 @@ class EmulationService @Inject constructor(
 
     fun unregisterListener(listener: EmulationListener) {
         emulator.unregisterListener(listener)
+    }
+
+    private fun compressBitmap(bitmap: Bitmap): ByteArray {
+        return ByteArrayOutputStream().use { out ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 80, out)
+            out.toByteArray()
+        }
     }
 }

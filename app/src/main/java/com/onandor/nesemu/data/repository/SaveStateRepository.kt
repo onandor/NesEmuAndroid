@@ -15,14 +15,16 @@ class SaveStateRepository @Inject constructor(
     suspend fun upsertAutosave(
         sessionPlaytime: Long,
         nesState: NesState,
-        romHash: String
+        romHash: String,
+        preview: ByteArray
     ) {
         var autosave = saveStateDao.findAutosaveByRomHash(romHash)
         autosave = if (autosave != null) {
             autosave.copy(
                 playtime = autosave.playtime + sessionPlaytime,
                 nesState = nesState,
-                modificationDate = OffsetDateTime.now()
+                modificationDate = OffsetDateTime.now(),
+                preview = preview
             )
         } else {
             SaveState(
@@ -30,7 +32,8 @@ class SaveStateRepository @Inject constructor(
                 playtime = sessionPlaytime,
                 modificationDate = OffsetDateTime.now(),
                 nesState = nesState,
-                slot = 0
+                slot = 0,
+                preview = preview
             )
         }
         saveStateDao.upsert(autosave)

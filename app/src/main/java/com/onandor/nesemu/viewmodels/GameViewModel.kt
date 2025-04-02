@@ -123,6 +123,7 @@ class GameViewModel @Inject constructor(
             }
             is Event.OnNavigateBack -> {
                 hidePauseMenu()
+                cleanUp()
                 navManager.navigateBack()
             }
             is Event.OnShowPauseMenuDialog -> {
@@ -182,10 +183,10 @@ class GameViewModel @Inject constructor(
         }
     }
 
-    override fun onCleared() {
+    private fun cleanUp() {
         inputManagerEventJob?.cancel()
         navManagerJob?.cancel()
-        emulationService.stop()
+        emulationService.stop(renderer)
         emulationService.unregisterListener(emulationListener)
     }
 }

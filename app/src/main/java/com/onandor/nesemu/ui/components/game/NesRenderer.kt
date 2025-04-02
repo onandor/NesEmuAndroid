@@ -1,5 +1,6 @@
 package com.onandor.nesemu.ui.components.game
 
+import android.graphics.Bitmap
 import android.opengl.GLES11Ext.GL_BGRA
 import android.opengl.GLES30.*
 import android.opengl.GLSurfaceView
@@ -129,7 +130,11 @@ class NesRenderer(private val width: Int, private val height: Int) : GLSurfaceVi
         mTextureData = data
     }
 
-    // TODO: call it from somewhere
+    fun captureFrame(): Bitmap {
+        return Bitmap.createBitmap(mTextureData, width, height, Bitmap.Config.RGB_565)
+    }
+
+    // Don't need to call manually
     fun onDestroy() {
         glDisableVertexAttribArray(0)
         glDisableVertexAttribArray(1)

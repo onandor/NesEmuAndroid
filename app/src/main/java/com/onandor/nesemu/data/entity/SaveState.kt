@@ -13,5 +13,6 @@ data class SaveState(
     val playtime: Long,
     val modificationDate: OffsetDateTime,
     val nesState: NesState,
-    val slot: Int
+    val slot: Int,
+    val preview: ByteArray
 )
