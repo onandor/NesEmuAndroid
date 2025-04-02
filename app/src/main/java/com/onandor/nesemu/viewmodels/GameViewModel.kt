@@ -135,27 +135,25 @@ class GameViewModel @Inject constructor(
 
             // Pause menu events
             is Event.OnNavigateTo -> {
-                hidePauseMenu()
-                setEmulationPaused(true)
+                _uiState.update { it.copy(showPauseMenu = false) }
+                emulationService.pause()
                 navManager.navigateTo(event.action)
             }
             is Event.OnNavigateBack -> {
-                hidePauseMenu()
+                _uiState.update { it.copy(showPauseMenu = false) }
                 cleanUp()
                 navManager.navigateBack()
             }
             is Event.OnShowPauseMenuDialog -> {
                 _uiState.update { it.copy(showPauseMenu = true) }
-                setEmulationPaused(true)
+                emulationService.pause()
             }
             is Event.OnHidePauseMenuDialog -> {
-                hidePauseMenu()
-                setEmulationPaused(false)
+                unpause()
             }
             is Event.OnResetConsole -> {
-                hidePauseMenu()
                 emulationService.reset()
-                _uiState.update { it.copy(emulationPaused = false) }
+                unpause()
             }
 
             // Save state management
@@ -172,48 +170,32 @@ class GameViewModel @Inject constructor(
                     if (event.saveState != null) {
                         _uiState.update { it.copy(saveStateToOverwrite = event.saveState) }
                     } else {
-                        saveGame(event.slot)
-                        hidePauseMenu()
-                        setEmulationPaused(false)
+                        emulationService.saveGame(event.slot)
+                        unpause()
                     }
                 } else if (event.saveState != null) {
-                    setEmulationPaused(true)
                     emulationService.loadSave(event.saveState)
-                    hidePauseMenu()
-                    setEmulationPaused(false)
+                    unpause()
                 }
             }
             is Event.OnOverwriteSaveState -> {
                 if (event.confirmed) {
                     val saveState = _uiState.value.saveStateToOverwrite!!
-                    saveGame(saveState.slot)
-                    hidePauseMenu()
-                    setEmulationPaused(false)
+                    emulationService.saveGame(saveState.slot)
+                    unpause()
                 }
                 _uiState.update { it.copy(saveStateToOverwrite = null) }
             }
         }
     }
 
-    private fun hidePauseMenu() {
-        _uiState.update { it.copy(showPauseMenu = false) }
+    private fun unpause() {
+        _uiState.update { it.copy(showPauseMenu = false, emulationPaused = false) }
+        emulationService.start()
     }
 
     private fun hideSaveStateSheet() {
         _uiState.update { it.copy(saveStateSheetType = null, saveStates = emptyList()) }
-    }
-
-    private fun setEmulationPaused(paused: Boolean) {
-        if (_uiState.value.emulationPaused == paused) {
-            return
-        }
-
-        this._uiState.update { it.copy(emulationPaused = paused) }
-        if (paused) {
-            emulationService.pause()
-        } else {
-            emulationService.start()
-        }
     }
 
     private fun showSaveStateSheet(type: SaveStateSheetType) = coroutineScope.launch {
@@ -230,12 +212,6 @@ class GameViewModel @Inject constructor(
                 saveStates = saveStates
             )
         }
-    }
-
-    private fun saveGame(slot: Int) {
-        emulationService.pause()
-        emulationService.saveGame(slot)
-        emulationService.start()
     }
 
     private fun collectInputManagerEvents(): Job = viewModelScope.launch {
@@ -261,7 +237,7 @@ class GameViewModel @Inject constructor(
                 && navManager.getCurrentRoute() == NavDestinations.GAME_SCREEN
                 && emulationService.state == EmulationState.Running
             ) {
-                setEmulationPaused(false)
+                emulationService.start()
             }
         }
     }

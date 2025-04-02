@@ -61,19 +61,30 @@ class EmulationService @Inject constructor(
             return
         }
 
-        if (state == EmulationState.Running) {
+        val isRunning = state == EmulationState.Running
+        if (isRunning) {
             pause()
         }
 
         emulator.reset()
         emulator.loadSaveState(saveState.nesState)
         playtime = saveState.playtime
-        state = EmulationState.Ready
+
+        if (isRunning) {
+            start()
+        }
     }
 
     fun saveGame(slot: Int) {
-        if (state != EmulationState.Paused || loadedGame == null) {
+        if (state == EmulationState.Uninitialized ||
+            state == EmulationState.Ready ||
+            loadedGame == null) {
             return
+        }
+
+        val isRunning = state == EmulationState.Running
+        if (isRunning) {
+            pause()
         }
 
         val saveState = SaveState(
@@ -85,6 +96,10 @@ class EmulationService @Inject constructor(
             preview = createPreview()
         )
         coroutineScope.launch { saveStateRepository.upsert(saveState) }
+
+        if (isRunning) {
+            start()
+        }
     }
 
     fun start() {
