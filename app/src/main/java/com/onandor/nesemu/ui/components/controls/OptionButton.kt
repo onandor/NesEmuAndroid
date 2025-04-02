@@ -32,7 +32,7 @@ fun OptionButton(
     text: String,
     onStateChanged: (NesButtonState) -> Unit
 ) {
-    var buttonState by remember { mutableStateOf(NesButtonState.UP) }
+    var buttonState by remember { mutableStateOf(NesButtonState.Up) }
 
     val canvasModifier = Modifier
         .width(60.dp)
@@ -43,11 +43,11 @@ fun OptionButton(
                     val event = awaitPointerEvent(PointerEventPass.Main)
                     event.changes.forEach { change ->
                         if (change.changedToDown()) {
-                            buttonState = NesButtonState.DOWN
-                            onStateChanged(NesButtonState.DOWN)
+                            buttonState = NesButtonState.Down
+                            onStateChanged(NesButtonState.Down)
                         } else if (change.changedToUp()) {
-                            buttonState = NesButtonState.UP
-                            onStateChanged(NesButtonState.UP)
+                            buttonState = NesButtonState.Up
+                            onStateChanged(NesButtonState.Up)
                         }
                     }
                 }
@@ -68,7 +68,7 @@ fun OptionButton(
                 topLeft = Offset(0f, 0f),
                 size = Size(width, height),
                 cornerRadius = CornerRadius(x = 25f, y = 25f),
-                color = if (buttonState == NesButtonState.DOWN) Color.Gray else Color.DarkGray
+                color = if (buttonState == NesButtonState.Down) Color.Gray else Color.DarkGray
             )
         }
     }

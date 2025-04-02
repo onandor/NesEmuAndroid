@@ -277,7 +277,7 @@ private fun ButtonMappingSection(
             )
         },
         subText = {
-            val text = if (inputDeviceType == NesInputDeviceType.CONTROLLER) {
+            val text = if (inputDeviceType == NesInputDeviceType.Controller) {
                 "Controller"
             } else {
                 "Keyboard"
@@ -292,13 +292,13 @@ private fun ButtonMappingSection(
                 DropdownMenuItem(
                     text = { Text("Controller") },
                     onClick = {
-                        onEvent(Event.OnButtonMappingDeviceTypeChanged(NesInputDeviceType.CONTROLLER))
+                        onEvent(Event.OnButtonMappingDeviceTypeChanged(NesInputDeviceType.Controller))
                     }
                 )
                 DropdownMenuItem(
                     text = { Text("Keyboard") },
                     onClick = {
-                        onEvent(Event.OnButtonMappingDeviceTypeChanged(NesInputDeviceType.KEYBOARD))
+                        onEvent(Event.OnButtonMappingDeviceTypeChanged(NesInputDeviceType.Keyboard))
                     }
                 )
             }
@@ -317,34 +317,34 @@ private fun ButtonMappingEdit(
     mapping: Map<NesButton, Int>,
     onEvent: (Event) -> Unit
 ) {
-    if (inputDeviceType == NesInputDeviceType.KEYBOARD) {
+    if (inputDeviceType == NesInputDeviceType.Keyboard) {
         ButtonMappingListItem(
             buttonName = "DPad up",
-            button = NesButton.DPAD_UP,
+            button = NesButton.DPadUp,
             deviceType = inputDeviceType,
             mapping = mapping,
-            onStartEdit = { onEvent(Event.OnShowEditButtonDialog(NesButton.DPAD_UP)) }
+            onStartEdit = { onEvent(Event.OnShowEditButtonDialog(NesButton.DPadUp)) }
         )
         ButtonMappingListItem(
             buttonName = "DPad down",
-            button = NesButton.DPAD_DOWN,
+            button = NesButton.DPadDown,
             deviceType = inputDeviceType,
             mapping = mapping,
-            onStartEdit = { onEvent(Event.OnShowEditButtonDialog(NesButton.DPAD_DOWN)) }
+            onStartEdit = { onEvent(Event.OnShowEditButtonDialog(NesButton.DPadDown)) }
         )
         ButtonMappingListItem(
             buttonName = "DPad left",
-            button = NesButton.DPAD_LEFT,
+            button = NesButton.DPadLeft,
             deviceType = inputDeviceType,
             mapping = mapping,
-            onStartEdit = { onEvent(Event.OnShowEditButtonDialog(NesButton.DPAD_LEFT)) }
+            onStartEdit = { onEvent(Event.OnShowEditButtonDialog(NesButton.DPadLeft)) }
         )
         ButtonMappingListItem(
             buttonName = "DPad right",
-            button = NesButton.DPAD_RIGHT,
+            button = NesButton.DPadRight,
             deviceType = inputDeviceType,
             mapping = mapping,
-            onStartEdit = { onEvent(Event.OnShowEditButtonDialog(NesButton.DPAD_RIGHT)) }
+            onStartEdit = { onEvent(Event.OnShowEditButtonDialog(NesButton.DPadRight)) }
         )
     }
     ButtonMappingListItem(
@@ -363,17 +363,17 @@ private fun ButtonMappingEdit(
     )
     ButtonMappingListItem(
         buttonName = "Button \"START\"",
-        button = NesButton.START,
+        button = NesButton.Start,
         deviceType = inputDeviceType,
         mapping = mapping,
-        onStartEdit = { onEvent(Event.OnShowEditButtonDialog(NesButton.START)) }
+        onStartEdit = { onEvent(Event.OnShowEditButtonDialog(NesButton.Start)) }
     )
     ButtonMappingListItem(
         buttonName = "Button \"SELECT\"",
-        button = NesButton.SELECT,
+        button = NesButton.Select,
         deviceType = inputDeviceType,
         mapping = mapping,
-        onStartEdit = { onEvent(Event.OnShowEditButtonDialog(NesButton.SELECT)) }
+        onStartEdit = { onEvent(Event.OnShowEditButtonDialog(NesButton.Select)) }
     )
 }
 
@@ -390,7 +390,7 @@ private fun ButtonMappingListItem(
         onClick = onStartEdit,
         mainText = { Text(buttonName) },
         displayItem = {
-            val iconResource = if (deviceType == NesInputDeviceType.CONTROLLER) {
+            val iconResource = if (deviceType == NesInputDeviceType.Controller) {
                 ButtonMapping.CONTROLLER_KEYCODE_ICON_MAP[mapping[button]]
             } else {
                 ButtonMapping.KEYBOARD_KEYCODE_ICON_MAP[mapping[button]]
@@ -480,9 +480,9 @@ private fun DeviceSelectionDialog(
 private fun InputDeviceIcon(modifier: Modifier = Modifier, device: NesInputDevice?) {
     device?.let {
         val icon = when (it.type) {
-            NesInputDeviceType.CONTROLLER -> R.drawable.ic_controller
-            NesInputDeviceType.VIRTUAL_CONTROLLER -> R.drawable.ic_device
-            NesInputDeviceType.KEYBOARD -> R.drawable.ic_keyboard
+            NesInputDeviceType.Controller -> R.drawable.ic_controller
+            NesInputDeviceType.VirtualController -> R.drawable.ic_device
+            NesInputDeviceType.Keyboard -> R.drawable.ic_keyboard
         }
         Icon(
             modifier = modifier.size(38.dp),

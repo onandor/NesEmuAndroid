@@ -9,7 +9,6 @@ import com.onandor.nesemu.input.NesInputDeviceType
 import com.onandor.nesemu.input.NesInputManager
 import com.onandor.nesemu.input.NesInputManager.ButtonMapKey
 import com.onandor.nesemu.navigation.NavigationManager
-import com.onandor.nesemu.preferences.PreferenceManager
 import com.onandor.nesemu.service.LibraryService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,7 +40,7 @@ class PreferencesViewModel @Inject constructor(
         val controllerDropdownExpanded: Boolean = false,
         val inputDeviceDropdownExpanded: Boolean = false,
         val buttonMappingPlayerId: Int = NesInputManager.PLAYER_1,
-        val buttonMappingDeviceType: NesInputDeviceType = NesInputDeviceType.CONTROLLER,
+        val buttonMappingDeviceType: NesInputDeviceType = NesInputDeviceType.Controller,
         val editedButton: NesButton? = null,
         val displayedButtonMapping: Map<NesButton, Int> = emptyMap()
     )

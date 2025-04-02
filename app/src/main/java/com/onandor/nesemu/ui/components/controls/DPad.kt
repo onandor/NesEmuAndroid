@@ -30,10 +30,10 @@ fun DPad(
     var buttonStates by remember {
         mutableStateOf(
             mapOf(
-                NesButton.DPAD_RIGHT to NesButtonState.UP,
-                NesButton.DPAD_LEFT to NesButtonState.UP,
-                NesButton.DPAD_UP to NesButtonState.UP,
-                NesButton.DPAD_DOWN to NesButtonState.UP
+                NesButton.DPadRight to NesButtonState.Up,
+                NesButton.DPadLeft to NesButtonState.Up,
+                NesButton.DPadUp to NesButtonState.Up,
+                NesButton.DPadDown to NesButtonState.Up
             )
         )
     }
@@ -120,16 +120,16 @@ fun DPad(
         }
 
         val highlightedParts = Path()
-        if (NesButtonState.DOWN == buttonStates[NesButton.DPAD_UP]) {
+        if (NesButtonState.Down == buttonStates[NesButton.DPadUp]) {
             highlightedParts.addPath(top)
         }
-        if (NesButtonState.DOWN == buttonStates[NesButton.DPAD_RIGHT]) {
+        if (NesButtonState.Down == buttonStates[NesButton.DPadRight]) {
             highlightedParts.addPath(right)
         }
-        if (NesButtonState.DOWN == buttonStates[NesButton.DPAD_DOWN]!!) {
+        if (NesButtonState.Down == buttonStates[NesButton.DPadDown]!!) {
             highlightedParts.addPath(bottom)
         }
-        if (NesButtonState.DOWN == buttonStates[NesButton.DPAD_LEFT]!!) {
+        if (NesButtonState.Down == buttonStates[NesButton.DPadLeft]!!) {
             highlightedParts.addPath(left)
         }
 
@@ -178,10 +178,10 @@ private fun evaluateButtonStates(center: Float, change: PointerInputChange): Map
     val touchYBottom = center + 60f
 
     val buttonStates = mutableMapOf(
-        NesButton.DPAD_RIGHT to NesButtonState.UP,
-        NesButton.DPAD_LEFT to NesButtonState.UP,
-        NesButton.DPAD_UP to NesButtonState.UP,
-        NesButton.DPAD_DOWN to NesButtonState.UP
+        NesButton.DPadRight to NesButtonState.Up,
+        NesButton.DPadLeft to NesButtonState.Up,
+        NesButton.DPadUp to NesButtonState.Up,
+        NesButton.DPadDown to NesButtonState.Up
     )
 
     if (change.changedToUp()) {
@@ -189,14 +189,14 @@ private fun evaluateButtonStates(center: Float, change: PointerInputChange): Map
     }
 
     if (x < touchXStart) {
-        buttonStates[NesButton.DPAD_LEFT] = NesButtonState.DOWN
+        buttonStates[NesButton.DPadLeft] = NesButtonState.Down
     } else if (x > touchXEnd) {
-        buttonStates[NesButton.DPAD_RIGHT] = NesButtonState.DOWN
+        buttonStates[NesButton.DPadRight] = NesButtonState.Down
     }
     if (y < touchYTop) {
-        buttonStates[NesButton.DPAD_UP] = NesButtonState.DOWN
+        buttonStates[NesButton.DPadUp] = NesButtonState.Down
     } else if (y > touchYBottom) {
-        buttonStates[NesButton.DPAD_DOWN] = NesButtonState.DOWN
+        buttonStates[NesButton.DPadDown] = NesButtonState.Down
     }
 
     return buttonStates

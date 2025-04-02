@@ -27,7 +27,7 @@ fun FaceButton(
     text: String,
     onStateChanged: (NesButtonState) -> Unit
 ) {
-    var buttonState by remember { mutableStateOf(NesButtonState.UP) }
+    var buttonState by remember { mutableStateOf(NesButtonState.Up) }
 
     val canvasModifier = Modifier
         .width(60.dp)
@@ -38,11 +38,11 @@ fun FaceButton(
                     val event = awaitPointerEvent(PointerEventPass.Main)
                     event.changes.forEach { change ->
                         if (change.changedToDown()) {
-                            buttonState = NesButtonState.DOWN
-                            onStateChanged(NesButtonState.DOWN)
+                            buttonState = NesButtonState.Down
+                            onStateChanged(NesButtonState.Down)
                         } else if (change.changedToUp()) {
-                            buttonState = NesButtonState.UP
-                            onStateChanged(NesButtonState.UP)
+                            buttonState = NesButtonState.Up
+                            onStateChanged(NesButtonState.Up)
                         }
                     }
                 }
@@ -68,7 +68,7 @@ fun FaceButton(
             )
 
             drawCircle(
-                brush = if (buttonState == NesButtonState.DOWN) downBrush else upBrush
+                brush = if (buttonState == NesButtonState.Down) downBrush else upBrush
             )
         }
     }

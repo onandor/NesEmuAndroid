@@ -66,14 +66,14 @@ class GameViewModel @Inject constructor(
     }
 
     val buttonStateMap = mutableMapOf<NesButton, NesButtonState>(
-        NesButton.DPAD_RIGHT to NesButtonState.UP,
-        NesButton.DPAD_LEFT to NesButtonState.UP,
-        NesButton.DPAD_DOWN to NesButtonState.UP,
-        NesButton.DPAD_UP to NesButtonState.UP,
-        NesButton.START to NesButtonState.UP,
-        NesButton.SELECT to NesButtonState.UP,
-        NesButton.B to NesButtonState.UP,
-        NesButton.A to NesButtonState.UP
+        NesButton.DPadRight to NesButtonState.Up,
+        NesButton.DPadLeft to NesButtonState.Up,
+        NesButton.DPadDown to NesButtonState.Up,
+        NesButton.DPadUp to NesButtonState.Up,
+        NesButton.Start to NesButtonState.Up,
+        NesButton.Select to NesButtonState.Up,
+        NesButton.B to NesButtonState.Up,
+        NesButton.A to NesButtonState.Up
     )
 
     val renderer: NesRenderer = NesRenderer(256, 240)

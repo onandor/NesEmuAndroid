@@ -109,23 +109,23 @@ class ButtonMapping {
         )
 
         val DEFAULT_CONTROLLER_BUTTON_MAP = mapOf<Int, NesButton>(
-            KeyEvent.KEYCODE_DPAD_RIGHT to NesButton.DPAD_RIGHT,
-            KeyEvent.KEYCODE_DPAD_LEFT to NesButton.DPAD_LEFT,
-            KeyEvent.KEYCODE_DPAD_DOWN to NesButton.DPAD_DOWN,
-            KeyEvent.KEYCODE_DPAD_UP to NesButton.DPAD_UP,
-            KeyEvent.KEYCODE_BUTTON_START to NesButton.START,
-            KeyEvent.KEYCODE_BUTTON_SELECT to NesButton.SELECT,
+            KeyEvent.KEYCODE_DPAD_RIGHT to NesButton.DPadRight,
+            KeyEvent.KEYCODE_DPAD_LEFT to NesButton.DPadLeft,
+            KeyEvent.KEYCODE_DPAD_DOWN to NesButton.DPadDown,
+            KeyEvent.KEYCODE_DPAD_UP to NesButton.DPadUp,
+            KeyEvent.KEYCODE_BUTTON_START to NesButton.Start,
+            KeyEvent.KEYCODE_BUTTON_SELECT to NesButton.Select,
             KeyEvent.KEYCODE_BUTTON_B to NesButton.A,
             KeyEvent.KEYCODE_BUTTON_A to NesButton.B
         )
 
         val DEFAULT_KEYBOARD_BUTTON_MAP = mapOf<Int, NesButton>(
-            KeyEvent.KEYCODE_D to NesButton.DPAD_RIGHT,
-            KeyEvent.KEYCODE_A to NesButton.DPAD_LEFT,
-            KeyEvent.KEYCODE_S to NesButton.DPAD_DOWN,
-            KeyEvent.KEYCODE_W to NesButton.DPAD_UP,
-            KeyEvent.KEYCODE_I to NesButton.START,
-            KeyEvent.KEYCODE_U to NesButton.SELECT,
+            KeyEvent.KEYCODE_D to NesButton.DPadRight,
+            KeyEvent.KEYCODE_A to NesButton.DPadLeft,
+            KeyEvent.KEYCODE_S to NesButton.DPadDown,
+            KeyEvent.KEYCODE_W to NesButton.DPadUp,
+            KeyEvent.KEYCODE_I to NesButton.Start,
+            KeyEvent.KEYCODE_U to NesButton.Select,
             KeyEvent.KEYCODE_K to NesButton.A,
             KeyEvent.KEYCODE_J to NesButton.B
         )

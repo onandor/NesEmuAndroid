@@ -10,7 +10,6 @@ import com.onandor.nesemu.di.IODispatcher
 import com.onandor.nesemu.preferences.PreferenceManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -40,13 +39,13 @@ class NesInputManager(
     private val availableDevicesMap = mutableMapOf<Int, NesInputDevice>()
 
     private val buttonMappings: MutableMap<ButtonMapKey, BiMap<Int, NesButton>> = mutableMapOf(
-        ButtonMapKey(PLAYER_1, NesInputDeviceType.CONTROLLER)
+        ButtonMapKey(PLAYER_1, NesInputDeviceType.Controller)
                 to HashBiMap.create(ButtonMapping.DEFAULT_CONTROLLER_BUTTON_MAP),
-        ButtonMapKey(PLAYER_1, NesInputDeviceType.KEYBOARD)
+        ButtonMapKey(PLAYER_1, NesInputDeviceType.Keyboard)
                 to HashBiMap.create(ButtonMapping.DEFAULT_KEYBOARD_BUTTON_MAP),
-        ButtonMapKey(PLAYER_2, NesInputDeviceType.CONTROLLER)
+        ButtonMapKey(PLAYER_2, NesInputDeviceType.Controller)
                 to HashBiMap.create(ButtonMapping.DEFAULT_CONTROLLER_BUTTON_MAP),
-        ButtonMapKey(PLAYER_2, NesInputDeviceType.KEYBOARD)
+        ButtonMapKey(PLAYER_2, NesInputDeviceType.Keyboard)
                 to HashBiMap.create(ButtonMapping.DEFAULT_KEYBOARD_BUTTON_MAP)
     )
 
@@ -132,13 +131,13 @@ class NesInputManager(
     private fun getDeviceType(device: InputDevice): NesInputDeviceType? {
         if (device.supportsSource(InputDevice.SOURCE_KEYBOARD)
             && device.keyboardType == InputDevice.KEYBOARD_TYPE_ALPHABETIC) {
-            return NesInputDeviceType.KEYBOARD
+            return NesInputDeviceType.Keyboard
         }
         if ((device.supportsSource(InputDevice.SOURCE_GAMEPAD)
             || device.supportsSource(InputDevice.SOURCE_JOYSTICK)
             || device.supportsSource(InputDevice.SOURCE_DPAD))
             && device.keyboardType != InputDevice.KEYBOARD_TYPE_ALPHABETIC) {
-            return NesInputDeviceType.CONTROLLER
+            return NesInputDeviceType.Controller
         }
 
         return null
@@ -330,7 +329,7 @@ class NesInputManager(
         playerId: Int,
         deviceType: NesInputDeviceType
     ) {
-        val keyCodeMap = if (deviceType == NesInputDeviceType.CONTROLLER) {
+        val keyCodeMap = if (deviceType == NesInputDeviceType.Controller) {
             ButtonMapping.CONTROLLER_KEYCODE_ICON_MAP
         } else {
             ButtonMapping.KEYBOARD_KEYCODE_ICON_MAP
@@ -367,14 +366,14 @@ class NesInputManager(
 
     private fun initControllerButtons(): MutableMap<NesButton, NesButtonState> {
         return mutableMapOf<NesButton, NesButtonState>(
-            NesButton.DPAD_RIGHT to NesButtonState.UP,
-            NesButton.DPAD_LEFT to NesButtonState.UP,
-            NesButton.DPAD_DOWN to NesButtonState.UP,
-            NesButton.DPAD_UP to NesButtonState.UP,
-            NesButton.START to NesButtonState.UP,
-            NesButton.SELECT to NesButtonState.UP,
-            NesButton.B to NesButtonState.UP,
-            NesButton.A to NesButtonState.UP
+            NesButton.DPadRight to NesButtonState.Up,
+            NesButton.DPadLeft to NesButtonState.Up,
+            NesButton.DPadDown to NesButtonState.Up,
+            NesButton.DPadUp to NesButtonState.Up,
+            NesButton.Start to NesButtonState.Up,
+            NesButton.Select to NesButtonState.Up,
+            NesButton.B to NesButtonState.Up,
+            NesButton.A to NesButtonState.Up
         )
     }
 
@@ -390,12 +389,12 @@ class NesInputManager(
             name = "Virtual controller",
             id = VIRTUAL_CONTROLLER_DEVICE_ID,
             descriptor = VIRTUAL_CONTROLLER_DEVICE_DESCRIPTOR,
-            type = NesInputDeviceType.VIRTUAL_CONTROLLER
+            type = NesInputDeviceType.VirtualController
         )
 
         private val BUTTON_STATE_MAP = mapOf<Int, NesButtonState>(
-            KeyEvent.ACTION_UP to NesButtonState.UP,
-            KeyEvent.ACTION_DOWN to NesButtonState.DOWN
+            KeyEvent.ACTION_UP to NesButtonState.Up,
+            KeyEvent.ACTION_DOWN to NesButtonState.Down
         )
     }
 }

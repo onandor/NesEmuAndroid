@@ -6,7 +6,6 @@ import com.onandor.nesemu.emulation.savestate.Savable
 import okio.internal.commonToUtf8String
 import java.io.ByteArrayInputStream
 import java.security.MessageDigest
-import java.util.zip.CRC32
 import kotlin.math.ceil
 import kotlin.math.pow
 
@@ -33,15 +32,15 @@ private data class Nes2Header(
 )
 
 enum class Mirroring {
-    HORIZONTAL,
-    VERTICAL,
-    SINGLE_SCREEN,
-    FOUR_SCREEN
+    Horizontal,
+    Vertical,
+    SingleScreen,
+    FourScreen
 }
 
 private enum class RomFormat {
-    INES,
-    NES2_0
+    INes,
+    Nes2
 }
 
 class Cartridge : Savable<CartridgeState> {
@@ -93,7 +92,7 @@ class Cartridge : Savable<CartridgeState> {
         Log.d(TAG, "Cartridge information:")
 
         try {
-            if (romFormat == RomFormat.INES) {
+            if (romFormat == RomFormat.INes) {
                 Log.d(TAG, "\tformat: iNES")
                 val header = parseINesHeader(stream)
                 prepareCartridge(header, stream)
@@ -121,7 +120,7 @@ class Cartridge : Savable<CartridgeState> {
         Log.d(TAG, "\tmapper: ${mapperId.toString().padStart(3, '0')}")
 
         // The mappers currently supported only use horizontal or vertical mirroring
-        mirroring = if (header.flags6 and 0x01 > 0) Mirroring.VERTICAL else Mirroring.HORIZONTAL
+        mirroring = if (header.flags6 and 0x01 > 0) Mirroring.Vertical else Mirroring.Horizontal
         Log.d(TAG, "\tnametable mirroring: ${mirroring.name.lowercase()}")
 
         prgRomBanks = header.prgRomBanks
@@ -173,7 +172,7 @@ class Cartridge : Savable<CartridgeState> {
                 ((header.mapper and 0x0F) shl 4)
         Log.d(TAG, "\tmapper: ${mapperId.toString().padStart(3, '0')}")
 
-        mirroring = if (header.flags6 and 0x01 > 0) Mirroring.VERTICAL else Mirroring.HORIZONTAL
+        mirroring = if (header.flags6 and 0x01 > 0) Mirroring.Vertical else Mirroring.Horizontal
         Log.d(TAG, "\tnametable mirroring: ${mirroring.name.lowercase()}")
 
         var prgRomLength: Int = 0
@@ -283,7 +282,7 @@ class Cartridge : Savable<CartridgeState> {
         val flags7 = stream.read()
         stream.reset()
 
-        return if ((flags7 and 0x0C) ushr 2 == 0x02) RomFormat.NES2_0 else RomFormat.INES
+        return if ((flags7 and 0x0C) ushr 2 == 0x02) RomFormat.Nes2 else RomFormat.INes
     }
 
     override fun createSaveState(): CartridgeState {

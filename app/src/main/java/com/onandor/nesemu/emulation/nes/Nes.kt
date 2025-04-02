@@ -281,13 +281,13 @@ class Nes(
 
     fun setDebugFeatureBool(feature: DebugFeature, value: Boolean) {
         when (feature) {
-            DebugFeature.PPU_RENDER_PATTERN_TABLE -> {
+            DebugFeature.PpuRenderPatternTable -> {
                 ppu.dbgDrawPatternTable = value
             }
-            DebugFeature.PPU_RENDER_NAMETABLE -> {
+            DebugFeature.PpuRenderNametable -> {
                 ppu.dbgDrawNametable = value
             }
-            DebugFeature.PPU_RENDER_COLOR_PALETTES -> {
+            DebugFeature.PpuRenderColorPalettes -> {
                 ppu.dbgDrawColorPalettes = value
             }
             else -> {}
@@ -296,7 +296,7 @@ class Nes(
 
     fun setDebugFeatureInt(feature: DebugFeature, value: Int) {
         when (feature) {
-            DebugFeature.PPU_SET_COLOR_PALETTE -> {
+            DebugFeature.PpuSetColorPalette -> {
                 ppu.dbgColorPaletteId = value
             }
             else -> {}

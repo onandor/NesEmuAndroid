@@ -87,7 +87,7 @@ class Ppu(
     private var scanline: Int = 261  // Scanline 261 is the pre-render scanline
     private var oddFrame: Boolean = false
 
-    var mirroring: Mirroring = Mirroring.HORIZONTAL
+    var mirroring: Mirroring = Mirroring.Horizontal
 
     // Variables related to tile fetching and rendering
     // Background

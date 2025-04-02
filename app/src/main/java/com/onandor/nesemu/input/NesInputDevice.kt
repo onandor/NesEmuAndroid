@@ -1,9 +1,9 @@
 package com.onandor.nesemu.input
 
 enum class NesInputDeviceType {
-    CONTROLLER,
-    VIRTUAL_CONTROLLER,
-    KEYBOARD
+    Controller,
+    VirtualController,
+    Keyboard
 }
 
 data class NesInputDevice(

@@ -87,18 +87,18 @@ class DebugViewModel @Inject constructor(
             }
             is Event.OnColorPaletteTouch -> {
                 if (event.motionEvent.action == MotionEvent.ACTION_DOWN) {
-                    emulator.nes.setDebugFeatureInt(DebugFeature.PPU_SET_COLOR_PALETTE, event.index)
+                    emulator.nes.setDebugFeatureInt(DebugFeature.PpuSetColorPalette, event.index)
                 }
             }
             is Event.OnSetDebugFeatureBool -> {
                 when (event.feature) {
-                    DebugFeature.PPU_RENDER_PATTERN_TABLE -> {
+                    DebugFeature.PpuRenderPatternTable -> {
                         _uiState.update { it.copy(renderPatternTable = event.value) }
                     }
-                    DebugFeature.PPU_RENDER_NAMETABLE -> {
+                    DebugFeature.PpuRenderNametable -> {
                         _uiState.update { it.copy(renderNametable = event.value) }
                     }
-                    DebugFeature.PPU_RENDER_COLOR_PALETTES -> {
+                    DebugFeature.PpuRenderColorPalettes -> {
                         _uiState.update { it.copy(renderColorPalettes = event.value) }
                     }
                     else -> {}
@@ -112,10 +112,10 @@ class DebugViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        emulator.nes.setDebugFeatureInt(DebugFeature.PPU_SET_COLOR_PALETTE, 0)
-        emulator.nes.setDebugFeatureBool(DebugFeature.PPU_RENDER_PATTERN_TABLE, false)
-        emulator.nes.setDebugFeatureBool(DebugFeature.PPU_RENDER_NAMETABLE, false)
-        emulator.nes.setDebugFeatureBool(DebugFeature.PPU_RENDER_COLOR_PALETTES, false)
+        emulator.nes.setDebugFeatureInt(DebugFeature.PpuSetColorPalette, 0)
+        emulator.nes.setDebugFeatureBool(DebugFeature.PpuRenderPatternTable, false)
+        emulator.nes.setDebugFeatureBool(DebugFeature.PpuRenderNametable, false)
+        emulator.nes.setDebugFeatureBool(DebugFeature.PpuRenderColorPalettes, false)
         emulator.unregisterListener(emulationListener)
     }
 }

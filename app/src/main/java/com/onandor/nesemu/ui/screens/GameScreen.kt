@@ -233,12 +233,12 @@ private fun VerticalControls(
         ) {
             OptionButton(
                 text = "SELECT",
-                onStateChanged = { onEvent(Event.OnButtonStateChanged(NesButton.SELECT, it)) }
+                onStateChanged = { onEvent(Event.OnButtonStateChanged(NesButton.Select, it)) }
             )
             Spacer(modifier = Modifier.width(20.dp))
             OptionButton(
                 text = "START",
-                onStateChanged = { onEvent(Event.OnButtonStateChanged(NesButton.START, it)) }
+                onStateChanged = { onEvent(Event.OnButtonStateChanged(NesButton.Start, it)) }
             )
         }
     }
@@ -259,7 +259,7 @@ private fun HorizontalControlsLeft(
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 70.dp),
             text = "SELECT",
-            onStateChanged = { onEvent(Event.OnButtonStateChanged(NesButton.SELECT, it)) }
+            onStateChanged = { onEvent(Event.OnButtonStateChanged(NesButton.Select, it)) }
         )
     }
 }
@@ -303,7 +303,7 @@ private fun HorizontalControlsRight(
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 70.dp),
             text = "START",
-            onStateChanged = { onEvent(Event.OnButtonStateChanged(NesButton.START, it)) }
+            onStateChanged = { onEvent(Event.OnButtonStateChanged(NesButton.Start, it)) }
         )
     }
 }

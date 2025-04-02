@@ -33,13 +33,13 @@ class PreferenceManager @Inject constructor(
     suspend fun getButtonMappings() = prefStore.observe()
         .map {
             mapOf(
-                ButtonMapKey(NesInputManager.PLAYER_1, NesInputDeviceType.CONTROLLER)
+                ButtonMapKey(NesInputManager.PLAYER_1, NesInputDeviceType.Controller)
                         to it.inputPreferences.player1ControllerMappingMap.toButtonBiMap(),
-                ButtonMapKey(NesInputManager.PLAYER_1, NesInputDeviceType.KEYBOARD)
+                ButtonMapKey(NesInputManager.PLAYER_1, NesInputDeviceType.Keyboard)
                         to it.inputPreferences.player1KeyboardMappingMap.toButtonBiMap(),
-                ButtonMapKey(NesInputManager.PLAYER_2, NesInputDeviceType.CONTROLLER)
+                ButtonMapKey(NesInputManager.PLAYER_2, NesInputDeviceType.Controller)
                         to it.inputPreferences.player2ControllerMappingMap.toButtonBiMap(),
-                ButtonMapKey(NesInputManager.PLAYER_2, NesInputDeviceType.KEYBOARD)
+                ButtonMapKey(NesInputManager.PLAYER_2, NesInputDeviceType.Keyboard)
                         to it.inputPreferences.player2KeyboardMappingMap.toButtonBiMap()
             )
         }
@@ -58,10 +58,10 @@ class PreferenceManager @Inject constructor(
             biMap.mapValues { (_, button) -> button.ordinal }
         }
         prefStore.updateButtonMappings(
-            prefMappings[ButtonMapKey(NesInputManager.PLAYER_1, NesInputDeviceType.CONTROLLER)]!!,
-            prefMappings[ButtonMapKey(NesInputManager.PLAYER_1, NesInputDeviceType.KEYBOARD)]!!,
-            prefMappings[ButtonMapKey(NesInputManager.PLAYER_2, NesInputDeviceType.CONTROLLER)]!!,
-            prefMappings[ButtonMapKey(NesInputManager.PLAYER_2, NesInputDeviceType.KEYBOARD)]!!
+            prefMappings[ButtonMapKey(NesInputManager.PLAYER_1, NesInputDeviceType.Controller)]!!,
+            prefMappings[ButtonMapKey(NesInputManager.PLAYER_1, NesInputDeviceType.Keyboard)]!!,
+            prefMappings[ButtonMapKey(NesInputManager.PLAYER_2, NesInputDeviceType.Controller)]!!,
+            prefMappings[ButtonMapKey(NesInputManager.PLAYER_2, NesInputDeviceType.Keyboard)]!!
         )
     }
 
@@ -103,14 +103,14 @@ class PreferenceManager @Inject constructor(
 
     companion object {
         private val NES_TO_PREF_DEVICE_TYPE_MAP = mapOf<NesInputDeviceType, InputDeviceTypePref>(
-            NesInputDeviceType.VIRTUAL_CONTROLLER to InputDeviceTypePref.VIRTUAL_CONTROLLER,
-            NesInputDeviceType.CONTROLLER to InputDeviceTypePref.CONTROLLER,
-            NesInputDeviceType.KEYBOARD to InputDeviceTypePref.KEYBOARD
+            NesInputDeviceType.VirtualController to InputDeviceTypePref.VIRTUAL_CONTROLLER,
+            NesInputDeviceType.Controller to InputDeviceTypePref.CONTROLLER,
+            NesInputDeviceType.Keyboard to InputDeviceTypePref.KEYBOARD
         )
         private val PREF_TO_NES_DEVICE_TYPE_MAP = mapOf<InputDeviceTypePref, NesInputDeviceType>(
-            InputDeviceTypePref.VIRTUAL_CONTROLLER to NesInputDeviceType.VIRTUAL_CONTROLLER,
-            InputDeviceTypePref.CONTROLLER to NesInputDeviceType.CONTROLLER,
-            InputDeviceTypePref.KEYBOARD to NesInputDeviceType.KEYBOARD
+            InputDeviceTypePref.VIRTUAL_CONTROLLER to NesInputDeviceType.VirtualController,
+            InputDeviceTypePref.CONTROLLER to NesInputDeviceType.Controller,
+            InputDeviceTypePref.KEYBOARD to NesInputDeviceType.Keyboard
         )
     }
 }

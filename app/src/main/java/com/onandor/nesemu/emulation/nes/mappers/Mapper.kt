@@ -14,25 +14,25 @@ abstract class Mapper(open val cartridge: Cartridge) : Savable<MapperState> {
     }
 
     private val nametableOffsetMap: Map<Mirroring, Map<Int, Int>> = mapOf(
-        Mirroring.HORIZONTAL to mapOf(
+        Mirroring.Horizontal to mapOf(
             0 to 0x000,
             1 to 0x400,
             2 to 0x400,
             3 to 0x800
         ),
-        Mirroring.VERTICAL to mapOf(
+        Mirroring.Vertical to mapOf(
             0 to 0x000,
             1 to 0x000,
             2 to 0x800,
             3 to 0x800
         ),
-        Mirroring.SINGLE_SCREEN to mapOf(
+        Mirroring.SingleScreen to mapOf(
             0 to 0x000,
             1 to 0x000,
             2 to 0x000,
             3 to 0x000
         ),
-        Mirroring.FOUR_SCREEN to mapOf(
+        Mirroring.FourScreen to mapOf(
             0 to 0x000,
             1 to 0x000,
             2 to 0x000,

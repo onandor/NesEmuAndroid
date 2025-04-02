@@ -190,21 +190,21 @@ private fun SheetContent(
     Column(modifier = modifier.padding(bottom = 10.dp)) {
         CheckboxListItem(
             onCheckedChange = {
-                onEvent(Event.OnSetDebugFeatureBool(DebugFeature.PPU_RENDER_COLOR_PALETTES, it))
+                onEvent(Event.OnSetDebugFeatureBool(DebugFeature.PpuRenderColorPalettes, it))
             }
         ) {
             Text(text = "Show color palettes")
         }
         CheckboxListItem(
             onCheckedChange = {
-                onEvent(Event.OnSetDebugFeatureBool(DebugFeature.PPU_RENDER_PATTERN_TABLE, it))
+                onEvent(Event.OnSetDebugFeatureBool(DebugFeature.PpuRenderPatternTable, it))
             }
         ) {
             Text(text = "Show pattern tables")
         }
         CheckboxListItem(
             onCheckedChange = {
-                onEvent(Event.OnSetDebugFeatureBool(DebugFeature.PPU_RENDER_NAMETABLE, it))
+                onEvent(Event.OnSetDebugFeatureBool(DebugFeature.PpuRenderNametable, it))
             }
         ) {
             Text(text = "Show nametables")
