@@ -7,8 +7,8 @@ import com.onandor.nesemu.domain.input.NesInputDevice
 import com.onandor.nesemu.domain.input.NesInputDeviceType
 import com.onandor.nesemu.domain.service.InputService
 import com.onandor.nesemu.domain.service.InputService.ButtonMapKey
-import com.onandor.nesemu.preferences.proto.InputDevicePref
-import com.onandor.nesemu.preferences.proto.InputDevicePref.InputDeviceTypePref
+import com.onandor.nesemu.data.preferences.proto.InputDevicePref
+import com.onandor.nesemu.data.preferences.proto.InputDevicePref.InputDeviceTypePref
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map

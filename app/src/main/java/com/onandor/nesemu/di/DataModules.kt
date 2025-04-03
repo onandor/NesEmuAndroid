@@ -20,7 +20,7 @@ import com.onandor.nesemu.R
 import com.onandor.nesemu.data.dao.LibraryEntryDao
 import com.onandor.nesemu.data.dao.SaveStateDao
 import com.onandor.nesemu.data.preferences.PreferencesSerializer
-import com.onandor.nesemu.preferences.proto.Preferences
+import com.onandor.nesemu.data.preferences.proto.Preferences
 import kotlinx.coroutines.CoroutineScope
 
 @Module
@@ -30,11 +30,12 @@ class DatabaseModule {
     @Provides
     @Singleton
     fun provideNesGameDatabase(@ApplicationContext context: Context): NesEmuDatabase {
-        return Room.databaseBuilder(
-            context = context,
-            klass = NesEmuDatabase::class.java,
-            name = context.getString(R.string.app_database_name)
-        )
+        return Room
+            .databaseBuilder(
+                context = context,
+                klass = NesEmuDatabase::class.java,
+                name = context.getString(R.string.app_database_name)
+            )
             .fallbackToDestructiveMigration()
             .build()
     }

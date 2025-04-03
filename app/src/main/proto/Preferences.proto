@@ -1,7 +1,7 @@
 syntax = "proto3";
 package nesemu;
 
-option java_package = "com.onandor.nesemu.preferences.proto";
+option java_package = "com.onandor.nesemu.data.preferences.proto";
 option java_multiple_files = true;
 
 message Preferences {

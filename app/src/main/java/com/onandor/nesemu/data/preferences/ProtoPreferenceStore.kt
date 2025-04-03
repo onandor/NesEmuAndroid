@@ -1,9 +1,9 @@
 package com.onandor.nesemu.data.preferences
 
 import androidx.datastore.core.DataStore
-import com.onandor.nesemu.preferences.proto.InputDevicePref
-import com.onandor.nesemu.preferences.proto.InputPreferences
-import com.onandor.nesemu.preferences.proto.Preferences
+import com.onandor.nesemu.data.preferences.proto.InputDevicePref
+import com.onandor.nesemu.data.preferences.proto.InputPreferences
+import com.onandor.nesemu.data.preferences.proto.Preferences
 import kotlinx.coroutines.flow.catch
 import javax.inject.Inject
 

@@ -1,7 +1,7 @@
 package com.onandor.nesemu.data.preferences
 
 import androidx.datastore.core.Serializer
-import com.onandor.nesemu.preferences.proto.Preferences
+import com.onandor.nesemu.data.preferences.proto.Preferences
 import java.io.InputStream
 import java.io.OutputStream
 import javax.inject.Inject
