@@ -1,6 +1,8 @@
 package com.onandor.nesemu.viewmodels
 
 import android.util.Log
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.onandor.nesemu.data.entity.SaveState
@@ -18,6 +20,7 @@ import com.onandor.nesemu.navigation.NavDestinations
 import com.onandor.nesemu.service.EmulationService
 import com.onandor.nesemu.service.EmulationState
 import com.onandor.nesemu.ui.components.SaveStateSheetType
+import com.onandor.nesemu.util.GlobalLifecycleObserver
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -33,7 +36,8 @@ class GameViewModel @Inject constructor(
     private val navManager: NavigationManager,
     private val emulationService: EmulationService,
     private val inputManager: NesInputManager,
-    private val saveStateRepository: SaveStateRepository
+    private val saveStateRepository: SaveStateRepository,
+    private val lifecycleObserver: GlobalLifecycleObserver
 ) : ViewModel() {
 
     data class UiState(
@@ -82,9 +86,6 @@ class GameViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(UiState())
     val uiState = _uiState.asStateFlow()
 
-    private var inputManagerEventJob: Job? = null
-    private var navManagerJob: Job? = null
-
     private val emulationListener = object : EmulationListener {
 
         override fun onFrameReady(
@@ -99,8 +100,9 @@ class GameViewModel @Inject constructor(
     }
 
     init {
-        inputManagerEventJob = collectInputManagerEvents()
-        navManagerJob = collectNavigationEvents()
+        collectLifecycleEvents()
+        collectInputManagerEvents()
+        collectNavigationEvents()
         emulationService.registerListener(emulationListener)
         emulationService.renderer = renderer
 
@@ -242,11 +244,27 @@ class GameViewModel @Inject constructor(
         }
     }
 
+    private fun collectLifecycleEvents() = viewModelScope.launch {
+        lifecycleObserver.events.collect { event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    emulationService.start()
+                }
+                Lifecycle.Event.ON_PAUSE -> {
+                    emulationService.stop(immediate = true)
+                }
+                else -> {}
+            }
+        }
+    }
+
     private fun cleanUp() {
-        inputManagerEventJob?.cancel()
-        navManagerJob?.cancel()
-        emulationService.stop()
+        emulationService.stop(immediate = true)
         emulationService.unregisterListener(emulationListener)
         emulationService.renderer = null
+    }
+
+    override fun onCleared() {
+        cleanUp()
     }
 }

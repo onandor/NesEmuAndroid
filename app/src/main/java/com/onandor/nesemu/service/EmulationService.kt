@@ -11,6 +11,7 @@ import com.onandor.nesemu.ui.components.game.NesRenderer
 import com.onandor.nesemu.util.DocumentAccessor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.io.ByteArrayOutputStream
 import java.time.OffsetDateTime
 import javax.inject.Inject
@@ -30,7 +31,7 @@ class EmulationService @Inject constructor(
     private val emulator: Emulator,
     private val saveStateRepository: SaveStateRepository,
     private val documentAccessor: DocumentAccessor,
-    @IODispatcher private val coroutineScope: CoroutineScope
+    @IODispatcher private val ioScope: CoroutineScope
 ) {
 
     var loadedGame: LibraryEntry? = null
@@ -75,7 +76,7 @@ class EmulationService @Inject constructor(
         }
     }
 
-    fun saveGame(slot: Int) {
+    fun saveGame(slot: Int, immediate: Boolean = false) {
         if (state == EmulationState.Uninitialized ||
             state == EmulationState.Ready ||
             loadedGame == null) {
@@ -95,7 +96,11 @@ class EmulationService @Inject constructor(
             slot = slot,
             preview = createPreview()
         )
-        coroutineScope.launch { saveStateRepository.upsert(saveState) }
+        if (immediate) {
+            runBlocking { saveStateRepository.upsert(saveState) }
+        } else {
+            ioScope.launch { saveStateRepository.upsert(saveState) }
+        }
 
         if (isRunning) {
             start()
@@ -106,23 +111,23 @@ class EmulationService @Inject constructor(
         if (state != EmulationState.Ready && state != EmulationState.Paused) {
             return
         }
+        emulator.initAudioPlayer()
         emulator.start()
         lastResumed = timeSource.markNow()
         state = EmulationState.Running
     }
 
-    fun stop() {
-        if (state == EmulationState.Uninitialized) {
+    fun stop(immediate: Boolean = false) {
+        if (state == EmulationState.Uninitialized || state == EmulationState.Ready) {
             return
         }
-
         if (state == EmulationState.Running) {
             pause()
         } else {
             emulator.stop()
         }
-
-        saveGame(0)
+        emulator.destroyAudioPlayer()
+        saveGame(0, immediate)
 
         state = EmulationState.Ready
     }

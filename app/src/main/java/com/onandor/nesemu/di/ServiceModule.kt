@@ -13,11 +13,11 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-class DomainModule {
+class ServiceModule {
 
     @Provides
     @Singleton
-    fun provideLibraryManager(
+    fun provideLibraryService(
         @DefaultDispatcher coroutineScope: CoroutineScope,
         prefManager: PreferenceManager,
         documentAccessor: DocumentAccessor,

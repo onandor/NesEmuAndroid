@@ -4,10 +4,15 @@ import android.hardware.input.InputManager
 import android.util.Log
 import android.view.InputDevice
 import android.view.KeyEvent
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
 import com.google.common.collect.BiMap
 import com.google.common.collect.HashBiMap
+import com.onandor.nesemu.di.DefaultDispatcher
 import com.onandor.nesemu.di.IODispatcher
+import com.onandor.nesemu.di.MainDispatcher
 import com.onandor.nesemu.preferences.PreferenceManager
+import com.onandor.nesemu.util.GlobalLifecycleObserver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -16,11 +21,15 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Singleton
 
+@Singleton
 class NesInputManager(
     private val inputManager: InputManager,
     private val prefManager: PreferenceManager,
-    @IODispatcher private val coroutineScope: CoroutineScope
+    @MainDispatcher private val mainScope: CoroutineScope,
+    @IODispatcher private val ioScope: CoroutineScope,
+    private val lifecycleObserver: GlobalLifecycleObserver
 ) {
 
     data class ButtonMapKey(val playerId: Int, val inputDeviceType: NesInputDeviceType)
@@ -105,6 +114,7 @@ class NesInputManager(
     }
 
     init {
+        collectLifecycleEvents()
         refreshAvailableDevices()
         loadSavedInputDevices()
         loadSavedButtonMappings()
@@ -268,7 +278,7 @@ class NesInputManager(
         return gameRunning
     }
 
-    private fun loadSavedInputDevices() = coroutineScope.launch {
+    private fun loadSavedInputDevices() = ioScope.launch {
         player1Device = prefManager.getController1Device()
         player2Device = prefManager.getController2Device()
 
@@ -296,22 +306,12 @@ class NesInputManager(
         updateState()
     }
 
-    private fun loadSavedButtonMappings() = coroutineScope.launch {
+    private fun loadSavedButtonMappings() = ioScope.launch {
         prefManager.getButtonMappings().forEach { key, value ->
             if (value.isNotEmpty()) {
                 buttonMappings[key] = value
             }
         }
-    }
-
-    fun registerListener() {
-        inputManager.registerInputDeviceListener(inputDeviceListener, null)
-        refreshAvailableDevices()
-    }
-
-    fun unregisterListener() {
-        inputManager.unregisterInputDeviceListener(inputDeviceListener)
-        availableDevicesMap.clear()
     }
 
     fun getButtonStates(playerId: Int): Int {
@@ -356,11 +356,27 @@ class NesInputManager(
         }
     }
 
-    private fun persistInputDevices() = coroutineScope.launch {
+    private fun collectLifecycleEvents() = mainScope.launch {
+        lifecycleObserver.events.collect { event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    inputManager.registerInputDeviceListener(inputDeviceListener, null)
+                    refreshAvailableDevices()
+                }
+                Lifecycle.Event.ON_PAUSE -> {
+                    inputManager.unregisterInputDeviceListener(inputDeviceListener)
+                    availableDevicesMap.clear()
+                }
+                else -> {}
+            }
+        }
+    }
+
+    private fun persistInputDevices() = ioScope.launch {
         prefManager.updateInputDevices(player1Device, player2Device)
     }
 
-    private fun persistButtonMappings() = coroutineScope.launch {
+    private fun persistButtonMappings() = ioScope.launch {
         prefManager.updateButtonMappings(buttonMappings)
     }
 

@@ -4,6 +4,7 @@ import android.content.Context
 import android.hardware.input.InputManager
 import com.onandor.nesemu.input.NesInputManager
 import com.onandor.nesemu.preferences.PreferenceManager
+import com.onandor.nesemu.util.GlobalLifecycleObserver
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -21,11 +22,15 @@ class InputModule {
     fun provideInputManager(
         @ApplicationContext context: Context,
         prefManager: PreferenceManager,
-        @IODispatcher coroutineScope: CoroutineScope
+        @MainDispatcher mainScope: CoroutineScope,
+        @IODispatcher ioScope: CoroutineScope,
+        lifecycleObserver: GlobalLifecycleObserver
     ): NesInputManager =
         NesInputManager(
             inputManager = context.getSystemService(Context.INPUT_SERVICE) as InputManager,
             prefManager = prefManager,
-            coroutineScope = coroutineScope
+            mainScope = mainScope,
+            ioScope = ioScope,
+            lifecycleObserver = lifecycleObserver
         )
 }

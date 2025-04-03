@@ -11,7 +11,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
+import javax.inject.Singleton
 
+@Singleton
 class Emulator @Inject constructor(
     @DefaultDispatcher private val coroutineScope: CoroutineScope,
     private val inputManager: NesInputManager
@@ -35,7 +37,6 @@ class Emulator @Inject constructor(
     fun loadRom(rom: ByteArray) {
         cartridge = Cartridge()
         cartridge.parseRom(rom)
-        //nes.reset()
         nes.insertCartridge(cartridge)
     }
 

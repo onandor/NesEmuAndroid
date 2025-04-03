@@ -29,9 +29,8 @@ class UtilModule {
     @Singleton
     @Provides
     fun provideGlobalLifecycleObserver(
-        emulator: Emulator,
-        inputManager: NesInputManager
-    ): GlobalLifecycleObserver = GlobalLifecycleObserver(emulator, inputManager)
+        @DefaultDispatcher defaultScope: CoroutineScope
+    ): GlobalLifecycleObserver = GlobalLifecycleObserver(defaultScope)
 
     @Singleton
     @Provides
