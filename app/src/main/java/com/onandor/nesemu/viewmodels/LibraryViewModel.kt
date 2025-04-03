@@ -6,11 +6,11 @@ import com.onandor.nesemu.data.entity.LibraryEntry
 import com.onandor.nesemu.data.entity.SaveState
 import com.onandor.nesemu.data.repository.SaveStateRepository
 import com.onandor.nesemu.di.IODispatcher
-import com.onandor.nesemu.service.EmulationService
-import com.onandor.nesemu.service.LibraryService
+import com.onandor.nesemu.domain.service.EmulationService
+import com.onandor.nesemu.domain.service.LibraryService
 import com.onandor.nesemu.navigation.NavActions
 import com.onandor.nesemu.navigation.NavigationManager
-import com.onandor.nesemu.emulation.nes.RomParseException
+import com.onandor.nesemu.domain.emulation.nes.RomParseException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow

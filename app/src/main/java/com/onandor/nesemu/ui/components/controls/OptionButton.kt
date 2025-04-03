@@ -23,7 +23,7 @@ import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import com.onandor.nesemu.input.NesButtonState
+import com.onandor.nesemu.domain.input.NesButtonState
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable

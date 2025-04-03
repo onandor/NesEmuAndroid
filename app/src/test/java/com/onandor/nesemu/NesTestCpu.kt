@@ -1,13 +1,13 @@
 package com.onandor.nesemu
 
-import com.onandor.nesemu.emulation.nes.Cartridge
-import com.onandor.nesemu.emulation.nes.Cpu
-import com.onandor.nesemu.emulation.nes.InvalidOperationException
-import com.onandor.nesemu.emulation.nes.Nes
-import com.onandor.nesemu.emulation.nes.plus16
-import com.onandor.nesemu.emulation.nes.plus8
-import com.onandor.nesemu.emulation.nes.toHexString
-import com.onandor.nesemu.emulation.nes.toSigned8
+import com.onandor.nesemu.domain.emulation.nes.Cartridge
+import com.onandor.nesemu.domain.emulation.nes.Cpu
+import com.onandor.nesemu.domain.emulation.nes.InvalidOperationException
+import com.onandor.nesemu.domain.emulation.nes.Nes
+import com.onandor.nesemu.domain.emulation.nes.plus16
+import com.onandor.nesemu.domain.emulation.nes.plus8
+import com.onandor.nesemu.domain.emulation.nes.toHexString
+import com.onandor.nesemu.domain.emulation.nes.toSigned8
 import org.junit.Test
 import java.io.File
 import java.io.FileWriter

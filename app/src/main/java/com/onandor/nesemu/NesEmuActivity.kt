@@ -9,7 +9,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import com.onandor.nesemu.input.NesInputManager
+import com.onandor.nesemu.domain.service.InputService
 import com.onandor.nesemu.navigation.NavGraph
 import com.onandor.nesemu.ui.theme.NesEmuTheme
 import com.onandor.nesemu.util.GlobalLifecycleObserver
@@ -19,7 +19,7 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class NesEmuActivity : ComponentActivity() {
 
-    @Inject lateinit var inputManager: NesInputManager
+    @Inject lateinit var inputService: InputService
     @Inject lateinit var lifecycleObserver: GlobalLifecycleObserver
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,7 +48,7 @@ class NesEmuActivity : ComponentActivity() {
 
     @SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        return if (inputManager.onInputEvent(event)) {
+        return if (inputService.onInputEvent(event)) {
             true
         } else {
             super.dispatchKeyEvent(event)

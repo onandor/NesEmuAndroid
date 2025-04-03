@@ -41,7 +41,7 @@ extern "C" {
     }
 
     JNIEXPORT jlong JNICALL
-    Java_com_onandor_nesemu_audio_AudioPlayer_create(JNIEnv* env, jobject obj) {
+    Java_com_onandor_nesemu_domain_audio_AudioPlayer_create(JNIEnv* env, jobject obj) {
         auto audioPlayer = std::make_unique<AudioPlayer>();
         if (!audioPlayer) {
             LOG_ERROR(TAG, "create: Failed to create AudioPlayer instance");
@@ -58,7 +58,7 @@ extern "C" {
         }
 
         if (!gRequestSamplesCallback) {
-            jclass jAudioPlayerClass = env->FindClass("com/onandor/nesemu/audio/AudioPlayer");
+            jclass jAudioPlayerClass = env->FindClass("com/onandor/nesemu/domain/audio/AudioPlayer");
             gRequestSamplesCallback = env->GetMethodID(jAudioPlayerClass,
                                                        "onSamplesRequested",
                                                        "(Ljava/nio/ByteBuffer;)I");
@@ -75,7 +75,7 @@ extern "C" {
     }
 
     JNIEXPORT void JNICALL
-    Java_com_onandor_nesemu_audio_AudioPlayer_delete(
+    Java_com_onandor_nesemu_domain_audio_AudioPlayer_delete(
             JNIEnv* env,
             jobject obj,
             jlong handle) {
@@ -93,7 +93,7 @@ extern "C" {
     }
 
     JNIEXPORT void JNICALL
-    Java_com_onandor_nesemu_audio_AudioPlayer_startStream(
+    Java_com_onandor_nesemu_domain_audio_AudioPlayer_startStream(
             JNIEnv* env,
             jobject obj,
             jlong handle) {
@@ -107,7 +107,7 @@ extern "C" {
     }
 
     JNIEXPORT void JNICALL
-    Java_com_onandor_nesemu_audio_AudioPlayer_pauseStream(
+    Java_com_onandor_nesemu_domain_audio_AudioPlayer_pauseStream(
             JNIEnv* env,
             jobject obj,
             jlong handle) {
@@ -121,7 +121,7 @@ extern "C" {
     }
 
     JNIEXPORT jint JNICALL
-    Java_com_onandor_nesemu_audio_AudioPlayer_getSampleRate(
+    Java_com_onandor_nesemu_domain_audio_AudioPlayer_getSampleRate(
             JNIEnv* env,
             jobject obj,
             jlong handle) {

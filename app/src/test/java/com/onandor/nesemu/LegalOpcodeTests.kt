@@ -1,7 +1,7 @@
 package com.onandor.nesemu
 
-import com.onandor.nesemu.nes.CpuOpcodeTestRunner
-import com.onandor.nesemu.nes.CpuTest
+import com.onandor.nesemu.domain.emulation.nes.CpuOpcodeTestRunner
+import com.onandor.nesemu.domain.emulation.nes.CpuTest
 import org.junit.Test
 
 /**

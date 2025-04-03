@@ -2,23 +2,22 @@ package com.onandor.nesemu.viewmodels
 
 import android.util.Log
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.onandor.nesemu.data.entity.SaveState
 import com.onandor.nesemu.data.repository.SaveStateRepository
 import com.onandor.nesemu.di.IODispatcher
-import com.onandor.nesemu.emulation.EmulationListener
+import com.onandor.nesemu.domain.emulation.EmulationListener
 import com.onandor.nesemu.navigation.NavigationManager
-import com.onandor.nesemu.emulation.nes.NesException
+import com.onandor.nesemu.domain.emulation.nes.NesException
 import com.onandor.nesemu.ui.components.game.NesRenderer
-import com.onandor.nesemu.input.NesButton
-import com.onandor.nesemu.input.NesButtonState
-import com.onandor.nesemu.input.NesInputManager
+import com.onandor.nesemu.domain.input.NesButton
+import com.onandor.nesemu.domain.input.NesButtonState
+import com.onandor.nesemu.domain.service.InputService
 import com.onandor.nesemu.navigation.NavAction
 import com.onandor.nesemu.navigation.NavDestinations
-import com.onandor.nesemu.service.EmulationService
-import com.onandor.nesemu.service.EmulationState
+import com.onandor.nesemu.domain.service.EmulationService
+import com.onandor.nesemu.domain.service.EmulationState
 import com.onandor.nesemu.ui.components.SaveStateSheetType
 import com.onandor.nesemu.util.GlobalLifecycleObserver
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -35,7 +34,7 @@ class GameViewModel @Inject constructor(
     @IODispatcher private val coroutineScope: CoroutineScope,
     private val navManager: NavigationManager,
     private val emulationService: EmulationService,
-    private val inputManager: NesInputManager,
+    private val inputManager: InputService,
     private val saveStateRepository: SaveStateRepository,
     private val lifecycleObserver: GlobalLifecycleObserver
 ) : ViewModel() {
@@ -121,12 +120,12 @@ class GameViewModel @Inject constructor(
             is Event.OnButtonStateChanged -> {
                 buttonStateMap[event.button] = event.state
                 inputManager.onInputEvent(
-                    NesInputManager.VIRTUAL_CONTROLLER_DEVICE_ID, event.button, event.state)
+                    InputService.VIRTUAL_CONTROLLER_DEVICE_ID, event.button, event.state)
             }
             is Event.OnDpadStateChanged -> {
                 buttonStateMap.putAll(event.buttonStates)
                 inputManager.onInputEvents(
-                    NesInputManager.VIRTUAL_CONTROLLER_DEVICE_ID, event.buttonStates)
+                    InputService.VIRTUAL_CONTROLLER_DEVICE_ID, event.buttonStates)
             }
             is Event.OnErrorMessageToastShown -> {
                 _uiState.update { it.copy(errorMessage = null) }
@@ -219,7 +218,7 @@ class GameViewModel @Inject constructor(
     private fun collectInputManagerEvents(): Job = viewModelScope.launch {
         inputManager.events.collect { event ->
             when (event) {
-                is NesInputManager.Event.OnPauseButtonPressed -> {
+                is InputService.Event.OnPauseButtonPressed -> {
                     if (navManager.getCurrentRoute() != NavDestinations.GAME_SCREEN) {
                         return@collect
                     }

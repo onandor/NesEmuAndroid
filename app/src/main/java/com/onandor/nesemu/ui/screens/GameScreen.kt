@@ -43,7 +43,7 @@ import com.composables.core.SheetDetent
 import com.composables.core.rememberModalBottomSheetState
 import com.onandor.nesemu.ui.components.game.NesRenderer
 import com.onandor.nesemu.ui.components.game.NesSurfaceView
-import com.onandor.nesemu.input.NesButton
+import com.onandor.nesemu.domain.input.NesButton
 import com.onandor.nesemu.ui.components.controls.DPad
 import com.onandor.nesemu.ui.components.controls.FaceButton
 import com.onandor.nesemu.ui.components.controls.OptionButton

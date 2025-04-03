@@ -42,7 +42,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.onandor.nesemu.emulation.nes.DebugFeature
+import com.onandor.nesemu.domain.emulation.nes.DebugFeature
 import com.onandor.nesemu.ui.components.CheckboxListItem
 import com.onandor.nesemu.ui.components.game.NesRenderer
 import com.onandor.nesemu.viewmodels.DebugViewModel

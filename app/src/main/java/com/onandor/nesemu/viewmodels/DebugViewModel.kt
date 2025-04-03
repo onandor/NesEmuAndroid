@@ -2,10 +2,10 @@ package com.onandor.nesemu.viewmodels
 
 import android.view.MotionEvent
 import androidx.lifecycle.ViewModel
-import com.onandor.nesemu.emulation.EmulationListener
-import com.onandor.nesemu.emulation.Emulator
+import com.onandor.nesemu.domain.emulation.EmulationListener
+import com.onandor.nesemu.domain.emulation.Emulator
 import com.onandor.nesemu.navigation.NavigationManager
-import com.onandor.nesemu.emulation.nes.DebugFeature
+import com.onandor.nesemu.domain.emulation.nes.DebugFeature
 import com.onandor.nesemu.ui.components.game.NesRenderer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

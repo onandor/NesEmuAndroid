@@ -1,7 +1,7 @@
 package com.onandor.nesemu.data.entity
 
 import androidx.room.TypeConverter
-import com.onandor.nesemu.emulation.savestate.NesState
+import com.onandor.nesemu.domain.emulation.savestate.NesState
 import kotlinx.serialization.json.Json
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter

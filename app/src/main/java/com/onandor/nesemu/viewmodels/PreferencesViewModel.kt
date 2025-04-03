@@ -3,13 +3,13 @@ package com.onandor.nesemu.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.common.collect.BiMap
-import com.onandor.nesemu.input.NesButton
-import com.onandor.nesemu.input.NesInputDevice
-import com.onandor.nesemu.input.NesInputDeviceType
-import com.onandor.nesemu.input.NesInputManager
-import com.onandor.nesemu.input.NesInputManager.ButtonMapKey
+import com.onandor.nesemu.domain.input.NesButton
+import com.onandor.nesemu.domain.input.NesInputDevice
+import com.onandor.nesemu.domain.input.NesInputDeviceType
+import com.onandor.nesemu.domain.service.InputService
+import com.onandor.nesemu.domain.service.InputService.ButtonMapKey
 import com.onandor.nesemu.navigation.NavigationManager
-import com.onandor.nesemu.service.LibraryService
+import com.onandor.nesemu.domain.service.LibraryService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -22,7 +22,7 @@ import javax.inject.Inject
 @HiltViewModel
 class PreferencesViewModel @Inject constructor(
     private val navManager: NavigationManager,
-    private val inputManager: NesInputManager,
+    private val inputManager: InputService,
     private val libraryService: LibraryService
 ) : ViewModel() {
 
@@ -39,7 +39,7 @@ class PreferencesViewModel @Inject constructor(
         // Button mapping
         val controllerDropdownExpanded: Boolean = false,
         val inputDeviceDropdownExpanded: Boolean = false,
-        val buttonMappingPlayerId: Int = NesInputManager.PLAYER_1,
+        val buttonMappingPlayerId: Int = InputService.PLAYER_1,
         val buttonMappingDeviceType: NesInputDeviceType = NesInputDeviceType.Controller,
         val editedButton: NesButton? = null,
         val displayedButtonMapping: Map<NesButton, Int> = emptyMap()

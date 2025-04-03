@@ -1,8 +1,7 @@
 package com.onandor.nesemu.data.entity
 
 import androidx.room.Entity
-import androidx.room.PrimaryKey
-import com.onandor.nesemu.emulation.savestate.NesState
+import com.onandor.nesemu.domain.emulation.savestate.NesState
 import java.time.OffsetDateTime
 
 @Entity(primaryKeys = ["romHash", "slot"])

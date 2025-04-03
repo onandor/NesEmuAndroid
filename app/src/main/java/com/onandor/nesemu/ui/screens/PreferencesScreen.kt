@@ -37,15 +37,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.onandor.nesemu.input.NesInputDevice
-import com.onandor.nesemu.input.NesInputDeviceType
-import com.onandor.nesemu.input.NesInputManager
+import com.onandor.nesemu.domain.input.NesInputDevice
+import com.onandor.nesemu.domain.input.NesInputDeviceType
+import com.onandor.nesemu.domain.service.InputService
 import com.onandor.nesemu.ui.components.ListItem
 import com.onandor.nesemu.viewmodels.PreferencesViewModel
 import com.onandor.nesemu.viewmodels.PreferencesViewModel.Event
 import com.onandor.nesemu.R
-import com.onandor.nesemu.input.ButtonMapping
-import com.onandor.nesemu.input.NesButton
+import com.onandor.nesemu.domain.input.ButtonMapping
+import com.onandor.nesemu.domain.input.NesButton
 import com.onandor.nesemu.ui.components.ListDropdownMenu
 import com.onandor.nesemu.ui.components.RectangularIconButton
 import com.onandor.nesemu.ui.components.StatusBarScaffold
@@ -167,7 +167,7 @@ private fun InputDeviceSection(
     onEvent: (Event) -> Unit
 ) {
     ListItem(
-        onClick = { onEvent(Event.OnOpenDeviceSelectionDialog(NesInputManager.PLAYER_1)) },
+        onClick = { onEvent(Event.OnOpenDeviceSelectionDialog(InputService.PLAYER_1)) },
         mainText = {
             Text(
                 text = "Controller 1",
@@ -189,7 +189,7 @@ private fun InputDeviceSection(
         }
     )
     ListItem(
-        onClick = { onEvent(Event.OnOpenDeviceSelectionDialog(NesInputManager.PLAYER_2)) },
+        onClick = { onEvent(Event.OnOpenDeviceSelectionDialog(InputService.PLAYER_2)) },
         mainText = {
             Text(
                 text = "Controller 2",
@@ -240,7 +240,7 @@ private fun ButtonMappingSection(
             )
         },
         subText = {
-            val text = if (playerId == NesInputManager.PLAYER_1) {
+            val text = if (playerId == InputService.PLAYER_1) {
                 "Player 1"
             } else {
                 "Player 2"
@@ -255,13 +255,13 @@ private fun ButtonMappingSection(
                 DropdownMenuItem(
                     text = { Text("Player 1") },
                     onClick = {
-                        onEvent(Event.OnButtonMappingPlayerIdChanged(NesInputManager.PLAYER_1))
+                        onEvent(Event.OnButtonMappingPlayerIdChanged(InputService.PLAYER_1))
                     }
                 )
                 DropdownMenuItem(
                     text = { Text("Player 2") },
                     onClick = {
-                        onEvent(Event.OnButtonMappingPlayerIdChanged(NesInputManager.PLAYER_2))
+                        onEvent(Event.OnButtonMappingPlayerIdChanged(InputService.PLAYER_2))
                     }
                 )
             }
