@@ -6,7 +6,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,9 +23,13 @@ import com.onandor.nesemu.ui.components.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.key.onKeyEvent
@@ -47,6 +53,7 @@ import com.onandor.nesemu.R
 import com.onandor.nesemu.domain.input.ButtonMapping
 import com.onandor.nesemu.domain.input.NesButton
 import com.onandor.nesemu.ui.components.ListDropdownMenu
+import com.onandor.nesemu.ui.components.RectangularButton
 import com.onandor.nesemu.ui.components.RectangularIconButton
 import com.onandor.nesemu.ui.components.StatusBarScaffold
 import com.onandor.nesemu.ui.components.TitleDialog
@@ -81,9 +88,12 @@ fun PreferencesScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             Section("Library") {
-                LibrarySection(libraryDirectory = uiState.libraryDirectory) {
-                    folderPickerLauncher.launch(null)
-                }
+                LibrarySection(
+                    libraryDirectory = uiState.libraryDirectory,
+                    coverArtApiKey = uiState.coverArtApiKey,
+                    onLaunchFolderPicker = { folderPickerLauncher.launch(null) },
+                    onEvent = viewModel::onEvent
+                )
             }
             HorizontalDivider()
             Section("Input Devices") {
@@ -121,6 +131,13 @@ fun PreferencesScreen(
         )
     }
 
+    if (uiState.showApiKeyInputDialog) {
+        ApiKeyInputDialog(
+            apiKey = uiState.coverArtApiKey,
+            onEvent = viewModel::onEvent
+        )
+    }
+
     BackHandler {
         viewModel.onEvent(Event.OnNavigateBack)
     }
@@ -145,18 +162,22 @@ private fun Section(
 @Composable
 private fun LibrarySection(
     libraryDirectory: String,
-    onLaunchFolderPicker: () -> Unit
+    coverArtApiKey: String,
+    onLaunchFolderPicker: () -> Unit,
+    onEvent: (Event) -> Unit
 ) {
     ListItem(
-        mainText = {
-            Text(
-                text = "Folder location",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-        },
+        mainText = { MainText("Folder location") },
         subText = { Text(libraryDirectory) },
         onClick = onLaunchFolderPicker
+    )
+    ListItem(
+        mainText = { MainText("Cover art API key") },
+        subText = {
+            val apiKeyText = if (coverArtApiKey.isNotEmpty()) coverArtApiKey else "Not set"
+            Text(apiKeyText)
+        },
+        onClick = { onEvent(Event.OnShowApiKeyInputDialog) }
     )
 }
 
@@ -168,13 +189,7 @@ private fun InputDeviceSection(
 ) {
     ListItem(
         onClick = { onEvent(Event.OnOpenDeviceSelectionDialog(InputService.PLAYER_1)) },
-        mainText = {
-            Text(
-                text = "Controller 1",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-        },
+        mainText = { MainText("Controller 1") },
         subText = {
             InputDeviceText(
                 deviceName = controller1Device?.name ?: "not connected",
@@ -190,13 +205,7 @@ private fun InputDeviceSection(
     )
     ListItem(
         onClick = { onEvent(Event.OnOpenDeviceSelectionDialog(InputService.PLAYER_2)) },
-        mainText = {
-            Text(
-                text = "Controller 2",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-        },
+        mainText = { MainText("Controller 2") },
         subText = {
             InputDeviceText(
                 deviceName = controller2Device?.name ?: "not connected",
@@ -232,19 +241,9 @@ private fun ButtonMappingSection(
     )
     ListItem(
         onClick = { onEvent(Event.OnControllerDropdownStateChanged(true)) },
-        mainText = {
-            Text(
-                text = "NES controller",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-        },
+        mainText = { MainText("NES controller") },
         subText = {
-            val text = if (playerId == InputService.PLAYER_1) {
-                "Player 1"
-            } else {
-                "Player 2"
-            }
+            val text = if (playerId == InputService.PLAYER_1) "Player 1" else "Player 2"
             Text(text)
         },
         displayItem = {
@@ -269,13 +268,7 @@ private fun ButtonMappingSection(
     )
     ListItem(
         onClick = { onEvent(Event.OnInputDeviceDropdownStateChanged(true)) },
-        mainText = {
-            Text(
-                text = "Input device type",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-        },
+        mainText = { MainText("Input device type") },
         subText = {
             val text = if (inputDeviceType == NesInputDeviceType.Controller) {
                 "Controller"
@@ -509,4 +502,54 @@ private fun InputDeviceText(deviceName: String, available: Boolean) {
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
         )
     }
+}
+
+@Composable
+private fun ApiKeyInputDialog(
+    apiKey: String,
+    onEvent: (Event) -> Unit
+) {
+    TitleDialog(
+        text = "Cover Art API Key",
+        onDismissRequest = { onEvent(Event.OnHideApiKeyInputDialog) }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 15.dp, end = 15.dp)
+        ) {
+            var inputText by remember { mutableStateOf(apiKey) }
+
+            Text("Artwork for your collection is sourced automatically from the publicly and freely " +
+                    "available SteamGridDB API. To enable this feature, you must provide your own API " +
+                    "key, which you can create for free on www.steamgriddb.com by registering a user " +
+                    "using a Steam account!")
+            TextField(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp, bottom = 10.dp),
+                value = inputText,
+                onValueChange = { inputText = it },
+                singleLine = true,
+                label = { Text("SteamGridDB API key") }
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                RectangularButton(onClick = { onEvent(Event.OnSaveApiKey(inputText)) }) {
+                    Text("Save")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MainText(text: String) {
+    Text(
+        text = text,
+        fontSize = 22.sp,
+        fontWeight = FontWeight.SemiBold
+    )
 }

@@ -18,10 +18,11 @@ import javax.inject.Singleton
 
 @Singleton
 class LibraryService @Inject constructor(
-    @IODispatcher coroutineScope: CoroutineScope,
+    @IODispatcher private val ioScope: CoroutineScope,
     private val prefManager: PreferenceManager,
     private val documentAccessor: DocumentAccessor,
-    private val libraryEntryRepository: LibraryEntryRepository
+    private val libraryEntryRepository: LibraryEntryRepository,
+    private val coverArtService: CoverArtService
 ) {
 
     data class State(
@@ -52,7 +53,7 @@ class LibraryService @Inject constructor(
             _state.update { it.copy(libraryDirectory = libraryDirectory) }
         }
 
-        coroutineScope.launch {
+        ioScope.launch {
             prefManager.observeLibraryUri().collect { newLibraryUri ->
                 if (newLibraryUri.isEmpty() || newLibraryUri == libraryDirectory?.uri) {
                     return@collect
@@ -64,7 +65,7 @@ class LibraryService @Inject constructor(
                 libraryDirectory = libraryEntryRepository
                     .upsertLibraryDirectory(libraryDirectoryName, newLibraryUri)
 
-                persistLibrary()
+                val games = persistLibrary()
 
                 _state.update {
                     it.copy(
@@ -72,19 +73,22 @@ class LibraryService @Inject constructor(
                         libraryDirectory = libraryDirectory
                     )
                 }
+
+                coverArtService.sourceUrls(games)
             }
         }
     }
 
     suspend fun rescanLibrary() {
         _state.update { it.copy(isLoading = true) }
-        persistLibrary()
+        val games = persistLibrary()
         _state.update { it.copy(isLoading = false) }
+        ioScope.launch { coverArtService.sourceUrls(games) }
     }
 
-    private suspend fun persistLibrary() {
+    private suspend fun persistLibrary(): List<LibraryEntry> {
         if (libraryDirectory == null) {
-            return
+            return emptyList()
         }
 
         val documents = documentAccessor.traverseDirectory(Uri.parse(libraryDirectory!!.uri))
@@ -107,6 +111,8 @@ class LibraryService @Inject constructor(
 
         libraryEntryRepository.deleteAll()
         libraryEntryRepository.upsert(entries)
+
+        return entries.filterNot { it.isDirectory }
     }
 
     suspend fun getEntriesInParentDirectory(directory: LibraryEntry): DirectoryListing {

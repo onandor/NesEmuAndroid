@@ -6,7 +6,8 @@ option java_multiple_files = true;
 
 message Preferences {
   string libraryUri = 1;
-  InputPreferences inputPreferences = 2;
+  string steamGridDBApiKey = 2;
+  InputPreferences inputPreferences = 3;
 }
 
 message InputPreferences {

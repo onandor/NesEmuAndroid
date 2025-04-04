@@ -14,12 +14,20 @@ class LibraryEntryRepository @Inject constructor(
         return libraryEntryDao.findAllByParentDirectoryUri(parentDirectoryUri)
     }
 
+    suspend fun findAllNotDirectory(): List<LibraryEntry> {
+        return libraryEntryDao.findAllNotDirectory()
+    }
+
     suspend fun findByUri(uri: String): LibraryEntry? {
         return libraryEntryDao.findByUri(uri)
     }
 
     suspend fun findByRomHash(romHash: String): LibraryEntry? {
         return libraryEntryDao.findByRomHash(romHash)
+    }
+
+    suspend fun upsert(entry: LibraryEntry) {
+        libraryEntryDao.upsert(entry)
     }
 
     suspend fun upsert(entries: List<LibraryEntry>) {

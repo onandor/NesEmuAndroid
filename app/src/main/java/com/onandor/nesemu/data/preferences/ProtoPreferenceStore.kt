@@ -16,6 +16,10 @@ class ProtoPreferenceStore @Inject constructor(
         dataStore.updateData { prefs -> prefs.toBuilder().setLibraryUri(libraryUri).build() }
     }
 
+    suspend fun updateSteamGridDBApiKey(apiKey: String) {
+        dataStore.updateData { prefs -> prefs.toBuilder().setSteamGridDBApiKey(apiKey).build() }
+    }
+
     suspend fun updateInputDevices(device1: InputDevicePref?, device2: InputDevicePref?) {
         dataStore.updateData { prefs ->
             prefs.toBuilder()

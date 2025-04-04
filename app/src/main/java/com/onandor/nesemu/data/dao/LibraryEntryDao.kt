@@ -9,8 +9,8 @@ import com.onandor.nesemu.data.entity.LibraryEntry
 @Dao
 interface LibraryEntryDao {
 
-    @Query("select * from LibraryEntry")
-    suspend fun findAll(): List<LibraryEntry>
+    @Query("select * from LibraryEntry where isDirectory = 0")
+    suspend fun findAllNotDirectory(): List<LibraryEntry>
 
     @Query("select * from LibraryEntry where romHash = :romHash limit 1")
     suspend fun findByRomHash(romHash: String): LibraryEntry?

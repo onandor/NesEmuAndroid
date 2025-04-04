@@ -17,6 +17,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 import com.onandor.nesemu.R
+import com.onandor.nesemu.data.dao.CoverArtDao
 import com.onandor.nesemu.data.dao.LibraryEntryDao
 import com.onandor.nesemu.data.dao.SaveStateDao
 import com.onandor.nesemu.data.preferences.PreferencesSerializer
@@ -45,6 +46,9 @@ class DatabaseModule {
 
     @Provides
     fun provideSaveStateDao(database: NesEmuDatabase): SaveStateDao = database.saveStateDao()
+
+    @Provides
+    fun provideCoverArtDao(database: NesEmuDatabase): CoverArtDao = database.coverArtDao()
 }
 
 @Module

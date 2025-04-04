@@ -10,6 +10,7 @@ import com.onandor.nesemu.domain.service.InputService.ButtonMapKey
 import com.onandor.nesemu.data.preferences.proto.InputDevicePref
 import com.onandor.nesemu.data.preferences.proto.InputDevicePref.InputDeviceTypePref
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -18,9 +19,20 @@ class PreferenceManager @Inject constructor(
     private val prefStore: ProtoPreferenceStore
 ) {
 
-    fun observeLibraryUri(): Flow<String> = prefStore.observe().map { it.libraryUri }
+    fun observeLibraryUri(): Flow<String> = prefStore
+        .observe()
+        .map { it.libraryUri }
+        .distinctUntilChanged()
 
-    suspend fun getLibraryUri(): String = prefStore.observe().map { it.libraryUri }.first()
+    suspend fun getLibraryUri(): String = prefStore
+        .observe()
+        .map { it.libraryUri }
+        .first()
+
+    fun observeSteamGridDBApiKey(): Flow<String> = prefStore
+        .observe()
+        .map { it.steamGridDBApiKey }
+        .distinctUntilChanged()
 
     suspend fun getController1Device() = prefStore.observe()
         .map { it.inputPreferences.controller1Device.toNesDevice() }
@@ -47,6 +59,10 @@ class PreferenceManager @Inject constructor(
 
     suspend fun updateLibraryUri(libraryUri: String) {
         prefStore.updateLibraryUri(libraryUri)
+    }
+
+    suspend fun updateSteamGridDBApiKey(apiKey: String) {
+        prefStore.updateSteamGridDBApiKey(apiKey)
     }
 
     suspend fun updateInputDevices(device1: NesInputDevice?, device2: NesInputDevice?) {

@@ -3,8 +3,10 @@ package com.onandor.nesemu.di
 import android.content.Context
 import android.hardware.input.InputManager
 import com.onandor.nesemu.data.preferences.PreferenceManager
+import com.onandor.nesemu.data.repository.CoverArtRepository
 import com.onandor.nesemu.data.repository.LibraryEntryRepository
 import com.onandor.nesemu.domain.emulation.Emulator
+import com.onandor.nesemu.domain.service.CoverArtService
 import com.onandor.nesemu.domain.service.InputService
 import com.onandor.nesemu.domain.service.LibraryService
 import com.onandor.nesemu.util.DocumentAccessor
@@ -14,6 +16,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
 import javax.inject.Singleton
 
@@ -53,9 +56,33 @@ class ServiceModule {
     @Provides
     @Singleton
     fun provideLibraryService(
-        @DefaultDispatcher coroutineScope: CoroutineScope,
+        @DefaultDispatcher ioScope: CoroutineScope,
         prefManager: PreferenceManager,
         documentAccessor: DocumentAccessor,
-        libraryEntryRepository: LibraryEntryRepository
-    ) = LibraryService(coroutineScope, prefManager, documentAccessor, libraryEntryRepository)
+        libraryEntryRepository: LibraryEntryRepository,
+        coverArtService: CoverArtService
+    ) = LibraryService(
+        ioScope = ioScope,
+        prefManager = prefManager,
+        documentAccessor = documentAccessor,
+        libraryEntryRepository = libraryEntryRepository,
+        coverArtService = coverArtService
+    )
+
+    @Provides
+    @Singleton
+    @JvmSuppressWildcards
+    fun provideCoverArtService(
+        @SteamGridDB httpClientFactory: (String) -> HttpClient,
+        prefManager: PreferenceManager,
+        @IODispatcher ioScope: CoroutineScope,
+        libraryEntryRepository: LibraryEntryRepository,
+        coverArtRepository: CoverArtRepository
+    ) = CoverArtService(
+        httpClientFactory = httpClientFactory,
+        prefManager = prefManager,
+        ioScope = ioScope,
+        libraryEntryRepository = libraryEntryRepository,
+        coverArtRepository = coverArtRepository
+    )
 }

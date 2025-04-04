@@ -21,7 +21,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
-    @IODispatcher private val coroutineScope: CoroutineScope,
+    @IODispatcher private val ioScope: CoroutineScope,
     private val navManager: NavigationManager,
     private val emulationService: EmulationService,
     private val libraryService: LibraryService,
@@ -68,13 +68,13 @@ class LibraryViewModel @Inject constructor(
     fun onEvent(event: Event) {
         when (event) {
             is Event.OnNewLibrarySelected -> {
-                coroutineScope.launch { libraryService.changeLibraryUri(event.libraryUri) }
+                ioScope.launch { libraryService.changeLibraryUri(event.libraryUri) }
                 _uiState.update { it.copy(showLibraryChooserDialog = false) }
             }
             Event.OnRescanLibrary -> {
                 libraryDirectory?.let {
                     _uiState.update { it.copy(path = "/") }
-                    coroutineScope.launch {
+                    ioScope.launch {
                         libraryService.rescanLibrary()
                         navigateToDirectory(libraryDirectory!!)
                     }
@@ -103,7 +103,7 @@ class LibraryViewModel @Inject constructor(
             is Event.OnDeleteSaveState -> {
                 if (event.confirmed) {
                     val saveState = _uiState.value.saveStateToDelete!!
-                    coroutineScope.launch { saveStateRepository.delete(saveState) }
+                    ioScope.launch { saveStateRepository.delete(saveState) }
                 }
                 _uiState.update { it.copy(saveStateToDelete = null) }
             }
@@ -122,7 +122,7 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    private fun navigateToDirectory(directory: LibraryEntry) = coroutineScope.launch {
+    private fun navigateToDirectory(directory: LibraryEntry) = ioScope.launch {
         val displayedEntries = libraryService.getEntriesInDirectory(directory)
         _uiState.update {
             val path = if (directory.uri == libraryDirectory?.uri) {
@@ -141,7 +141,7 @@ class LibraryViewModel @Inject constructor(
         currentDirectory = directory
     }
 
-    private fun navigateUpOneDirectory() = coroutineScope.launch {
+    private fun navigateUpOneDirectory() = ioScope.launch {
         if (currentDirectory == null) {
             return@launch
         }
@@ -162,7 +162,7 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    private fun openGame(game: LibraryEntry) = coroutineScope.launch {
+    private fun openGame(game: LibraryEntry) = ioScope.launch {
         val saveStates = saveStateRepository.findByRomHash(game.romHash)
         if (saveStates.isEmpty()) {
             launchGame(game, null)
@@ -190,7 +190,7 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    private fun collectLibraryServiceState() = coroutineScope.launch {
+    private fun collectLibraryServiceState() = ioScope.launch {
         libraryService.state.collect { state ->
             if (state.libraryDirectory != null && libraryDirectory != state.libraryDirectory) {
                 libraryDirectory = state.libraryDirectory

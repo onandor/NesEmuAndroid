@@ -3,6 +3,7 @@ package com.onandor.nesemu.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.common.collect.BiMap
+import com.onandor.nesemu.data.preferences.PreferenceManager
 import com.onandor.nesemu.domain.input.NesButton
 import com.onandor.nesemu.domain.input.NesInputDevice
 import com.onandor.nesemu.domain.input.NesInputDeviceType
@@ -23,12 +24,15 @@ import javax.inject.Inject
 class PreferencesViewModel @Inject constructor(
     private val navManager: NavigationManager,
     private val inputManager: InputService,
-    private val libraryService: LibraryService
+    private val libraryService: LibraryService,
+    private val prefManager: PreferenceManager
 ) : ViewModel() {
 
     data class UiState(
         // Library
         val libraryDirectory: String = "",
+        val showApiKeyInputDialog: Boolean = false,
+        val coverArtApiKey: String = "",
 
         // Input device selection
         val availableDevices: List<NesInputDevice> = emptyList(),
@@ -48,6 +52,9 @@ class PreferencesViewModel @Inject constructor(
     sealed class Event {
         // Library
         data class OnNewLibrarySelected(val libraryUri: String) : Event()
+        data class OnSaveApiKey(val apiKey: String) : Event()
+        object OnShowApiKeyInputDialog : Event()
+        object OnHideApiKeyInputDialog : Event()
 
         // Input device selection
         data class OnOpenDeviceSelectionDialog(val playerId: Int) : Event()
@@ -70,8 +77,8 @@ class PreferencesViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState = combine(
-        _uiState, inputManager.state, libraryService.state
-    ) { uiState, inputManagerState, libraryServiceState ->
+        _uiState, inputManager.state, libraryService.state, prefManager.observeSteamGridDBApiKey()
+    ) { uiState, inputManagerState, libraryServiceState, coverArtApiKey ->
         buttonMappings = inputManagerState.buttonMappings
         val buttonMapKey = ButtonMapKey(
             playerId = uiState.buttonMappingPlayerId,
@@ -80,6 +87,7 @@ class PreferencesViewModel @Inject constructor(
 
         uiState.copy(
             libraryDirectory = libraryServiceState.libraryDirectory?.name ?: "<no folder selected>",
+            coverArtApiKey = coverArtApiKey,
             availableDevices = inputManagerState.availableDevices,
             player1Device = inputManagerState.controller1Device,
             player2Device = inputManagerState.controller2Device,
@@ -97,6 +105,16 @@ class PreferencesViewModel @Inject constructor(
             // Library
             is Event.OnNewLibrarySelected -> {
                 viewModelScope.launch { libraryService.changeLibraryUri(event.libraryUri) }
+            }
+            is Event.OnSaveApiKey -> {
+                viewModelScope.launch { prefManager.updateSteamGridDBApiKey(event.apiKey) }
+                _uiState.update { it.copy(showApiKeyInputDialog = false) }
+            }
+            Event.OnShowApiKeyInputDialog -> {
+                _uiState.update { it.copy(showApiKeyInputDialog = true) }
+            }
+            Event.OnHideApiKeyInputDialog -> {
+                _uiState.update { it.copy(showApiKeyInputDialog = false) }
             }
 
             // Input device selection
