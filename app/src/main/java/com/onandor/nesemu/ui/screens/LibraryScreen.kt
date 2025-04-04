@@ -55,6 +55,7 @@ import com.onandor.nesemu.ui.components.TopBar
 import com.onandor.nesemu.viewmodels.LibraryViewModel
 import com.onandor.nesemu.viewmodels.LibraryViewModel.Event
 import com.onandor.nesemu.R
+import com.onandor.nesemu.ui.components.ListItem
 
 @Composable
 fun LibraryScreen(
@@ -171,56 +172,34 @@ private fun FileList(
         }
         LazyColumn {
             items(entries, LibraryEntry::id) { entry ->
-                LibraryEntryListItem(
-                    name = entry.name,
-                    isDirectory = entry.isDirectory,
-                    coverArtUrl = coverArtUrls[entry.romHash],
+                ListItem(
+                    mainText = { Text(entry.name) },
+                    leftDisplayItem = {
+                        Box(
+                            modifier = Modifier
+                                .requiredWidth(65.dp)
+                                .heightIn(65.dp, 100.dp)
+                        ) {
+                            if (entry.isDirectory) {
+                                Image(
+                                    modifier = Modifier.size(65.dp),
+                                    painter = painterResource(R.drawable.ic_folder),
+                                    contentDescription = null
+                                )
+                            } else {
+                                AsyncImage(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(5.dp)),
+                                    model = coverArtUrls[entry.romHash],
+                                    contentDescription = null
+                                )
+                            }
+                        }
+                    },
                     onClick = { onEvent(Event.OnOpenLibraryEntry(entry)) }
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun LibraryEntryListItem(
-    modifier: Modifier = Modifier,
-    name: String,
-    isDirectory: Boolean,
-    coverArtUrl: String?,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(top = 10.dp, bottom = 10.dp, start = 25.dp, end = 25.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .requiredWidth(65.dp)
-                .heightIn(65.dp, 100.dp)
-        ) {
-            if (isDirectory) {
-                Image(
-                    modifier = Modifier.size(65.dp),
-                    painter = painterResource(R.drawable.ic_folder),
-                    contentDescription = null
-                )
-            } else {
-                AsyncImage(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(5.dp)),
-                    model = coverArtUrl,
-                    contentDescription = null
-                )
-            }
-        }
-        Text(
-            modifier = Modifier.padding(start = 15.dp),
-            text = name
-        )
     }
 }
 

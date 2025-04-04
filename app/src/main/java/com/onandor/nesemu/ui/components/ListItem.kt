@@ -63,7 +63,8 @@ fun ListItem(
     onClick: (() -> Unit)? = null,
     mainText: @Composable() () -> Unit,
     subText: @Composable() () -> Unit = EmptyComposable,
-    displayItem: @Composable() () -> Unit = EmptyComposable
+    leftDisplayItem: @Composable() () -> Unit = EmptyComposable,
+    rightDisplayItem: @Composable() () -> Unit = EmptyComposable
 ) {
     var pressed by remember { mutableStateOf(false) }
     var hovered by remember { mutableStateOf(false) }
@@ -101,19 +102,29 @@ fun ListItem(
             .background(color)
             .defaultMinSize(minHeight = 70.dp)
             .padding(top = 10.dp, bottom = 10.dp, start = 25.dp, end = 25.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(
-            modifier = Modifier
-                .weight(1f)
-        ) {
-            mainText()
-            subText()
-        }
-        if (displayItem !== EmptyComposable) {
+        if (leftDisplayItem !== EmptyComposable) {
+            leftDisplayItem()
             Spacer(modifier = Modifier.width(15.dp))
-            displayItem()
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+            ) {
+                mainText()
+                subText()
+            }
+            if (rightDisplayItem !== EmptyComposable) {
+                Spacer(modifier = Modifier.width(15.dp))
+                rightDisplayItem()
+            }
         }
     }
 }

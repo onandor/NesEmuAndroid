@@ -160,7 +160,7 @@ private fun Section(
         Text(
             modifier = Modifier.padding(start = 15.dp, top = 15.dp, bottom = 5.dp),
             text = title,
-            fontSize = 24.sp,
+            fontSize = 22.sp,
             fontWeight = FontWeight.SemiBold
         )
         content()
@@ -180,7 +180,7 @@ private fun ApplicationSection(
             val currentTheme = if (useDarkTheme) "Dark" else "Light"
             Text(currentTheme)
         },
-        displayItem = {
+        rightDisplayItem = {
             ListDropdownMenu(
                 expanded = themeDropdownExpanded,
                 onDismissRequest = { onEvent(Event.OnThemeDropdownStateChanged(false)) }
@@ -235,7 +235,7 @@ private fun InputDeviceSection(
                 available = controller1Device == null || controller1Device.id != null
             )
         },
-        displayItem = {
+        rightDisplayItem = {
             InputDeviceIcon(
                 modifier = Modifier.size(35.dp),
                 device = controller1Device
@@ -251,7 +251,7 @@ private fun InputDeviceSection(
                 available = controller2Device == null || controller2Device.id != null
             )
         },
-        displayItem = {
+        rightDisplayItem = {
             InputDeviceIcon(
                 modifier = Modifier.size(35.dp),
                 device = controller2Device
@@ -285,7 +285,7 @@ private fun ButtonMappingSection(
             val text = if (playerId == InputService.PLAYER_1) "Player 1" else "Player 2"
             Text(text)
         },
-        displayItem = {
+        rightDisplayItem = {
             ListDropdownMenu(
                 expanded = controllerDropdownExpanded,
                 onDismissRequest = { onEvent(Event.OnControllerDropdownStateChanged(false)) }
@@ -316,7 +316,7 @@ private fun ButtonMappingSection(
             }
             Text(text)
         },
-        displayItem = {
+        rightDisplayItem = {
             ListDropdownMenu(
                 expanded = inputDeviceDropdownExpanded,
                 onDismissRequest = { onEvent(Event.OnInputDeviceDropdownStateChanged(false)) }
@@ -421,7 +421,7 @@ private fun ButtonMappingListItem(
         modifier = Modifier.height(50.dp),
         onClick = onStartEdit,
         mainText = { Text(buttonName) },
-        displayItem = {
+        rightDisplayItem = {
             val iconResource = if (deviceType == NesInputDeviceType.Controller) {
                 ButtonMapping.CONTROLLER_KEYCODE_ICON_MAP[mapping[button]]
             } else {
@@ -496,7 +496,7 @@ private fun DeviceSelectionDialog(
                 ListItem(
                     onClick = { onEvent(Event.OnDeviceSelected(playerId, device)) },
                     mainText = { InputDeviceText(device.name, true) },
-                    displayItem = { InputDeviceIcon(device = device) }
+                    rightDisplayItem = { InputDeviceIcon(device = device) }
                 )
             }
             HorizontalDivider()
@@ -588,7 +588,7 @@ private fun ApiKeyInputDialog(
 private fun MainText(text: String) {
     Text(
         text = text,
-        fontSize = 22.sp,
+        fontSize = 20.sp,
         fontWeight = FontWeight.SemiBold
     )
 }

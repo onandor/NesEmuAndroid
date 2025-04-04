@@ -90,7 +90,7 @@ fun SaveStateSelectionSheet(
                         mainText = {
                             Text(
                                 text = "New game",
-                                fontSize = 22.sp,
+                                fontSize = 20.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                         },
@@ -113,7 +113,7 @@ fun SaveStateSelectionSheet(
                         ) {
                             Text(
                                 text = "No save states",
-                                fontSize = 24.sp,
+                                fontSize = 22.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
                             )
@@ -127,7 +127,7 @@ fun SaveStateSelectionSheet(
                                     mainText = {
                                         Text(
                                             text = "Slot $slot",
-                                            fontSize = 22.sp,
+                                            fontSize = 20.sp,
                                             fontWeight = FontWeight.SemiBold
                                         )
                                     },
@@ -169,7 +169,7 @@ private fun SaveStateListItem(
                 Text(
                     modifier = Modifier.padding(start = 20.dp),
                     text = name,
-                    fontSize = 22.sp,
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.SemiBold
                 )
                 if (onDelete !== EmptySaveStateCallback) {

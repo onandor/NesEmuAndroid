@@ -123,10 +123,12 @@ class LibraryService @Inject constructor(
             // We are in the root, cannot go up
             parentDirectory = directory
             entries = libraryEntryRepository.findAllByParentDirectoryUri(directory.uri)
+                .sortedBy { it.name }
                 .sortedBy { !it.isDirectory }
         } else {
             parentDirectory = libraryEntryRepository.findByUri(directory.parentDirectoryUri)
             entries = libraryEntryRepository.findAllByParentDirectoryUri(directory.parentDirectoryUri)
+                .sortedBy { it.name }
                 .sortedBy { !it.isDirectory }
         }
 
@@ -138,6 +140,7 @@ class LibraryService @Inject constructor(
 
     suspend fun getEntriesInDirectory(directory: LibraryEntry): List<LibraryEntry> {
         return libraryEntryRepository.findAllByParentDirectoryUri(directory.uri)
+            .sortedBy { it.name }
             .sortedBy { !it.isDirectory }
     }
 
