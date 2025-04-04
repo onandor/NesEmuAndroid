@@ -4,6 +4,8 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,9 +13,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
@@ -27,15 +32,17 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil3.compose.AsyncImage
 import com.composables.core.SheetDetent
 import com.composables.core.rememberModalBottomSheetState
 import com.onandor.nesemu.data.entity.LibraryEntry
 import com.onandor.nesemu.ui.components.ConfirmationDialog
-import com.onandor.nesemu.ui.components.ListItem
 import com.onandor.nesemu.ui.components.RectangularButton
 import com.onandor.nesemu.ui.components.RectangularIconButton
 import com.onandor.nesemu.ui.components.SaveStateSelectionSheet
@@ -45,6 +52,7 @@ import com.onandor.nesemu.ui.components.TitleDialog
 import com.onandor.nesemu.ui.components.TopBar
 import com.onandor.nesemu.viewmodels.LibraryViewModel
 import com.onandor.nesemu.viewmodels.LibraryViewModel.Event
+import com.onandor.nesemu.R
 
 @Composable
 fun LibraryScreen(
@@ -80,6 +88,7 @@ fun LibraryScreen(
             } else {
                 FileList(
                     entries = uiState.displayedEntries,
+                    coverArtUrls = uiState.coverArtUrls,
                     path = uiState.path,
                     inSubdirectory = uiState.inSubdirectory,
                     onEvent = viewModel::onEvent
@@ -134,6 +143,7 @@ fun LibraryScreen(
 private fun FileList(
     modifier: Modifier = Modifier,
     entries: List<LibraryEntry>,
+    coverArtUrls: Map<String, String?>,
     path: String,
     inSubdirectory: Boolean,
     onEvent: (Event) -> Unit
@@ -159,12 +169,51 @@ private fun FileList(
         }
         LazyColumn {
             items(entries, LibraryEntry::id) { entry ->
-                ListItem(
-                    mainText = { Text(entry.name) },
+                LibraryEntryListItem(
+                    name = entry.name,
+                    isDirectory = entry.isDirectory,
+                    coverArtUrl = coverArtUrls[entry.romHash],
                     onClick = { onEvent(Event.OnOpenLibraryEntry(entry)) }
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun LibraryEntryListItem(
+    modifier: Modifier = Modifier,
+    name: String,
+    isDirectory: Boolean,
+    coverArtUrl: String?,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(top = 10.dp, bottom = 10.dp, start = 25.dp, end = 25.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (isDirectory) {
+            Image(
+                modifier = Modifier.size(65.dp),
+                painter = painterResource(R.drawable.ic_folder),
+                contentDescription = null
+            )
+        } else {
+            AsyncImage(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(5.dp))
+                    .requiredWidth(65.dp),
+                model = coverArtUrl,
+                contentDescription = null
+            )
+        }
+        Text(
+            modifier = Modifier.padding(start = 15.dp),
+            text = name
+        )
     }
 }
 

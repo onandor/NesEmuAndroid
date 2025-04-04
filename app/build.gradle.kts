@@ -43,12 +43,12 @@ protobuf {
 
 android {
     namespace = "com.onandor.nesemu"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.onandor.nesemu"
         minSdk = 28
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -138,4 +138,7 @@ dependencies {
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.client.auth)
     implementation(libs.ktor.serialization.kotlinx.json)
+    // Coil
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.ktor)
 }

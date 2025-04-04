@@ -2,8 +2,10 @@ package com.onandor.nesemu.viewmodels
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.onandor.nesemu.data.entity.LibraryEntry
 import com.onandor.nesemu.data.entity.SaveState
+import com.onandor.nesemu.data.repository.CoverArtRepository
 import com.onandor.nesemu.data.repository.SaveStateRepository
 import com.onandor.nesemu.di.IODispatcher
 import com.onandor.nesemu.domain.service.EmulationService
@@ -14,7 +16,9 @@ import com.onandor.nesemu.domain.emulation.nes.RomParseException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -25,7 +29,8 @@ class LibraryViewModel @Inject constructor(
     private val navManager: NavigationManager,
     private val emulationService: EmulationService,
     private val libraryService: LibraryService,
-    private val saveStateRepository: SaveStateRepository
+    private val saveStateRepository: SaveStateRepository,
+    private val coverArtRepository: CoverArtRepository
 ) : ViewModel() {
 
     data class UiState(
@@ -35,6 +40,7 @@ class LibraryViewModel @Inject constructor(
         val displayedEntries: List<LibraryEntry> = emptyList(),
         val inSubdirectory: Boolean = false,
         val path: String = "/",
+        val coverArtUrls: Map<String, String?> = emptyMap(),
 
         // Save state dialog
         val selectedGame: LibraryEntry? = null,
@@ -59,7 +65,16 @@ class LibraryViewModel @Inject constructor(
     private var currentDirectory: LibraryEntry? = null
 
     private val _uiState = MutableStateFlow(UiState())
-    val uiState = _uiState.asStateFlow()
+    val uiState = combine(
+        _uiState, coverArtRepository.observeAllUrls()
+    ) { uiState, coverArtUrls ->
+        uiState.copy(coverArtUrls = coverArtUrls)
+    }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(2000),
+            initialValue = UiState()
+        )
 
     init {
         collectLibraryServiceState()
