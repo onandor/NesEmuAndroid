@@ -87,6 +87,14 @@ fun PreferencesScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
         ) {
+            Section("Application") {
+                ApplicationSection(
+                    useDarkTheme = uiState.useDarkTheme,
+                    themeDropdownExpanded = uiState.themeDropdownExpanded,
+                    onEvent = viewModel::onEvent
+                )
+            }
+            HorizontalDivider()
             Section("Library") {
                 LibrarySection(
                     libraryDirectory = uiState.libraryDirectory,
@@ -157,6 +165,37 @@ private fun Section(
         )
         content()
     }
+}
+
+@Composable
+private fun ApplicationSection(
+    useDarkTheme: Boolean,
+    themeDropdownExpanded: Boolean,
+    onEvent: (Event) -> Unit
+) {
+    ListItem(
+        onClick = { onEvent(Event.OnThemeDropdownStateChanged(true)) },
+        mainText = { MainText("Theme") },
+        subText = {
+            val currentTheme = if (useDarkTheme) "Dark" else "Light"
+            Text(currentTheme)
+        },
+        displayItem = {
+            ListDropdownMenu(
+                expanded = themeDropdownExpanded,
+                onDismissRequest = { onEvent(Event.OnThemeDropdownStateChanged(false)) }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Light") },
+                    onClick = { onEvent(Event.OnUseDarkThemeChanged(false)) }
+                )
+                DropdownMenuItem(
+                    text = { Text("Dark") },
+                    onClick = { onEvent(Event.OnUseDarkThemeChanged(true)) }
+                )
+            }
+        }
+    )
 }
 
 @Composable

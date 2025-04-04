@@ -29,6 +29,10 @@ class PreferencesViewModel @Inject constructor(
 ) : ViewModel() {
 
     data class UiState(
+        // Application
+        val themeDropdownExpanded: Boolean = false,
+        val useDarkTheme: Boolean = false,
+
         // Library
         val libraryDirectory: String = "",
         val showApiKeyInputDialog: Boolean = false,
@@ -50,6 +54,10 @@ class PreferencesViewModel @Inject constructor(
     )
 
     sealed class Event {
+        // Application
+        data class OnThemeDropdownStateChanged(val expanded: Boolean) : Event()
+        data class OnUseDarkThemeChanged(val useDarkTheme: Boolean) : Event()
+
         // Library
         data class OnNewLibrarySelected(val libraryUri: String) : Event()
         data class OnSaveApiKey(val apiKey: String) : Event()
@@ -77,8 +85,12 @@ class PreferencesViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState = combine(
-        _uiState, inputManager.state, libraryService.state, prefManager.observeSteamGridDBApiKey()
-    ) { uiState, inputManagerState, libraryServiceState, coverArtApiKey ->
+        _uiState,
+        inputManager.state,
+        libraryService.state,
+        prefManager.observeSteamGridDBApiKey(),
+        prefManager.observeUseDarkTheme()
+    ) { uiState, inputManagerState, libraryServiceState, coverArtApiKey, useDarkTheme ->
         buttonMappings = inputManagerState.buttonMappings
         val buttonMapKey = ButtonMapKey(
             playerId = uiState.buttonMappingPlayerId,
@@ -86,6 +98,7 @@ class PreferencesViewModel @Inject constructor(
         )
 
         uiState.copy(
+            useDarkTheme = useDarkTheme,
             libraryDirectory = libraryServiceState.libraryDirectory?.name ?: "<no folder selected>",
             coverArtApiKey = coverArtApiKey,
             availableDevices = inputManagerState.availableDevices,
@@ -102,6 +115,15 @@ class PreferencesViewModel @Inject constructor(
 
     fun onEvent(event: Event) {
         when (event) {
+            // Application
+            is Event.OnThemeDropdownStateChanged -> {
+                _uiState.update { it.copy(themeDropdownExpanded = event.expanded) }
+            }
+            is Event.OnUseDarkThemeChanged -> {
+                viewModelScope.launch { prefManager.updateUseDarkTheme(event.useDarkTheme) }
+                _uiState.update { it.copy(themeDropdownExpanded = false) }
+            }
+
             // Library
             is Event.OnNewLibrarySelected -> {
                 viewModelScope.launch { libraryService.changeLibraryUri(event.libraryUri) }

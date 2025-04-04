@@ -19,6 +19,11 @@ class PreferenceManager @Inject constructor(
     private val prefStore: ProtoPreferenceStore
 ) {
 
+    fun observeUseDarkTheme(): Flow<Boolean> = prefStore
+        .observe()
+        .map { it.useDarkTheme }
+        .distinctUntilChanged()
+
     fun observeLibraryUri(): Flow<String> = prefStore
         .observe()
         .map { it.libraryUri }
@@ -56,6 +61,10 @@ class PreferenceManager @Inject constructor(
             )
         }
         .first()
+
+    suspend fun updateUseDarkTheme(useDarkTheme: Boolean) {
+        prefStore.updateUseDarkTheme(useDarkTheme)
+    }
 
     suspend fun updateLibraryUri(libraryUri: String) {
         prefStore.updateLibraryUri(libraryUri)

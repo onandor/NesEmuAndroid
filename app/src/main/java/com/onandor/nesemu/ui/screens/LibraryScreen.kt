@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -195,20 +197,25 @@ private fun LibraryEntryListItem(
             .padding(top = 10.dp, bottom = 10.dp, start = 25.dp, end = 25.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (isDirectory) {
-            Image(
-                modifier = Modifier.size(65.dp),
-                painter = painterResource(R.drawable.ic_folder),
-                contentDescription = null
-            )
-        } else {
-            AsyncImage(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(5.dp))
-                    .requiredWidth(65.dp),
-                model = coverArtUrl,
-                contentDescription = null
-            )
+        Box(
+            modifier = Modifier
+                .requiredWidth(65.dp)
+                .heightIn(65.dp, 100.dp)
+        ) {
+            if (isDirectory) {
+                Image(
+                    modifier = Modifier.size(65.dp),
+                    painter = painterResource(R.drawable.ic_folder),
+                    contentDescription = null
+                )
+            } else {
+                AsyncImage(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(5.dp)),
+                    model = coverArtUrl,
+                    contentDescription = null
+                )
+            }
         }
         Text(
             modifier = Modifier.padding(start = 15.dp),

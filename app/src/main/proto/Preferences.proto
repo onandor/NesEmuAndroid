@@ -5,9 +5,10 @@ option java_package = "com.onandor.nesemu.data.preferences.proto";
 option java_multiple_files = true;
 
 message Preferences {
-  string libraryUri = 1;
-  string steamGridDBApiKey = 2;
-  InputPreferences inputPreferences = 3;
+  bool useDarkTheme = 1;
+  string libraryUri = 2;
+  string steamGridDBApiKey = 3;
+  InputPreferences inputPreferences = 4;
 }
 
 message InputPreferences {

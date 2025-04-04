@@ -6,9 +6,12 @@ import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.onandor.nesemu.data.preferences.PreferenceManager
 import com.onandor.nesemu.domain.service.InputService
 import com.onandor.nesemu.navigation.NavGraph
 import com.onandor.nesemu.ui.theme.NesEmuTheme
@@ -21,6 +24,7 @@ class NesEmuActivity : ComponentActivity() {
 
     @Inject lateinit var inputService: InputService
     @Inject lateinit var lifecycleObserver: GlobalLifecycleObserver
+    @Inject lateinit var prefManager: PreferenceManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,7 +39,8 @@ class NesEmuActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            NesEmuTheme {
+            val useDarkTheme by prefManager.observeUseDarkTheme().collectAsState(initial = false)
+            NesEmuTheme(darkTheme = useDarkTheme) {
                 NavGraph()
             }
         }

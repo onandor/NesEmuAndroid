@@ -12,6 +12,10 @@ class ProtoPreferenceStore @Inject constructor(
 ) {
     fun observe() = dataStore.data.catch { emit(Preferences.getDefaultInstance()) }
 
+    suspend fun updateUseDarkTheme(useDarkTheme: Boolean) {
+        dataStore.updateData { prefs -> prefs.toBuilder().setUseDarkTheme(useDarkTheme).build() }
+    }
+
     suspend fun updateLibraryUri(libraryUri: String) {
         dataStore.updateData { prefs -> prefs.toBuilder().setLibraryUri(libraryUri).build() }
     }
