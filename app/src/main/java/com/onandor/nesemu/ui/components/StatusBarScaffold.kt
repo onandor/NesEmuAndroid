@@ -77,8 +77,9 @@ fun StatusBarScaffold(
         } else {
             content(PaddingValues(top = STATUS_BAR_HEIGHT.dp))
         }
-        Spacer(modifier = Modifier.fillMaxSize())
-        bottomBar()
+        Box(modifier = Modifier.align(Alignment.BottomCenter)) {
+            bottomBar()
+        }
     }
 }
 

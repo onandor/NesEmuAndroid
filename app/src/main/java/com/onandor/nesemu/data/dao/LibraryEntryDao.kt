@@ -6,9 +6,23 @@ import androidx.room.Query
 import androidx.room.Upsert
 import com.onandor.nesemu.data.entity.LibraryEntry
 import com.onandor.nesemu.data.entity.LibraryEntryWithDate
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface LibraryEntryDao {
+
+    @Query("""
+        select
+            le.*,
+            max(ss.modificationDate) as lastPlayedDate
+        from LibraryEntry le
+        left join SaveState ss on le.romHash = ss.romHash
+        where isDirectory = 0 and ss.modificationDate is not null
+        group by le.id
+        order by lastPlayedDate desc
+        limit 20
+    """)
+    fun observeRecentlyPlayed(): Flow<List<LibraryEntryWithDate>>
 
     @Query("select * from LibraryEntry where isDirectory = 0")
     suspend fun findAllNotDirectory(): List<LibraryEntry>
@@ -19,7 +33,6 @@ interface LibraryEntryDao {
     @Query("select * from LibraryEntry where uri = :uri limit 1")
     suspend fun findByUri(uri: String): LibraryEntry?
 
-    //@Query("select * from LibraryEntry where parentDirectoryUri = :parentDirectoryUri")
     @Query("""
         select
             le.*,

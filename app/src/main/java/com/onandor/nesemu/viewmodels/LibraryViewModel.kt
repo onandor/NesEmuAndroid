@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.onandor.nesemu.data.entity.LibraryEntry
 import com.onandor.nesemu.data.entity.SaveState
 import com.onandor.nesemu.data.repository.CoverArtRepository
+import com.onandor.nesemu.data.repository.LibraryEntryRepository
 import com.onandor.nesemu.data.repository.SaveStateRepository
 import com.onandor.nesemu.di.IODispatcher
 import com.onandor.nesemu.domain.service.EmulationService
@@ -27,12 +28,18 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+enum class NavBarPage {
+    RecentlyPlayed,
+    Browse
+}
+
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
     @IODispatcher private val ioScope: CoroutineScope,
     private val navManager: NavigationManager,
     private val emulationService: EmulationService,
     private val libraryService: LibraryService,
+    private val libraryEntryRepository: LibraryEntryRepository,
     private val saveStateRepository: SaveStateRepository,
     private val coverArtRepository: CoverArtRepository
 ) : ViewModel() {
@@ -41,10 +48,12 @@ class LibraryViewModel @Inject constructor(
         val errorMessage: String? = null,
         val showLibraryChooserDialog: Boolean = false,
         val libraryLoading: Boolean = false,
+        val recentGames: List<UiLibraryEntry> = emptyList(),
         val displayedEntries: List<UiLibraryEntry> = emptyList(),
         val inSubdirectory: Boolean = false,
         val path: String = "/",
         val coverArtUrls: Map<String, String?> = emptyMap(),
+        val currentPage: NavBarPage = NavBarPage.RecentlyPlayed,
 
         // Save state dialog
         val selectedGame: UiLibraryEntry? = null,
@@ -53,16 +62,25 @@ class LibraryViewModel @Inject constructor(
     )
 
     sealed class Event {
-        data class OnNewLibrarySelected(val libraryUri: String) : Event()
-        data object OnRescanLibrary : Event()
+        // File list
         data class OnOpenLibraryEntry(val entry: UiLibraryEntry) : Event()
-        data class OnOpenSaveState(val saveState: UiSaveState?) : Event()
-        data class OnShowSaveStateDeleteDialog(val saveState: UiSaveState) : Event()
-        data class OnDeleteSaveState(val confirmed: Boolean) : Event()
         data object OnNavigateUp : Event()
-        data object OnErrorMessageToastShown : Event()
-        data object OnNavigateToPreferences : Event()
+
+        // Save states
+        data class OnOpenSaveState(val saveState: UiSaveState?) : Event()
+        data class OnDeleteSaveState(val confirmed: Boolean) : Event()
+        data class OnShowSaveStateDeleteDialog(val saveState: UiSaveState) : Event()
         data object OnHideSaveStateSheet : Event()
+
+        // Top bar
+        data object OnNavigateToPreferences : Event()
+        data object OnRescanLibrary : Event()
+
+        // Navigation bar
+        data class OnSwitchPage(val page: NavBarPage) : Event()
+
+        data class OnNewLibrarySelected(val libraryUri: String) : Event()
+        data object OnErrorMessageToastShown : Event()
     }
 
     private var libraryDirectory: LibraryEntry? = null
@@ -70,9 +88,12 @@ class LibraryViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState = combine(
-        _uiState, coverArtRepository.observeAllUrls()
-    ) { uiState, coverArtUrls ->
-        uiState.copy(coverArtUrls = coverArtUrls)
+        _uiState, coverArtRepository.observeAllUrls(), libraryEntryRepository.observeRecentlyPlayed()
+    ) { uiState, coverArtUrls, recentGames ->
+        uiState.copy(
+            coverArtUrls = coverArtUrls,
+            recentGames = recentGames.map { it.toUiLibraryEntry() }
+        )
     }
         .stateIn(
             scope = viewModelScope,
@@ -86,9 +107,46 @@ class LibraryViewModel @Inject constructor(
 
     fun onEvent(event: Event) {
         when (event) {
-            is Event.OnNewLibrarySelected -> {
-                ioScope.launch { libraryService.changeLibraryUri(event.libraryUri) }
-                _uiState.update { it.copy(showLibraryChooserDialog = false) }
+            // File list
+            is Event.OnOpenLibraryEntry -> {
+                if (event.entry.entity.isDirectory) {
+                    navigateToDirectory(event.entry.entity)
+                } else {
+                    openGame(event.entry)
+                }
+            }
+            Event.OnNavigateUp -> {
+                navigateUpOneDirectory()
+            }
+
+            // Save states
+            is Event.OnOpenSaveState -> {
+                val game = _uiState.value.selectedGame!!
+                _uiState.update { it.copy(selectedGame = null) }
+                launchGame(game.entity, event.saveState?.entity)
+            }
+            is Event.OnDeleteSaveState -> {
+                if (event.confirmed) {
+                    val saveState = _uiState.value.saveStateToDelete!!
+                    ioScope.launch { saveStateRepository.delete(saveState.entity) }
+                }
+                _uiState.update { it.copy(saveStateToDelete = null) }
+            }
+            is Event.OnShowSaveStateDeleteDialog -> {
+                _uiState.update {
+                    it.copy(
+                        saveStateToDelete = event.saveState,
+                        selectedGame = null
+                    )
+                }
+            }
+            Event.OnHideSaveStateSheet -> {
+                _uiState.update { it.copy(selectedGame = null) }
+            }
+
+            // Top bar
+            Event.OnNavigateToPreferences -> {
+                navManager.navigateTo(NavActions.preferencesScreen())
             }
             Event.OnRescanLibrary -> {
                 libraryDirectory?.let {
@@ -99,44 +157,18 @@ class LibraryViewModel @Inject constructor(
                     }
                 }
             }
-            is Event.OnOpenLibraryEntry -> {
-                if (event.entry.entity.isDirectory) {
-                    navigateToDirectory(event.entry.entity)
-                } else {
-                    openGame(event.entry)
-                }
+
+            // Navigation bar
+            is Event.OnSwitchPage -> {
+                _uiState.update { it.copy(currentPage = event.page) }
             }
-            is Event.OnOpenSaveState -> {
-                val game = _uiState.value.selectedGame!!
-                _uiState.update { it.copy(selectedGame = null) }
-                launchGame(game.entity, event.saveState?.entity)
-            }
-            is Event.OnShowSaveStateDeleteDialog -> {
-                _uiState.update {
-                    it.copy(
-                        saveStateToDelete = event.saveState,
-                        selectedGame = null
-                    )
-                }
-            }
-            is Event.OnDeleteSaveState -> {
-                if (event.confirmed) {
-                    val saveState = _uiState.value.saveStateToDelete!!
-                    ioScope.launch { saveStateRepository.delete(saveState.entity) }
-                }
-                _uiState.update { it.copy(saveStateToDelete = null) }
-            }
-            Event.OnNavigateUp -> {
-                navigateUpOneDirectory()
+
+            is Event.OnNewLibrarySelected -> {
+                ioScope.launch { libraryService.changeLibraryUri(event.libraryUri) }
+                _uiState.update { it.copy(showLibraryChooserDialog = false) }
             }
             Event.OnErrorMessageToastShown -> {
                 _uiState.update { it.copy(errorMessage = null) }
-            }
-            Event.OnNavigateToPreferences -> {
-                navManager.navigateTo(NavActions.preferencesScreen())
-            }
-            Event.OnHideSaveStateSheet -> {
-                _uiState.update { it.copy(selectedGame = null) }
             }
         }
     }

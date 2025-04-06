@@ -39,7 +39,7 @@ fun TitleDialog(
             modifier = modifier
                 .focusRequester(focusRequester)
                 .focusable(),
-            shape = RoundedCornerShape(5.dp)
+            shape = RoundedCornerShape(10.dp)
         ) {
             Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
                 Row(

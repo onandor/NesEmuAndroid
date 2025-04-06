@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -51,48 +52,25 @@ fun NavGraph(
         }
     }
 
-    Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .consumeWindowInsets(PaddingValues()),
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
-    ) { _ ->
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.background
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        NavHost(
+            navController = navController,
+            startDestination = startDestination
         ) {
-            NavHost(
-                navController = navController,
-                startDestination = startDestination
-            ) {
-                composable(
-                    route = NavDestinations.LIBRARY_SCREEN,
-                    enterTransition = { EnterTransition.None },
-                    exitTransition = { ExitTransition.None }
-                ) {
-                    LibraryScreen()
-                }
-                composable(
-                    route = NavDestinations.GAME_SCREEN,
-                    enterTransition = { EnterTransition.None },
-                    exitTransition = { ExitTransition.None }
-                ) {
-                    GameScreen()
-                }
-                composable(
-                    route = NavDestinations.DEBUG_SCREEN,
-                    enterTransition = { EnterTransition.None },
-                    exitTransition = { ExitTransition.None }
-                ) {
-                    DebugScreen()
-                }
-                composable(
-                    route = NavDestinations.PREFERENCES_SCREEN,
-                    enterTransition = { EnterTransition.None },
-                    exitTransition = { ExitTransition.None }
-                ) {
-                    PreferencesScreen()
-                }
+            composable(NavDestinations.LIBRARY_SCREEN) {
+                LibraryScreen()
+            }
+            composable(NavDestinations.GAME_SCREEN) {
+                GameScreen()
+            }
+            composable(NavDestinations.DEBUG_SCREEN) {
+                DebugScreen()
+            }
+            composable(NavDestinations.PREFERENCES_SCREEN) {
+                PreferencesScreen()
             }
         }
     }

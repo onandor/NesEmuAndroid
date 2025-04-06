@@ -4,7 +4,13 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +21,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,6 +32,10 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,7 +59,6 @@ import com.onandor.nesemu.ui.components.RectangularButton
 import com.onandor.nesemu.ui.components.RectangularIconButton
 import com.onandor.nesemu.ui.components.SaveStateSelectionSheet
 import com.onandor.nesemu.ui.components.SaveStateSheetType
-import com.onandor.nesemu.ui.components.StatusBarScaffold
 import com.onandor.nesemu.ui.components.TitleDialog
 import com.onandor.nesemu.ui.components.TopBar
 import com.onandor.nesemu.viewmodels.LibraryViewModel
@@ -56,6 +66,7 @@ import com.onandor.nesemu.viewmodels.LibraryViewModel.Event
 import com.onandor.nesemu.R
 import com.onandor.nesemu.ui.components.ListItem
 import com.onandor.nesemu.ui.model.UiLibraryEntry
+import com.onandor.nesemu.viewmodels.NavBarPage
 
 @Composable
 fun LibraryScreen(
@@ -77,8 +88,9 @@ fun LibraryScreen(
     val uiState by viewModel.uiState.collectAsState()
     val bottomSheetState = rememberModalBottomSheetState(initialDetent = SheetDetent.Hidden)
 
-    StatusBarScaffold(
-        topBar = { TopBar(onEvent = viewModel::onEvent) }
+    Scaffold (
+        topBar = { TopBar(onEvent = viewModel::onEvent) },
+        bottomBar = { NavBar(currentPage = uiState.currentPage, onEvent = viewModel::onEvent) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -89,13 +101,34 @@ fun LibraryScreen(
             if (uiState.libraryLoading) {
                 LibraryScanning()
             } else {
-                FileList(
-                    entries = uiState.displayedEntries,
-                    coverArtUrls = uiState.coverArtUrls,
-                    path = uiState.path,
-                    inSubdirectory = uiState.inSubdirectory,
-                    onEvent = viewModel::onEvent
-                )
+                AnimatedContent(
+                    targetState = uiState.currentPage,
+                    transitionSpec = {
+                        if (targetState == NavBarPage.RecentlyPlayed) {
+                            slideInHorizontally { fullHeight -> -fullHeight } + fadeIn() togetherWith
+                                    slideOutHorizontally { fullHeight -> fullHeight } + fadeOut()
+                        } else {
+                            slideInHorizontally { fullHeight -> fullHeight } + fadeIn() togetherWith
+                                    slideOutHorizontally { fullHeight -> -fullHeight } + fadeOut()
+                        }
+                    }
+                ) { targetState ->
+                    if (targetState == NavBarPage.RecentlyPlayed) {
+                        LibraryList(
+                            entries = uiState.recentGames,
+                            coverArtUrls = uiState.coverArtUrls,
+                            onEvent = viewModel::onEvent
+                        )
+                    } else {
+                        LibraryBrowser(
+                            entries = uiState.displayedEntries,
+                            coverArtUrls = uiState.coverArtUrls,
+                            path = uiState.path,
+                            inSubdirectory = uiState.inSubdirectory,
+                            onEvent = viewModel::onEvent
+                        )
+                    }
+                }
             }
         }
     }
@@ -143,7 +176,7 @@ fun LibraryScreen(
 }
 
 @Composable
-private fun FileList(
+private fun LibraryBrowser(
     modifier: Modifier = Modifier,
     entries: List<UiLibraryEntry>,
     coverArtUrls: Map<String, String?>,
@@ -151,10 +184,10 @@ private fun FileList(
     inSubdirectory: Boolean,
     onEvent: (Event) -> Unit
 ) {
-    Column(modifier = modifier) {
+    Column(modifier = modifier.fillMaxSize()) {
         Row(
             modifier = Modifier
-                .padding(start = 20.dp)
+                .padding(top = 10.dp, bottom = 10.dp, start = 20.dp)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -170,48 +203,61 @@ private fun FileList(
                 text = path
             )
         }
-        LazyColumn {
-            items(entries, { it.entity.id }) { entry ->
-                ListItem(
-                    mainText = {
+        LibraryList(
+            entries = entries,
+            coverArtUrls = coverArtUrls,
+            onEvent = onEvent
+        )
+    }
+}
+
+@Composable
+private fun LibraryList(
+    entries: List<UiLibraryEntry>,
+    coverArtUrls: Map<String, String?>,
+    onEvent: (Event) -> Unit
+) {
+    LazyColumn {
+        items(entries, { it.entity.id }) { entry ->
+            ListItem(
+                mainText = {
+                    Text(
+                        text = entry.displayName,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
+                subText = {
+                    if (!entry.entity.isDirectory) {
                         Text(
-                            text = entry.displayName,
-                            fontWeight = FontWeight.SemiBold
+                            text = "Last played: ${entry.lastPlayedDate}",
+                            fontSize = 14.sp,
+                            fontStyle = FontStyle.Italic
                         )
-                    },
-                    subText = {
-                        if (!entry.entity.isDirectory) {
-                            Text(
-                                text = "Last played: ${entry.lastPlayedDate}",
-                                fontSize = 14.sp,
-                                fontStyle = FontStyle.Italic
+                    }
+                },
+                leftDisplayItem = {
+                    Box(
+                        modifier = Modifier
+                            .requiredWidth(65.dp)
+                            .heightIn(65.dp, 100.dp)
+                    ) {
+                        if (entry.entity.isDirectory) {
+                            Icon(
+                                modifier = Modifier.size(65.dp),
+                                painter = painterResource(R.drawable.ic_folder),
+                                contentDescription = null
+                            )
+                        } else {
+                            AsyncImage(
+                                modifier = Modifier.clip(RoundedCornerShape(5.dp)),
+                                model = coverArtUrls[entry.entity.romHash],
+                                contentDescription = null
                             )
                         }
-                    },
-                    leftDisplayItem = {
-                        Box(
-                            modifier = Modifier
-                                .requiredWidth(65.dp)
-                                .heightIn(65.dp, 100.dp)
-                        ) {
-                            if (entry.entity.isDirectory) {
-                                Icon(
-                                    modifier = Modifier.size(65.dp),
-                                    painter = painterResource(R.drawable.ic_folder),
-                                    contentDescription = null
-                                )
-                            } else {
-                                AsyncImage(
-                                    modifier = Modifier.clip(RoundedCornerShape(5.dp)),
-                                    model = coverArtUrls[entry.entity.romHash],
-                                    contentDescription = null
-                                )
-                            }
-                        }
-                    },
-                    onClick = { onEvent(Event.OnOpenLibraryEntry(entry)) }
-                )
-            }
+                    }
+                },
+                onClick = { onEvent(Event.OnOpenLibraryEntry(entry)) }
+            )
         }
     }
 }
@@ -266,6 +312,10 @@ private fun LibraryChooserDialog(
 @Composable
 private fun TopBar(onEvent: (Event) -> Unit) {
     TopBar(
+        modifier = Modifier
+            .background(MaterialTheme.colorScheme.tertiaryContainer)
+            .statusBarsPadding()
+            .padding(top = 10.dp, bottom = 10.dp),
         title = "Library",
         actions = {
             RectangularIconButton(onClick = { onEvent(Event.OnRescanLibrary) }) {
@@ -276,4 +326,38 @@ private fun TopBar(onEvent: (Event) -> Unit) {
             }
         }
     )
+}
+
+@Composable
+private fun NavBar(
+    currentPage: NavBarPage,
+    onEvent: (Event) -> Unit
+) {
+    NavigationBar(
+        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+        contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+    ) {
+        NavigationBarItem(
+            icon = {
+                Icon(
+                    painter = painterResource(R.drawable.ic_history),
+                    contentDescription = null
+                )
+            },
+            label = { Text("Recently Played") },
+            selected = currentPage == NavBarPage.RecentlyPlayed,
+            onClick = { onEvent(Event.OnSwitchPage(NavBarPage.RecentlyPlayed)) }
+        )
+        NavigationBarItem(
+            icon = {
+                Icon(
+                    painter = painterResource(R.drawable.ic_folder),
+                    contentDescription = null
+                )
+            },
+            label = { Text("Browse") },
+            selected = currentPage == NavBarPage.Browse,
+            onClick = { onEvent(Event.OnSwitchPage(NavBarPage.Browse)) }
+        )
+    }
 }

@@ -3,6 +3,7 @@ package com.onandor.nesemu.data.repository
 import com.onandor.nesemu.data.dao.LibraryEntryDao
 import com.onandor.nesemu.data.entity.LibraryEntry
 import com.onandor.nesemu.data.entity.LibraryEntryWithDate
+import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -10,6 +11,10 @@ import javax.inject.Singleton
 class LibraryEntryRepository @Inject constructor(
     private val libraryEntryDao: LibraryEntryDao
 ) {
+
+    fun observeRecentlyPlayed(): Flow<List<LibraryEntryWithDate>> {
+        return libraryEntryDao.observeRecentlyPlayed()
+    }
 
     suspend fun findAllByParentDirectoryUri(parentDirectoryUri: String): List<LibraryEntryWithDate> {
         return libraryEntryDao.findAllByParentDirectoryUri(parentDirectoryUri)

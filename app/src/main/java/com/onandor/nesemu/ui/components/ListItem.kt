@@ -66,32 +66,8 @@ fun ListItem(
     leftDisplayItem: @Composable() () -> Unit = EmptyComposable,
     rightDisplayItem: @Composable() () -> Unit = EmptyComposable
 ) {
-    var pressed by remember { mutableStateOf(false) }
-    var hovered by remember { mutableStateOf(false) }
-    val color = if (pressed || hovered) MaterialTheme.colorScheme.tertiary else Color.Transparent
     val modifier = if (onClick != null) {
-        modifier
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onPress = {
-                        pressed = true
-                        tryAwaitRelease()
-                        pressed = false
-                    },
-                    onTap = { onClick() }
-                )
-            }
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        when (event.type) {
-                            PointerEventType.Enter -> hovered = true
-                            PointerEventType.Exit -> hovered = false
-                        }
-                    }
-                }
-            }
+        modifier.clickable { onClick() }
     } else {
         modifier
     }
@@ -99,7 +75,6 @@ fun ListItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(color)
             .defaultMinSize(minHeight = 70.dp)
             .padding(top = 10.dp, bottom = 10.dp, start = 25.dp, end = 25.dp),
         verticalAlignment = Alignment.CenterVertically

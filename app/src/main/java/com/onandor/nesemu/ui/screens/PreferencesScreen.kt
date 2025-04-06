@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -22,6 +24,7 @@ import androidx.compose.material3.DropdownMenuItem
 import com.onandor.nesemu.ui.components.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
@@ -52,10 +55,10 @@ import com.onandor.nesemu.viewmodels.PreferencesViewModel.Event
 import com.onandor.nesemu.R
 import com.onandor.nesemu.domain.input.ButtonMapping
 import com.onandor.nesemu.domain.input.NesButton
+import com.onandor.nesemu.ui.components.ColoredNavigationBar
 import com.onandor.nesemu.ui.components.ListDropdownMenu
 import com.onandor.nesemu.ui.components.RectangularButton
 import com.onandor.nesemu.ui.components.RectangularIconButton
-import com.onandor.nesemu.ui.components.StatusBarScaffold
 import com.onandor.nesemu.ui.components.TitleDialog
 import com.onandor.nesemu.ui.components.TopBar
 
@@ -78,8 +81,9 @@ fun PreferencesScreen(
 
     val uiState by viewModel.uiState.collectAsState()
 
-    StatusBarScaffold(
-        topBar = { TopBar { viewModel.onEvent(Event.OnNavigateBack) } }
+    Scaffold(
+        topBar = { TopBar { viewModel.onEvent(Event.OnNavigateBack) } },
+        bottomBar = { ColoredNavigationBar() }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -158,9 +162,9 @@ private fun Section(
 ) {
     Column {
         Text(
-            modifier = Modifier.padding(start = 15.dp, top = 15.dp, bottom = 5.dp),
+            modifier = Modifier.padding(start = 25.dp, top = 20.dp, bottom = 10.dp),
             text = title,
-            fontSize = 22.sp,
+            fontSize = 20.sp,
             fontWeight = FontWeight.SemiBold
         )
         content()
@@ -468,6 +472,10 @@ private fun TopBar(
     onNavigateBack: () -> Unit
 ) {
     TopBar(
+        modifier = Modifier
+            .background(MaterialTheme.colorScheme.tertiaryContainer)
+            .statusBarsPadding()
+            .padding(top = 10.dp, bottom = 10.dp),
         title = "Preferences",
         navigationIcon = {
             RectangularIconButton(onClick = onNavigateBack) {

@@ -58,6 +58,7 @@ import com.onandor.nesemu.ui.components.SaveStateSelectionSheet
 import com.onandor.nesemu.ui.components.SaveStateSheetType
 import com.onandor.nesemu.ui.components.StatusBarScaffold
 import com.onandor.nesemu.ui.components.TitleDialog
+import com.onandor.nesemu.ui.util.HideSystemBars
 
 @Composable
 fun GameScreen(
@@ -78,6 +79,8 @@ fun GameScreen(
             )
         }
     }
+
+    HideSystemBars()
 
     if (uiState.errorMessage != null) {
         LaunchedEffect(uiState.errorMessage) {

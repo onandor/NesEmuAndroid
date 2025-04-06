@@ -1,16 +1,16 @@
 package com.onandor.nesemu
 
 import android.annotation.SuppressLint
+import android.os.Build
 import android.os.Bundle
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import com.onandor.nesemu.data.preferences.PreferenceManager
 import com.onandor.nesemu.domain.service.InputService
 import com.onandor.nesemu.navigation.NavGraph
@@ -31,15 +31,28 @@ class NesEmuActivity : ComponentActivity() {
 
         lifecycle.addObserver(lifecycleObserver)
 
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
-        insetsController.hide(WindowInsetsCompat.Type.systemBars())
-        insetsController.systemBarsBehavior =
-            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-
-        enableEdgeToEdge()
         setContent {
             val useDarkTheme by prefManager.observeUseDarkTheme().collectAsState(initial = false)
+
+            DisposableEffect(useDarkTheme) {
+                enableEdgeToEdge(
+                    statusBarStyle = SystemBarStyle.auto(
+                        lightScrim = android.graphics.Color.TRANSPARENT,
+                        darkScrim = android.graphics.Color.TRANSPARENT,
+                        detectDarkMode = { useDarkTheme }
+                    ),
+                    navigationBarStyle = SystemBarStyle.auto(
+                        lightScrim = android.graphics.Color.TRANSPARENT,
+                        darkScrim = android.graphics.Color.TRANSPARENT,
+                        detectDarkMode = { useDarkTheme }
+                    )
+                )
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+                    window.isNavigationBarContrastEnforced = false
+                }
+                onDispose {}
+            }
+
             NesEmuTheme(darkTheme = useDarkTheme) {
                 NavGraph()
             }
