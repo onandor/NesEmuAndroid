@@ -222,13 +222,13 @@ private fun ColorPalettes(
     var selectedIdx by remember { mutableIntStateOf(0) }
 
     Column {
-        var paletteModifier = Modifier.width(screenWidth / 4.5f).aspectRatio(60f / 15f)
+        val paletteModifier = Modifier.width(screenWidth / 4.5f).aspectRatio(60f / 15f)
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 5.dp, bottom = 5.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             for (i in 0 ..< 4) {
-                var modifier = if (i == selectedIdx) {
+                val modifier = if (i == selectedIdx) {
                     paletteModifier.border(
                         width = 3.dp,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -254,7 +254,7 @@ private fun ColorPalettes(
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             for (i in 4 ..< 8) {
-                var modifier = if (i == selectedIdx) {
+                val modifier = if (i == selectedIdx) {
                     paletteModifier.border(
                         width = 3.dp,
                         color = MaterialTheme.colorScheme.onSecondaryContainer

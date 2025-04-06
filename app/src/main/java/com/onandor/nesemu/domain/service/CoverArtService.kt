@@ -54,7 +54,7 @@ class CoverArtService @Inject constructor(
 
             var numSuccessful = 0
             var numFailed = 0
-            for (i in 0 ..< entries.size) {
+            for (i in entries.indices) {
                 val fileName = entries[i].name
                 val romHash = entries[i].romHash
 

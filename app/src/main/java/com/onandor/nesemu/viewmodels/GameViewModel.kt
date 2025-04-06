@@ -53,22 +53,22 @@ class GameViewModel @Inject constructor(
         data class OnRenderCallbackCreated(val requestRender: () -> Unit) : Event()
         data class OnButtonStateChanged(val button: NesButton, val state: NesButtonState) : Event()
         data class OnDpadStateChanged(val buttonStates: Map<NesButton, NesButtonState>) : Event()
-        object OnErrorMessageToastShown : Event()
+        data object OnErrorMessageToastShown : Event()
 
         // Pause menu
         data class OnNavigateTo(val action: NavAction) : Event()
-        object OnNavigateBack: Event()
-        object OnShowPauseMenuDialog : Event()
-        object OnHidePauseMenuDialog : Event()
-        object OnResetConsole : Event()
+        data object OnNavigateBack: Event()
+        data object OnShowPauseMenuDialog : Event()
+        data object OnHidePauseMenuDialog : Event()
+        data object OnResetConsole : Event()
 
         data class OnShowSaveStateSheet(val type: SaveStateSheetType) : Event()
-        object OnHideSaveStateSheet : Event()
+        data object OnHideSaveStateSheet : Event()
         data class OnSelectSaveState(val slot: Int, val saveState: SaveState?) : Event()
         data class OnOverwriteSaveState(val confirmed: Boolean) : Event()
     }
 
-    val buttonStateMap = mutableMapOf<NesButton, NesButtonState>(
+    private val buttonStateMap = mutableMapOf<NesButton, NesButtonState>(
         NesButton.DPadRight to NesButtonState.Up,
         NesButton.DPadLeft to NesButtonState.Up,
         NesButton.DPadDown to NesButtonState.Up,

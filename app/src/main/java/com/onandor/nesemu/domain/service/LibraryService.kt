@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import javax.inject.Singleton
+import androidx.core.net.toUri
 
 @Singleton
 class LibraryService @Inject constructor(
@@ -91,7 +92,7 @@ class LibraryService @Inject constructor(
             return emptyList()
         }
 
-        val documents = documentAccessor.traverseDirectory(Uri.parse(libraryDirectory!!.uri))
+        val documents = documentAccessor.traverseDirectory(libraryDirectory!!.uri.toUri())
         val entries = documents
             .filter { it.isDirectory || it.name.endsWith(".nes") }
             .map {
@@ -116,8 +117,8 @@ class LibraryService @Inject constructor(
     }
 
     suspend fun getEntriesInParentDirectory(directory: LibraryEntry): DirectoryListing {
-        var parentDirectory: LibraryEntry?
-        var entries: List<LibraryEntry>
+        val parentDirectory: LibraryEntry?
+        val entries: List<LibraryEntry>
 
         if (directory.parentDirectoryUri == null) {
             // We are in the root, cannot go up

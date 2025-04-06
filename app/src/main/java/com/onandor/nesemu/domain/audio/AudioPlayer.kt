@@ -19,7 +19,7 @@ class AudioPlayer(
     }
 
     private var nativeInstanceHandle: Long = -1L
-    private val mutex: Object = Object()
+    private val mutex: Any = Object()
     private var isStreamRunning: Boolean = false
 
     private external fun create(): Long
@@ -30,7 +30,7 @@ class AudioPlayer(
 
     fun onSamplesRequested(buffer: ByteBuffer): Int {
         val floatBuffer = buffer.asFloatBuffer()
-        var samples: FloatArray = onSamplesRequested(floatBuffer.capacity())
+        val samples: FloatArray = onSamplesRequested(floatBuffer.capacity())
         floatBuffer.put(samples)
         return samples.size
     }

@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
@@ -162,7 +163,7 @@ private fun FileList(
                 onClick = { onEvent(Event.OnNavigateUp) },
                 enabled = inSubdirectory
             ) {
-                Icon(imageVector = Icons.Default.ArrowBack, null)
+                Icon(imageVector = Icons.AutoMirrored.Default.ArrowBack, null)
             }
             Text(
                 modifier = Modifier.padding(start = 10.dp),

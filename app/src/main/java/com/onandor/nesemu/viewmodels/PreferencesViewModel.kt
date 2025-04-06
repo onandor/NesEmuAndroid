@@ -61,12 +61,12 @@ class PreferencesViewModel @Inject constructor(
         // Library
         data class OnNewLibrarySelected(val libraryUri: String) : Event()
         data class OnSaveApiKey(val apiKey: String) : Event()
-        object OnShowApiKeyInputDialog : Event()
-        object OnHideApiKeyInputDialog : Event()
+        data object OnShowApiKeyInputDialog : Event()
+        data object OnHideApiKeyInputDialog : Event()
 
         // Input device selection
         data class OnOpenDeviceSelectionDialog(val playerId: Int) : Event()
-        object OnCloseDeviceSelectionDialog : Event()
+        data object OnCloseDeviceSelectionDialog : Event()
         data class OnDeviceSelected(val playerId: Int, val device: NesInputDevice?) : Event()
 
         // Button mapping
@@ -75,10 +75,10 @@ class PreferencesViewModel @Inject constructor(
         data class OnButtonMappingPlayerIdChanged(val playerId: Int) : Event()
         data class OnButtonMappingDeviceTypeChanged(val deviceType: NesInputDeviceType) : Event()
         data class OnShowEditButtonDialog(val button: NesButton) : Event()
-        object OnHideEditButtonDialog : Event()
+        data object OnHideEditButtonDialog : Event()
         data class OnUpdateEditedButton(val keyCode: Int) : Event()
 
-        object OnNavigateBack : Event()
+        data object OnNavigateBack : Event()
     }
 
     private var buttonMappings: Map<ButtonMapKey, BiMap<Int, NesButton>> = emptyMap()

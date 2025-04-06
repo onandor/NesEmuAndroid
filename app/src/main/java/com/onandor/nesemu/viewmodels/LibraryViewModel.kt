@@ -50,15 +50,15 @@ class LibraryViewModel @Inject constructor(
 
     sealed class Event {
         data class OnNewLibrarySelected(val libraryUri: String) : Event()
-        object OnRescanLibrary : Event()
+        data object OnRescanLibrary : Event()
         data class OnOpenLibraryEntry(val entry: LibraryEntry) : Event()
         data class OnOpenSaveState(val saveState: SaveState?) : Event()
         data class OnShowSaveStateDeleteDialog(val saveState: SaveState) : Event()
         data class OnDeleteSaveState(val confirmed: Boolean) : Event()
-        object OnNavigateUp : Event()
-        object OnErrorMessageToastShown : Event()
-        object OnNavigateToPreferences : Event()
-        object OnHideSaveStateSheet : Event()
+        data object OnNavigateUp : Event()
+        data object OnErrorMessageToastShown : Event()
+        data object OnNavigateToPreferences : Event()
+        data object OnHideSaveStateSheet : Event()
     }
 
     private var libraryDirectory: LibraryEntry? = null
@@ -162,7 +162,7 @@ class LibraryViewModel @Inject constructor(
         }
 
         val listing = libraryService.getEntriesInParentDirectory(currentDirectory!!)
-        currentDirectory = if (listing.directory != null) listing.directory else libraryDirectory
+        currentDirectory = listing.directory ?: libraryDirectory
         _uiState.update {
             val pathEndIndex = if (it.path.count { char -> char == '/' } > 1) {
                 it.path.lastIndexOf('/')

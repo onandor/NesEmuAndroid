@@ -213,7 +213,7 @@ private fun LibrarySection(
     ListItem(
         mainText = { MainText("Cover art API key") },
         subText = {
-            val apiKeyText = if (coverArtApiKey.isNotEmpty()) coverArtApiKey else "Not set"
+            val apiKeyText = coverArtApiKey.ifEmpty { "Not set" }
             Text(apiKeyText)
         },
         onClick = { onEvent(Event.OnShowApiKeyInputDialog) }

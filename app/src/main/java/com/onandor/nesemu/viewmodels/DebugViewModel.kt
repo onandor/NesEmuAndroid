@@ -34,7 +34,7 @@ class DebugViewModel @Inject constructor(
         ) : Event()
         data class OnColorPaletteTouch(val index: Int, val motionEvent: MotionEvent) : Event()
         data class OnSetDebugFeatureBool(val feature: DebugFeature, val value: Boolean) : Event()
-        object OnNavigateBack : Event()
+        data object OnNavigateBack : Event()
     }
 
     val patternTableRenderer: NesRenderer = NesRenderer(256, 128)

@@ -7,6 +7,7 @@ import android.provider.OpenableColumns
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import androidx.core.net.toUri
 
 data class Document(
     val uri: Uri,
@@ -75,7 +76,7 @@ class DocumentAccessor @Inject constructor(
     }
 
     fun getFileName(uriString: String): String? {
-        val uri = Uri.parse(uriString)
+        val uri = uriString.toUri()
         val cursor = context.contentResolver.query(uri, null, null, null, null, null)
         cursor?.use {
             if (!it.moveToFirst()) {
@@ -90,10 +91,10 @@ class DocumentAccessor @Inject constructor(
     }
 
     fun getDocumentName(uriString: String): String? =
-        DocumentsContract.getTreeDocumentId(Uri.parse(uriString)).split(":").lastOrNull()
+        DocumentsContract.getTreeDocumentId(uriString.toUri()).split(":").lastOrNull()
 
     fun readBytes(uriString: String): ByteArray {
-        val stream = context.contentResolver.openInputStream(Uri.parse(uriString))
+        val stream = context.contentResolver.openInputStream(uriString.toUri())
             ?: throw RuntimeException("Unable to open input stream")
         return stream.readBytes().also { stream.close() }
     }

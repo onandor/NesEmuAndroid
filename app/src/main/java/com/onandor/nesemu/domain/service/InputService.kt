@@ -45,7 +45,7 @@ class InputService(
     )
 
     sealed class Event {
-        object OnPauseButtonPressed : Event()
+        data object OnPauseButtonPressed : Event()
     }
 
     private val availableDevicesMap = mutableMapOf<Int, NesInputDevice>()
@@ -88,7 +88,7 @@ class InputService(
                 return
             }
             createNesInputDevice(device)?.let {
-                availableDevicesMap.put(it.id!!, it)
+                availableDevicesMap[it.id!!] = it
                 if (player1Device?.descriptor == it.descriptor) {
                     player1Device = it
                 } else if (player2Device?.descriptor == it.descriptor) {
@@ -128,10 +128,7 @@ class InputService(
             return null
         }
 
-        val deviceType = getDeviceType(device)
-        if (deviceType == null) {
-            return null
-        }
+        val deviceType = getDeviceType(device) ?: return null
 
         return NesInputDevice(
             name = device.name,
@@ -158,12 +155,12 @@ class InputService(
 
     private fun refreshAvailableDevices() {
         availableDevicesMap.clear()
-        availableDevicesMap.put(VIRTUAL_CONTROLLER.id!!, VIRTUAL_CONTROLLER)
+        availableDevicesMap[VIRTUAL_CONTROLLER.id!!] = VIRTUAL_CONTROLLER
 
         val deviceIds = InputDevice.getDeviceIds()
 
-        for (i in 0 ..< deviceIds.size) {
-            val device = InputDevice.getDevice(deviceIds[i])
+        for (deviceId in deviceIds) {
+            val device = InputDevice.getDevice(deviceId)
             if (device == null || availableDevicesMap.contains(device.id)) {
                 continue
             }
@@ -176,9 +173,8 @@ class InputService(
         if (player1Device?.id != null && !availableDevicesMap.contains(player1Device?.id)) {
             player1Device = player1Device?.copy(id = null)
         } else {
-            val device = availableDevicesMap.values
-                .filter { it.descriptor == player1Device?.descriptor }
-                .firstOrNull()
+            val device =
+                availableDevicesMap.values.firstOrNull { it.descriptor == player1Device?.descriptor }
             if (device != null) {
                 player1Device = device
             }
@@ -187,9 +183,8 @@ class InputService(
         if (player2Device?.id != null && !availableDevicesMap.contains(player2Device?.id)) {
             player2Device = player2Device?.copy(id = null)
         } else {
-            val device = availableDevicesMap.values
-                .filter { it.descriptor == player2Device?.descriptor }
-                .firstOrNull()
+            val device =
+                availableDevicesMap.values.firstOrNull { it.descriptor == player2Device?.descriptor }
             if (device != null) {
                 player2Device = device
             }
@@ -243,11 +238,8 @@ class InputService(
     }
 
     fun onInputEvent(event: KeyEvent): Boolean {
-        val device = availableDevicesMap[event.deviceId]
-        if (device == null) {
-            // The event came from a device which is not a valid controller, we don't handle it
-            return false
-        }
+        val device = availableDevicesMap[event.deviceId] ?: return false
+        // If null: the event came from a device which is not a valid controller, we don't handle it
 
         val playerId = if (player1Device?.id == device.id) {
             PLAYER_1
@@ -287,16 +279,14 @@ class InputService(
 
         player1Device?.let { playerDevice ->
             val device = availableDevicesMap.values
-                .filter { it.descriptor == playerDevice.descriptor }
-                .firstOrNull()
+                .firstOrNull { it.descriptor == playerDevice.descriptor }
             if (device != null) {
                 player1Device = device
             }
         }
         player2Device?.let { playerDevice ->
             val device = availableDevicesMap.values
-                .filter { it.descriptor == playerDevice.descriptor }
-                .firstOrNull()
+                .firstOrNull { it.descriptor == playerDevice.descriptor }
             if (device != null) {
                 player2Device = device
             }
@@ -310,7 +300,7 @@ class InputService(
     }
 
     private fun loadSavedButtonMappings() = ioScope.launch {
-        prefManager.getButtonMappings().forEach { key, value ->
+        prefManager.getButtonMappings().forEach { (key, value) ->
             if (value.isNotEmpty()) {
                 buttonMappings[key] = value
             }
@@ -320,7 +310,7 @@ class InputService(
     fun getButtonStates(playerId: Int): Int {
         val buttonStateMap = if (playerId == PLAYER_1) player1Buttons else player2Buttons
         var buttonStates = 0
-        buttonStateMap.forEach { _, state ->
+        buttonStateMap.forEach { (_, state) ->
             buttonStates = (buttonStates shl 1) or state.ordinal
         }
         return buttonStates
@@ -333,9 +323,9 @@ class InputService(
         deviceType: NesInputDeviceType
     ) {
         val keyCodeMap = if (deviceType == NesInputDeviceType.Controller) {
-            ButtonMapping.Companion.CONTROLLER_KEYCODE_ICON_MAP
+            ButtonMapping.CONTROLLER_KEYCODE_ICON_MAP
         } else {
-            ButtonMapping.Companion.KEYBOARD_KEYCODE_ICON_MAP
+            ButtonMapping.KEYBOARD_KEYCODE_ICON_MAP
         }
 
         if (!keyCodeMap.contains(keyCode)) {
@@ -403,7 +393,7 @@ class InputService(
         const val PLAYER_2: Int = 2
 
         const val VIRTUAL_CONTROLLER_DEVICE_ID = Int.MIN_VALUE
-        const val VIRTUAL_CONTROLLER_DEVICE_DESCRIPTOR = "VIRTUAL_CONTROLLER"
+        private const val VIRTUAL_CONTROLLER_DEVICE_DESCRIPTOR = "VIRTUAL_CONTROLLER"
         private val VIRTUAL_CONTROLLER = NesInputDevice(
             name = "Virtual controller",
             id = VIRTUAL_CONTROLLER_DEVICE_ID,
