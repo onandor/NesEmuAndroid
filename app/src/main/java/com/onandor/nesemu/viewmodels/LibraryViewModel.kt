@@ -13,6 +13,10 @@ import com.onandor.nesemu.domain.service.LibraryService
 import com.onandor.nesemu.navigation.NavActions
 import com.onandor.nesemu.navigation.NavigationManager
 import com.onandor.nesemu.domain.emulation.nes.RomParseException
+import com.onandor.nesemu.ui.model.UiLibraryEntry
+import com.onandor.nesemu.ui.model.UiSaveState
+import com.onandor.nesemu.ui.model.toUiLibraryEntry
+import com.onandor.nesemu.ui.model.toUiSaveState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,23 +41,23 @@ class LibraryViewModel @Inject constructor(
         val errorMessage: String? = null,
         val showLibraryChooserDialog: Boolean = false,
         val libraryLoading: Boolean = false,
-        val displayedEntries: List<LibraryEntry> = emptyList(),
+        val displayedEntries: List<UiLibraryEntry> = emptyList(),
         val inSubdirectory: Boolean = false,
         val path: String = "/",
         val coverArtUrls: Map<String, String?> = emptyMap(),
 
         // Save state dialog
-        val selectedGame: LibraryEntry? = null,
-        val saveStates: List<SaveState> = emptyList(),
-        val saveStateToDelete: SaveState? = null
+        val selectedGame: UiLibraryEntry? = null,
+        val saveStates: List<UiSaveState> = emptyList(),
+        val saveStateToDelete: UiSaveState? = null
     )
 
     sealed class Event {
         data class OnNewLibrarySelected(val libraryUri: String) : Event()
         data object OnRescanLibrary : Event()
-        data class OnOpenLibraryEntry(val entry: LibraryEntry) : Event()
-        data class OnOpenSaveState(val saveState: SaveState?) : Event()
-        data class OnShowSaveStateDeleteDialog(val saveState: SaveState) : Event()
+        data class OnOpenLibraryEntry(val entry: UiLibraryEntry) : Event()
+        data class OnOpenSaveState(val saveState: UiSaveState?) : Event()
+        data class OnShowSaveStateDeleteDialog(val saveState: UiSaveState) : Event()
         data class OnDeleteSaveState(val confirmed: Boolean) : Event()
         data object OnNavigateUp : Event()
         data object OnErrorMessageToastShown : Event()
@@ -96,8 +100,8 @@ class LibraryViewModel @Inject constructor(
                 }
             }
             is Event.OnOpenLibraryEntry -> {
-                if (event.entry.isDirectory) {
-                    navigateToDirectory(event.entry)
+                if (event.entry.entity.isDirectory) {
+                    navigateToDirectory(event.entry.entity)
                 } else {
                     openGame(event.entry)
                 }
@@ -105,7 +109,7 @@ class LibraryViewModel @Inject constructor(
             is Event.OnOpenSaveState -> {
                 val game = _uiState.value.selectedGame!!
                 _uiState.update { it.copy(selectedGame = null) }
-                launchGame(game, event.saveState)
+                launchGame(game.entity, event.saveState?.entity)
             }
             is Event.OnShowSaveStateDeleteDialog -> {
                 _uiState.update {
@@ -118,7 +122,7 @@ class LibraryViewModel @Inject constructor(
             is Event.OnDeleteSaveState -> {
                 if (event.confirmed) {
                     val saveState = _uiState.value.saveStateToDelete!!
-                    ioScope.launch { saveStateRepository.delete(saveState) }
+                    ioScope.launch { saveStateRepository.delete(saveState.entity) }
                 }
                 _uiState.update { it.copy(saveStateToDelete = null) }
             }
@@ -138,7 +142,10 @@ class LibraryViewModel @Inject constructor(
     }
 
     private fun navigateToDirectory(directory: LibraryEntry) = ioScope.launch {
-        val displayedEntries = libraryService.getEntriesInDirectory(directory)
+        val displayedEntries = libraryService
+            .getEntriesInDirectory(directory)
+            .map { it.toUiLibraryEntry() }
+
         _uiState.update {
             val path = if (directory.uri == libraryDirectory?.uri) {
                 "/"
@@ -153,6 +160,7 @@ class LibraryViewModel @Inject constructor(
                 path = path
             )
         }
+
         currentDirectory = directory
     }
 
@@ -163,6 +171,7 @@ class LibraryViewModel @Inject constructor(
 
         val listing = libraryService.getEntriesInParentDirectory(currentDirectory!!)
         currentDirectory = listing.directory ?: libraryDirectory
+
         _uiState.update {
             val pathEndIndex = if (it.path.count { char -> char == '/' } > 1) {
                 it.path.lastIndexOf('/')
@@ -171,21 +180,24 @@ class LibraryViewModel @Inject constructor(
             }
             it.copy(
                 inSubdirectory = currentDirectory?.parentDirectoryUri != null,
-                displayedEntries = listing.entries,
+                displayedEntries = listing.entries.map { it.toUiLibraryEntry() },
                 path = it.path.substring(0, pathEndIndex)
             )
         }
     }
 
-    private fun openGame(game: LibraryEntry) = ioScope.launch {
-        val saveStates = saveStateRepository.findByRomHash(game.romHash)
+    private fun openGame(game: UiLibraryEntry) = ioScope.launch {
+        val saveStates = saveStateRepository
+            .findByRomHash(game.entity.romHash)
+            .map { it.toUiSaveState() }
+
         if (saveStates.isEmpty()) {
-            launchGame(game, null)
+            launchGame(game.entity, null)
         } else {
             _uiState.update {
                 it.copy(
                     selectedGame = game,
-                    saveStates = saveStates.sortedBy { it.slot }
+                    saveStates = saveStates.sortedBy { it.entity.slot }
                 )
             }
         }
@@ -210,7 +222,11 @@ class LibraryViewModel @Inject constructor(
             if (state.libraryDirectory != null && libraryDirectory != state.libraryDirectory) {
                 libraryDirectory = state.libraryDirectory
                 currentDirectory = state.libraryDirectory
-                val displayedEntries = libraryService.getEntriesInDirectory(state.libraryDirectory)
+
+                val displayedEntries = libraryService
+                    .getEntriesInDirectory(state.libraryDirectory)
+                    .map { it.toUiLibraryEntry() }
+
                 _uiState.update {
                     it.copy(
                         inSubdirectory = false,

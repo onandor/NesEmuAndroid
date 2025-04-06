@@ -1,5 +1,6 @@
 package com.onandor.nesemu.ui.components
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -36,9 +37,8 @@ import com.composables.core.ModalBottomSheet
 import com.composables.core.ModalBottomSheetState
 import com.composables.core.Scrim
 import com.composables.core.Sheet
-import com.onandor.nesemu.data.entity.SaveState
+import com.onandor.nesemu.ui.model.UiSaveState
 import java.time.format.DateTimeFormatter
-import kotlin.collections.forEach
 
 enum class SaveStateSheetType {
     Save,
@@ -46,16 +46,16 @@ enum class SaveStateSheetType {
     LoadAndNew
 }
 
-private val EmptySaveStateCallback: (SaveState) -> Unit = {}
+private val EmptySaveStateCallback: (UiSaveState) -> Unit = {}
 
 @Composable
 fun SaveStateSelectionSheet(
     sheetState: ModalBottomSheetState,
-    saveStates: List<SaveState>,
+    saveStates: List<UiSaveState>,
     type: SaveStateSheetType,
     onDismiss: () -> Unit,
-    onSelectSaveState: (Int, SaveState?) -> Unit,
-    onDeleteSaveState: (SaveState) -> Unit = EmptySaveStateCallback
+    onSelectSaveState: (Int, UiSaveState?) -> Unit,
+    onDeleteSaveState: (UiSaveState) -> Unit = EmptySaveStateCallback
 ) {
     ModalBottomSheet(
         state = sheetState,
@@ -121,7 +121,7 @@ fun SaveStateSelectionSheet(
                     } else {
                         val startIdx = if (type == SaveStateSheetType.Save) 1 else 0
                         for (slot in startIdx .. 5) {
-                            val saveState = saveStates.find { it.slot == slot }
+                            val saveState = saveStates.find { it.entity.slot == slot }
                             if (saveState == null && type == SaveStateSheetType.Save) {
                                 ListItem(
                                     mainText = {
@@ -150,25 +150,24 @@ fun SaveStateSelectionSheet(
 
 @Composable
 private fun SaveStateListItem(
-    saveState: SaveState,
-    onClick: (Int, SaveState) -> Unit,
-    onDelete: (SaveState) -> Unit
+    saveState: UiSaveState,
+    onClick: (Int, UiSaveState) -> Unit,
+    onDelete: (UiSaveState) -> Unit
 ) {
-    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-    val name = if (saveState.slot == 0) "Exit save" else "Slot ${saveState.slot}"
     ListItem(
         mainText = {
             Row(
                 modifier = Modifier.padding(bottom = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                SaveStatePreview(
+                Image(
                     modifier = Modifier.clip(RoundedCornerShape(5.dp)),
-                    previewBytes = saveState.preview
+                    painter = BitmapPainter(saveState.preview.asImageBitmap()),
+                    contentDescription = "Save State Preview"
                 )
                 Text(
                     modifier = Modifier.padding(start = 20.dp),
-                    text = name,
+                    text = saveState.name,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -183,41 +182,15 @@ private fun SaveStateListItem(
         subText = {
             Column {
                 Text(
-                    text = "Last played: ${formatter.format(saveState.modificationDate)}",
+                    text = "Last played: ${saveState.lastPlayedDate}",
                     fontStyle = FontStyle.Italic
                 )
                 Text(
-                    text = "Playtime: ${saveState.playtime.toTime()}",
+                    text = "Playtime: ${saveState.playtime}",
                     fontStyle = FontStyle.Italic
                 )
             }
         },
-        onClick = { onClick(saveState.slot, saveState) }
+        onClick = { onClick(saveState.entity.slot, saveState) }
     )
-}
-
-@Composable
-private fun SaveStatePreview(
-    modifier: Modifier = Modifier,
-    previewBytes: ByteArray
-) {
-    val bitmap = remember(previewBytes) {
-        BitmapFactory.decodeByteArray(previewBytes, 0, previewBytes.size)
-    }
-
-    if (bitmap != null) {
-        Image(
-            modifier = modifier,
-            painter = BitmapPainter(bitmap.asImageBitmap()),
-            contentDescription = "Save State Preview"
-        )
-    }
-}
-
-private fun Long.toTime(): String {
-    val hours = (this / 3600).toString().padStart(2, '0')
-    val minutes = ((this % 3600) / 60).toString().padStart(2, '0')
-    val seconds = (this % 60).toString().padStart(2, '0')
-
-    return "$hours:$minutes:$seconds"
 }

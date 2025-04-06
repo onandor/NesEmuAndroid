@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Query
 import androidx.room.Upsert
 import com.onandor.nesemu.data.entity.LibraryEntry
+import com.onandor.nesemu.data.entity.LibraryEntryWithDate
 
 @Dao
 interface LibraryEntryDao {
@@ -18,8 +19,17 @@ interface LibraryEntryDao {
     @Query("select * from LibraryEntry where uri = :uri limit 1")
     suspend fun findByUri(uri: String): LibraryEntry?
 
-    @Query("select * from LibraryEntry where parentDirectoryUri = :parentDirectoryUri")
-    suspend fun findAllByParentDirectoryUri(parentDirectoryUri: String): List<LibraryEntry>
+    //@Query("select * from LibraryEntry where parentDirectoryUri = :parentDirectoryUri")
+    @Query("""
+        select
+            le.*,
+            max(ss.modificationDate) as lastPlayedDate
+        from LibraryEntry le
+        left join SaveState ss on le.romHash = ss.romHash
+        where parentDirectoryUri = :parentDirectoryUri
+        group by le.id
+    """)
+    suspend fun findAllByParentDirectoryUri(parentDirectoryUri: String): List<LibraryEntryWithDate>
 
     @Upsert
     suspend fun upsert(vararg libraryEntries: LibraryEntry)

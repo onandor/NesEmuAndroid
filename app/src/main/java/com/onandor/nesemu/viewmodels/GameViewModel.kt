@@ -4,7 +4,6 @@ import android.util.Log
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.onandor.nesemu.data.entity.SaveState
 import com.onandor.nesemu.data.repository.SaveStateRepository
 import com.onandor.nesemu.di.IODispatcher
 import com.onandor.nesemu.domain.emulation.EmulationListener
@@ -19,6 +18,8 @@ import com.onandor.nesemu.navigation.NavDestinations
 import com.onandor.nesemu.domain.service.EmulationService
 import com.onandor.nesemu.domain.service.EmulationState
 import com.onandor.nesemu.ui.components.SaveStateSheetType
+import com.onandor.nesemu.ui.model.UiSaveState
+import com.onandor.nesemu.ui.model.toUiSaveState
 import com.onandor.nesemu.util.GlobalLifecycleObserver
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -45,8 +46,8 @@ class GameViewModel @Inject constructor(
         val showPauseMenu: Boolean = false,
 
         val saveStateSheetType: SaveStateSheetType? = null,
-        val saveStates: List<SaveState> = emptyList(),
-        val saveStateToOverwrite: SaveState? = null
+        val saveStates: List<UiSaveState> = emptyList(),
+        val saveStateToOverwrite: UiSaveState? = null
     )
 
     sealed class Event {
@@ -64,7 +65,7 @@ class GameViewModel @Inject constructor(
 
         data class OnShowSaveStateSheet(val type: SaveStateSheetType) : Event()
         data object OnHideSaveStateSheet : Event()
-        data class OnSelectSaveState(val slot: Int, val saveState: SaveState?) : Event()
+        data class OnSelectSaveState(val slot: Int, val saveState: UiSaveState?) : Event()
         data class OnOverwriteSaveState(val confirmed: Boolean) : Event()
     }
 
@@ -175,14 +176,14 @@ class GameViewModel @Inject constructor(
                         unpause()
                     }
                 } else if (event.saveState != null) {
-                    emulationService.loadSave(event.saveState)
+                    emulationService.loadSave(event.saveState.entity)
                     unpause()
                 }
             }
             is Event.OnOverwriteSaveState -> {
                 if (event.confirmed) {
                     val saveState = _uiState.value.saveStateToOverwrite!!
-                    emulationService.saveGame(saveState.slot)
+                    emulationService.saveGame(saveState.entity.slot)
                     unpause()
                 }
                 _uiState.update { it.copy(saveStateToOverwrite = null) }
@@ -200,11 +201,12 @@ class GameViewModel @Inject constructor(
     }
 
     private fun showSaveStateSheet(type: SaveStateSheetType) = coroutineScope.launch {
-        var saveStates =
-            saveStateRepository.findByRomHash(emulationService.loadedGame?.romHash ?: "")
+        var saveStates = saveStateRepository
+            .findByRomHash(emulationService.loadedGame?.romHash ?: "")
+            .map { it.toUiSaveState() }
 
         if (type == SaveStateSheetType.Save) {
-            saveStates = saveStates.filterNot { it.slot == 0 }
+            saveStates = saveStates.filterNot { it.entity.slot == 0 }
         }
 
         _uiState.update {

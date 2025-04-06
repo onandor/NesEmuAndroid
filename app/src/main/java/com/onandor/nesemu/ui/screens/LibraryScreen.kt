@@ -5,7 +5,6 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,7 +21,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
@@ -38,13 +35,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import com.composables.core.SheetDetent
 import com.composables.core.rememberModalBottomSheetState
-import com.onandor.nesemu.data.entity.LibraryEntry
 import com.onandor.nesemu.ui.components.ConfirmationDialog
 import com.onandor.nesemu.ui.components.RectangularButton
 import com.onandor.nesemu.ui.components.RectangularIconButton
@@ -57,6 +55,7 @@ import com.onandor.nesemu.viewmodels.LibraryViewModel
 import com.onandor.nesemu.viewmodels.LibraryViewModel.Event
 import com.onandor.nesemu.R
 import com.onandor.nesemu.ui.components.ListItem
+import com.onandor.nesemu.ui.model.UiLibraryEntry
 
 @Composable
 fun LibraryScreen(
@@ -146,7 +145,7 @@ fun LibraryScreen(
 @Composable
 private fun FileList(
     modifier: Modifier = Modifier,
-    entries: List<LibraryEntry>,
+    entries: List<UiLibraryEntry>,
     coverArtUrls: Map<String, String?>,
     path: String,
     inSubdirectory: Boolean,
@@ -172,26 +171,39 @@ private fun FileList(
             )
         }
         LazyColumn {
-            items(entries, LibraryEntry::id) { entry ->
+            items(entries, { it.entity.id }) { entry ->
                 ListItem(
-                    mainText = { Text(entry.name) },
+                    mainText = {
+                        Text(
+                            text = entry.displayName,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    },
+                    subText = {
+                        if (!entry.entity.isDirectory) {
+                            Text(
+                                text = "Last played: ${entry.lastPlayedDate}",
+                                fontSize = 14.sp,
+                                fontStyle = FontStyle.Italic
+                            )
+                        }
+                    },
                     leftDisplayItem = {
                         Box(
                             modifier = Modifier
                                 .requiredWidth(65.dp)
                                 .heightIn(65.dp, 100.dp)
                         ) {
-                            if (entry.isDirectory) {
-                                Image(
+                            if (entry.entity.isDirectory) {
+                                Icon(
                                     modifier = Modifier.size(65.dp),
                                     painter = painterResource(R.drawable.ic_folder),
                                     contentDescription = null
                                 )
                             } else {
                                 AsyncImage(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(5.dp)),
-                                    model = coverArtUrls[entry.romHash],
+                                    modifier = Modifier.clip(RoundedCornerShape(5.dp)),
+                                    model = coverArtUrls[entry.entity.romHash],
                                     contentDescription = null
                                 )
                             }

@@ -16,6 +16,7 @@ import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import javax.inject.Singleton
 import androidx.core.net.toUri
+import com.onandor.nesemu.data.entity.LibraryEntryWithDate
 
 @Singleton
 class LibraryService @Inject constructor(
@@ -33,7 +34,7 @@ class LibraryService @Inject constructor(
 
     data class DirectoryListing(
         val directory: LibraryEntry?,
-        val entries: List<LibraryEntry>
+        val entries: List<LibraryEntryWithDate>
     )
 
     private val _state = MutableStateFlow(State())
@@ -118,19 +119,19 @@ class LibraryService @Inject constructor(
 
     suspend fun getEntriesInParentDirectory(directory: LibraryEntry): DirectoryListing {
         val parentDirectory: LibraryEntry?
-        val entries: List<LibraryEntry>
+        val entries: List<LibraryEntryWithDate>
 
         if (directory.parentDirectoryUri == null) {
             // We are in the root, cannot go up
             parentDirectory = directory
             entries = libraryEntryRepository.findAllByParentDirectoryUri(directory.uri)
-                .sortedBy { it.name }
-                .sortedBy { !it.isDirectory }
+                .sortedBy { it.entry.name }
+                .sortedBy { !it.entry.isDirectory }
         } else {
             parentDirectory = libraryEntryRepository.findByUri(directory.parentDirectoryUri)
             entries = libraryEntryRepository.findAllByParentDirectoryUri(directory.parentDirectoryUri)
-                .sortedBy { it.name }
-                .sortedBy { !it.isDirectory }
+                .sortedBy { it.entry.name }
+                .sortedBy { !it.entry.isDirectory }
         }
 
         return DirectoryListing(
@@ -139,10 +140,10 @@ class LibraryService @Inject constructor(
         )
     }
 
-    suspend fun getEntriesInDirectory(directory: LibraryEntry): List<LibraryEntry> {
+    suspend fun getEntriesInDirectory(directory: LibraryEntry): List<LibraryEntryWithDate> {
         return libraryEntryRepository.findAllByParentDirectoryUri(directory.uri)
-            .sortedBy { it.name }
-            .sortedBy { !it.isDirectory }
+            .sortedBy { it.entry.name }
+            .sortedBy { !it.entry.isDirectory }
     }
 
     suspend fun changeLibraryUri(libraryUri: String) {

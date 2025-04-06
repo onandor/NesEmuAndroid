@@ -2,6 +2,7 @@ package com.onandor.nesemu.data.repository
 
 import com.onandor.nesemu.data.dao.LibraryEntryDao
 import com.onandor.nesemu.data.entity.LibraryEntry
+import com.onandor.nesemu.data.entity.LibraryEntryWithDate
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -10,7 +11,7 @@ class LibraryEntryRepository @Inject constructor(
     private val libraryEntryDao: LibraryEntryDao
 ) {
 
-    suspend fun findAllByParentDirectoryUri(parentDirectoryUri: String): List<LibraryEntry> {
+    suspend fun findAllByParentDirectoryUri(parentDirectoryUri: String): List<LibraryEntryWithDate> {
         return libraryEntryDao.findAllByParentDirectoryUri(parentDirectoryUri)
     }
 
