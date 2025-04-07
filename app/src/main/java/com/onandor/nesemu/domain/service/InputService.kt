@@ -46,6 +46,7 @@ class InputService(
 
     sealed class Event {
         data object OnPauseButtonPressed : Event()
+        data class OnInputDeviceDisconnected(val playerId: Int) : Event()
     }
 
     private val availableDevicesMap = mutableMapOf<Int, NesInputDevice>()
@@ -104,8 +105,10 @@ class InputService(
             nesDevice?.let {
                 if (player1Device == it) {
                     player1Device = player1Device?.copy(id = null)
+                    emitEvent(Event.OnInputDeviceDisconnected(PLAYER_1))
                 } else if (player2Device == it) {
                     player2Device = player2Device?.copy(id = null)
+                    emitEvent(Event.OnInputDeviceDisconnected(PLAYER_2))
                 }
                 updateState()
                 persistInputDevices()
@@ -172,6 +175,7 @@ class InputService(
         // background
         if (player1Device?.id != null && !availableDevicesMap.contains(player1Device?.id)) {
             player1Device = player1Device?.copy(id = null)
+            emitEvent(Event.OnInputDeviceDisconnected(PLAYER_1))
         } else {
             val device =
                 availableDevicesMap.values.firstOrNull { it.descriptor == player1Device?.descriptor }
@@ -182,6 +186,7 @@ class InputService(
 
         if (player2Device?.id != null && !availableDevicesMap.contains(player2Device?.id)) {
             player2Device = player2Device?.copy(id = null)
+            emitEvent(Event.OnInputDeviceDisconnected(PLAYER_2))
         } else {
             val device =
                 availableDevicesMap.values.firstOrNull { it.descriptor == player2Device?.descriptor }
@@ -268,7 +273,7 @@ class InputService(
         if (event.action == KeyEvent.ACTION_UP
             && (event.keyCode == KeyEvent.KEYCODE_BUTTON_MODE
                     || event.keyCode == KeyEvent.KEYCODE_ESCAPE)) {
-            _events.tryEmit(Event.OnPauseButtonPressed)
+            emitEvent(Event.OnPauseButtonPressed)
         }
         return gameRunning
     }
@@ -385,6 +390,8 @@ class InputService(
             NesButton.A to NesButtonState.Up
         )
     }
+
+    private fun emitEvent(event: Event) = mainScope.launch { _events.emit(event) }
 
     companion object {
         private const val TAG = "NesInputManager"

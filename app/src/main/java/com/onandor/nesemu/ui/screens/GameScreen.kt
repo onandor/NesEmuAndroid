@@ -82,10 +82,10 @@ fun GameScreen(
 
     HideSystemBars()
 
-    if (uiState.errorMessage != null) {
-        LaunchedEffect(uiState.errorMessage) {
-            Toast.makeText(context, uiState.errorMessage, Toast.LENGTH_SHORT).show()
-            viewModel.onEvent(Event.OnErrorMessageToastShown)
+    if (uiState.toastMessage != null) {
+        LaunchedEffect(uiState.toastMessage) {
+            Toast.makeText(context, uiState.toastMessage, Toast.LENGTH_SHORT).show()
+            viewModel.onEvent(Event.OnToastShown)
         }
     }
 

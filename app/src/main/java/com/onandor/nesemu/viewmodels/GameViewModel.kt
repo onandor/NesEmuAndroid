@@ -41,7 +41,7 @@ class GameViewModel @Inject constructor(
 ) : ViewModel() {
 
     data class UiState(
-        val errorMessage: String? = null,
+        val toastMessage: String? = null,
         val emulationPaused: Boolean = false,
         val showPauseMenu: Boolean = false,
 
@@ -54,7 +54,7 @@ class GameViewModel @Inject constructor(
         data class OnRenderCallbackCreated(val requestRender: () -> Unit) : Event()
         data class OnButtonStateChanged(val button: NesButton, val state: NesButtonState) : Event()
         data class OnDpadStateChanged(val buttonStates: Map<NesButton, NesButtonState>) : Event()
-        data object OnErrorMessageToastShown : Event()
+        data object OnToastShown : Event()
 
         // Pause menu
         data class OnNavigateTo(val action: NavAction) : Event()
@@ -109,10 +109,10 @@ class GameViewModel @Inject constructor(
         try {
             emulationService.start()
         } catch (e: NesException) {
-            _uiState.update { it.copy(errorMessage = e.message) }
+            _uiState.update { it.copy(toastMessage = e.message) }
         } catch (e: Exception) {
             Log.e("GameViewModel", e.localizedMessage, e)
-            _uiState.update { it.copy(errorMessage = "An unexpected error occurred") }
+            _uiState.update { it.copy(toastMessage = "An unexpected error occurred") }
         }
     }
 
@@ -128,8 +128,8 @@ class GameViewModel @Inject constructor(
                 inputManager.onInputEvents(
                     InputService.VIRTUAL_CONTROLLER_DEVICE_ID, event.buttonStates)
             }
-            is Event.OnErrorMessageToastShown -> {
-                _uiState.update { it.copy(errorMessage = null) }
+            is Event.OnToastShown -> {
+                _uiState.update { it.copy(toastMessage = null) }
             }
             is Event.OnRenderCallbackCreated -> {
                 this.requestRender = event.requestRender
@@ -229,6 +229,11 @@ class GameViewModel @Inject constructor(
                     } else {
                         onEvent(Event.OnHidePauseMenuDialog)
                     }
+                }
+                is InputService.Event.OnInputDeviceDisconnected -> {
+                    onEvent(Event.OnShowPauseMenuDialog)
+                    val toastMessage = "Input device for player ${event.playerId} got disconnected"
+                    _uiState.update { it.copy(toastMessage = toastMessage) }
                 }
             }
         }

@@ -16,7 +16,7 @@ class GlobalLifecycleObserver(
     @DefaultDispatcher private val defaultScope: CoroutineScope
 ) : DefaultLifecycleObserver {
 
-    private val _events: MutableSharedFlow<Event> = MutableSharedFlow()
+    private val _events: MutableSharedFlow<Event> = MutableSharedFlow(replay = 3)
     val events: SharedFlow<Event> = _events.asSharedFlow()
 
     private fun emit(event: Event) {
