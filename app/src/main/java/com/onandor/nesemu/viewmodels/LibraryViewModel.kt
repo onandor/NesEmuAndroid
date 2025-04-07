@@ -54,6 +54,7 @@ class LibraryViewModel @Inject constructor(
         val path: String = "/",
         val coverArtUrls: Map<String, String?> = emptyMap(),
         val currentPage: NavBarPage = NavBarPage.RecentlyPlayed,
+        val slideLibraryListBackwards: Boolean = false,
 
         // Save state dialog
         val selectedGame: UiLibraryEntry? = null,
@@ -109,6 +110,7 @@ class LibraryViewModel @Inject constructor(
         when (event) {
             // File list
             is Event.OnOpenLibraryEntry -> {
+                _uiState.update { it.copy(slideLibraryListBackwards = false) }
                 if (event.entry.entity.isDirectory) {
                     navigateToDirectory(event.entry.entity)
                 } else {
@@ -116,6 +118,7 @@ class LibraryViewModel @Inject constructor(
                 }
             }
             Event.OnNavigateUp -> {
+                _uiState.update { it.copy(slideLibraryListBackwards = true) }
                 navigateUpOneDirectory()
             }
 

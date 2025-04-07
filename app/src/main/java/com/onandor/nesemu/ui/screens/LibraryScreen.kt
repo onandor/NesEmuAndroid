@@ -2,6 +2,7 @@ package com.onandor.nesemu.ui.screens
 
 import android.content.Intent
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -41,9 +42,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
@@ -125,6 +131,7 @@ fun LibraryScreen(
                             coverArtUrls = uiState.coverArtUrls,
                             path = uiState.path,
                             inSubdirectory = uiState.inSubdirectory,
+                            slideBackwards = uiState.slideLibraryListBackwards,
                             onEvent = viewModel::onEvent
                         )
                     }
@@ -173,6 +180,14 @@ fun LibraryScreen(
             onDeleteSaveState = { viewModel.onEvent(Event.OnShowSaveStateDeleteDialog(it)) }
         )
     }
+
+    BackHandler(uiState.currentPage != NavBarPage.RecentlyPlayed) {
+        if (uiState.path != "/") {
+            viewModel.onEvent(Event.OnNavigateUp)
+        } else {
+            viewModel.onEvent(Event.OnSwitchPage(NavBarPage.RecentlyPlayed))
+        }
+    }
 }
 
 @Composable
@@ -182,9 +197,35 @@ private fun LibraryBrowser(
     coverArtUrls: Map<String, String?>,
     path: String,
     inSubdirectory: Boolean,
+    slideBackwards: Boolean,
     onEvent: (Event) -> Unit
 ) {
     Column(modifier = modifier.fillMaxSize()) {
+        var counter by remember { mutableIntStateOf(0) }
+        var firstEntries by remember { mutableStateOf(entries) }
+        var secondEntries by remember { mutableStateOf(emptyList<UiLibraryEntry>()) }
+
+        val orientation = LocalConfiguration.current.orientation
+        var skipAnimation by remember { mutableStateOf(false) }
+
+        LaunchedEffect(orientation) {
+            skipAnimation = true
+        }
+
+        LaunchedEffect(entries) {
+            if (skipAnimation) {
+                skipAnimation = false
+                return@LaunchedEffect
+            }
+
+            if (counter % 2 == 1) {
+                firstEntries = entries
+            } else {
+                secondEntries = entries
+            }
+            counter += 1
+        }
+
         Row(
             modifier = Modifier
                 .padding(top = 10.dp, bottom = 10.dp, start = 20.dp)
@@ -203,11 +244,32 @@ private fun LibraryBrowser(
                 text = path
             )
         }
-        LibraryList(
-            entries = entries,
-            coverArtUrls = coverArtUrls,
-            onEvent = onEvent
-        )
+        AnimatedContent(
+            targetState = counter,
+            transitionSpec = {
+                if (slideBackwards) {
+                    slideInHorizontally { height -> -height } togetherWith
+                            slideOutHorizontally { height -> height }
+                } else {
+                    slideInHorizontally { height -> height } togetherWith
+                            slideOutHorizontally { height -> -height }
+                }
+            }
+        ) { counter ->
+            if (counter % 2 == 0) {
+                LibraryList(
+                    entries = firstEntries,
+                    coverArtUrls = coverArtUrls,
+                    onEvent = { onEvent(it) }
+                )
+            } else {
+                LibraryList(
+                    entries = secondEntries,
+                    coverArtUrls = coverArtUrls,
+                    onEvent = { onEvent(it) }
+                )
+            }
+        }
     }
 }
 
@@ -217,7 +279,7 @@ private fun LibraryList(
     coverArtUrls: Map<String, String?>,
     onEvent: (Event) -> Unit
 ) {
-    LazyColumn {
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(entries, { it.entity.id }) { entry ->
             ListItem(
                 mainText = {

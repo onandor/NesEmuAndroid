@@ -38,7 +38,9 @@ class NavigationManagerImpl : NavigationManager {
             return
         }
         backStack.pop()
-        currentRoute = backStack.peek().destination
+        if (backStack.isNotEmpty()) {
+            currentRoute = backStack.peek().destination
+        }
         CoroutineScope(Dispatchers.Main).launch {
             _navActions.emit(NavActions.back())
         }
