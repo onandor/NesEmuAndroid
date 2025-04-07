@@ -70,7 +70,7 @@ class InputService(
         private set
 
     // TODO: set this to false whenever menus need to be controlled
-    private var gameRunning: Boolean = true
+    private var isGameRunning: Boolean = true
 
     private val _state = MutableStateFlow(State())
     val state = _state.asStateFlow()
@@ -105,10 +105,10 @@ class InputService(
             nesDevice?.let {
                 if (player1Device == it) {
                     player1Device = player1Device?.copy(id = null)
-                    emitEvent(Event.OnInputDeviceDisconnected(PLAYER_1))
+                    _events.tryEmit(Event.OnInputDeviceDisconnected(PLAYER_1))
                 } else if (player2Device == it) {
                     player2Device = player2Device?.copy(id = null)
-                    emitEvent(Event.OnInputDeviceDisconnected(PLAYER_2))
+                    _events.tryEmit(Event.OnInputDeviceDisconnected(PLAYER_2))
                 }
                 updateState()
                 persistInputDevices()
@@ -175,7 +175,7 @@ class InputService(
         // background
         if (player1Device?.id != null && !availableDevicesMap.contains(player1Device?.id)) {
             player1Device = player1Device?.copy(id = null)
-            emitEvent(Event.OnInputDeviceDisconnected(PLAYER_1))
+            _events.tryEmit(Event.OnInputDeviceDisconnected(PLAYER_1))
         } else {
             val device =
                 availableDevicesMap.values.firstOrNull { it.descriptor == player1Device?.descriptor }
@@ -186,7 +186,7 @@ class InputService(
 
         if (player2Device?.id != null && !availableDevicesMap.contains(player2Device?.id)) {
             player2Device = player2Device?.copy(id = null)
-            emitEvent(Event.OnInputDeviceDisconnected(PLAYER_2))
+            _events.tryEmit(Event.OnInputDeviceDisconnected(PLAYER_2))
         } else {
             val device =
                 availableDevicesMap.values.firstOrNull { it.descriptor == player2Device?.descriptor }
@@ -266,16 +266,16 @@ class InputService(
         }
 
         onInputEvent(event.deviceId, button, state)
-        return gameRunning
+        return isGameRunning
     }
 
     private fun checkPauseButtonPressed(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_UP
             && (event.keyCode == KeyEvent.KEYCODE_BUTTON_MODE
                     || event.keyCode == KeyEvent.KEYCODE_ESCAPE)) {
-            emitEvent(Event.OnPauseButtonPressed)
+            _events.tryEmit(Event.OnPauseButtonPressed)
         }
-        return gameRunning
+        return isGameRunning
     }
 
     private fun loadSavedInputDevices() = ioScope.launch {
@@ -390,8 +390,6 @@ class InputService(
             NesButton.A to NesButtonState.Up
         )
     }
-
-    private fun emitEvent(event: Event) = mainScope.launch { _events.emit(event) }
 
     companion object {
         private const val TAG = "NesInputManager"

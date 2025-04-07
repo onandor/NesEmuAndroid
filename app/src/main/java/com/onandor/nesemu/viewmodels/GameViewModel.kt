@@ -243,7 +243,7 @@ class GameViewModel @Inject constructor(
         navManager.navActions.collect { navAction ->
             if (navAction?.destination == NavDestinations.BACK
                 && navManager.getCurrentRoute() == NavDestinations.GAME_SCREEN
-                && emulationService.state == EmulationState.Running
+                && emulationService.state == EmulationState.Paused
             ) {
                 emulationService.start()
             }
