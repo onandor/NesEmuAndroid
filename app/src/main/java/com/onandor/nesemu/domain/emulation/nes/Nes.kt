@@ -5,6 +5,7 @@ import androidx.collection.mutableFloatListOf
 import com.onandor.nesemu.domain.emulation.nes.apu.Apu
 import com.onandor.nesemu.domain.emulation.nes.mappers.Mapper
 import com.onandor.nesemu.domain.emulation.nes.mappers.Mapper0
+import com.onandor.nesemu.domain.emulation.nes.mappers.Mapper1
 import com.onandor.nesemu.domain.emulation.nes.mappers.Mapper2
 import com.onandor.nesemu.domain.emulation.nes.mappers.Mapper3
 import com.onandor.nesemu.domain.emulation.nes.ppu.Ppu
@@ -78,11 +79,11 @@ class Nes(
             0x4018, 0x4019 -> lastValueRead                                   // Unused? (open bus set for now)
             in 0x4020 .. 0x5FFF -> {                                    // Usually unmapped
                 val value = mapper.readUnmappedRange(address)
-                if (value == -1) lastValueRead else value
+                if (value == Mapper.OPEN_BUS) lastValueRead else value
             }
             in 0x6000 .. 0x7FFF -> {                                    // Usually cartridge SRAM
                 val value = mapper.readPrgRam(address)
-                if (value == -1) lastValueRead else value
+                if (value == Mapper.OPEN_BUS) lastValueRead else value
             }
             in 0x8000 .. 0xFFFF -> mapper.readPrgRom(address)           // PRG-ROM
             else -> {
@@ -166,6 +167,7 @@ class Nes(
     fun insertCartridge(cartridge: Cartridge) {
         mapper = when (cartridge.mapperId) {
             0 -> Mapper0(cartridge)
+            1 -> Mapper1(cartridge)
             2 -> Mapper2(cartridge)
             3 -> Mapper3(cartridge)
             else -> throw RomParseException("Unsupported mapper: ${cartridge.mapperId}")
@@ -220,6 +222,7 @@ class Nes(
         ppu.reset()
         apu.reset()
         cartridge!!.reset()
+        mapper.reset()
     }
 
     suspend fun run() {

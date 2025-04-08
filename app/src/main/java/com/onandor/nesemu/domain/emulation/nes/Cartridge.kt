@@ -64,7 +64,6 @@ class Cartridge : Savable<CartridgeState> {
     var chrRomBanks: Int = 0
         private set
     lateinit var mirroring: Mirroring
-        private set
     var mapperId: Int = 0
         private set
     var isPrgRamBatteryBacked: Boolean = false
@@ -72,6 +71,7 @@ class Cartridge : Savable<CartridgeState> {
 
     private lateinit var initialPrgRom: IntArray
     private lateinit var initialChrRom: IntArray
+    private lateinit var initialMirroring: Mirroring
 
     fun reset() {
         prgRom = initialPrgRom.copyOf()
@@ -84,6 +84,7 @@ class Cartridge : Savable<CartridgeState> {
         if (chrRam != null) {
             chrRam = IntArray(chrRam!!.size)
         }
+        mirroring = initialMirroring
     }
 
     fun parseRom(rom: ByteArray) {
@@ -109,6 +110,7 @@ class Cartridge : Savable<CartridgeState> {
         if (chrRomBanks > 0) {
             initialChrRom = chrRom.copyOf()
         }
+        initialMirroring = mirroring
     }
 
     private fun prepareCartridge(header: INesHeader, stream: ByteArrayInputStream) {
@@ -290,7 +292,8 @@ class Cartridge : Savable<CartridgeState> {
             prgRom = prgRom,
             chrRom = if (chrRomBanks > 0) chrRom else null,
             prgRam = prgRam,
-            chrRam = chrRam
+            chrRam = chrRam,
+            mirroring = mirroring
         )
     }
 
@@ -301,6 +304,7 @@ class Cartridge : Savable<CartridgeState> {
         }
         prgRam = state.prgRam
         chrRam = state.chrRam
+        mirroring = state.mirroring
     }
 
     companion object {

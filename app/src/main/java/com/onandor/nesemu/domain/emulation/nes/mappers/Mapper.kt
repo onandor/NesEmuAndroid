@@ -11,6 +11,7 @@ abstract class Mapper(open val cartridge: Cartridge) : Savable<MapperState> {
 
     companion object {
         internal const val TAG = "Mapper"
+        internal const val OPEN_BUS = -1
     }
 
     private val nametableOffsetMap: Map<Mirroring, Map<Int, Int>> = mapOf(
@@ -79,4 +80,6 @@ abstract class Mapper(open val cartridge: Cartridge) : Savable<MapperState> {
         Log.i(TAG, "CPU writing unmapped address $${address.toHexString(4)}" +
                 " (value: $${value.toHexString(2)})")
     }
+
+    open fun reset() {}
 }

@@ -24,21 +24,21 @@ class Mapper0(cartridge: Cartridge) : Mapper(cartridge) {
     }
 
     override fun writeChrRom(address: Int, value: Int) {
-        if (cartridge.chrRam != null) {
-            cartridge.chrRam!![address] = value
+        cartridge.chrRam?.let {
+            it[address] = value
         }
     }
 
     override fun readPrgRam(address: Int): Int {
-        if (cartridge.prgRam != null) {
-            return cartridge.prgRam!![address - 0x6000]
+        cartridge.prgRam?.let {
+            return it[address - 0x6000]
         }
-        return 0
+        return OPEN_BUS
     }
 
     override fun writePrgRam(address: Int, value: Int) {
-        if (cartridge.prgRam != null) {
-            cartridge.prgRam!![address - 0x6000] = value
+        cartridge.prgRam?.let {
+            it[address - 0x6000] = value
         }
     }
 

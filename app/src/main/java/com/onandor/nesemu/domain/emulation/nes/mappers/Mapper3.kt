@@ -1,12 +1,13 @@
 package com.onandor.nesemu.domain.emulation.nes.mappers
 
 import com.onandor.nesemu.domain.emulation.nes.Cartridge
+import com.onandor.nesemu.domain.emulation.savestate.Mapper3State
 import com.onandor.nesemu.domain.emulation.savestate.MapperState
 
 // CNROM - https://www.nesdev.org/wiki/INES_Mapper_003
 class Mapper3(cartridge: Cartridge) : Mapper(cartridge) {
 
-    private var bankSelect: Int = 0
+    private var chrRomBank: Int = 0
 
     override fun readPrgRom(address: Int): Int {
         var eaddress = address - 0x8000
@@ -17,20 +18,19 @@ class Mapper3(cartridge: Cartridge) : Mapper(cartridge) {
     }
 
     override fun writePrgRom(address: Int, value: Int) {
-        bankSelect = value and 0xFF
+        chrRomBank = value and 0xFF
     }
 
     override fun readChrRom(address: Int): Int {
-        return cartridge.chrRom[bankSelect * 0x2000 + address]
+        return cartridge.chrRom[chrRomBank * 0x2000 + address]
     }
 
     override fun createSaveState(): MapperState {
-        return MapperState(
-            bankSelect = bankSelect
-        )
+        val state = Mapper3State(chrRomBank = chrRomBank)
+        return MapperState(mapper3State = state)
     }
 
     override fun loadState(state: MapperState) {
-        bankSelect = state.bankSelect!!
+        chrRomBank = state.mapper3State!!.chrRomBank
     }
 }

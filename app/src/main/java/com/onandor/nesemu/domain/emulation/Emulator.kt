@@ -1,5 +1,6 @@
 package com.onandor.nesemu.domain.emulation
 
+import android.util.Log
 import com.onandor.nesemu.domain.audio.AudioPlayer
 import com.onandor.nesemu.di.DefaultDispatcher
 import com.onandor.nesemu.domain.emulation.nes.Cartridge
@@ -8,6 +9,7 @@ import com.onandor.nesemu.domain.emulation.savestate.NesState
 import com.onandor.nesemu.domain.service.InputService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
@@ -59,7 +61,14 @@ class Emulator @Inject constructor(
 
     fun start() {
         if (!nes.running) {
-            nesRunnerJob = coroutineScope.launch { nes.run() }
+            nesRunnerJob = coroutineScope.launch {
+                try {
+                    nes.run()
+                } catch (e: Exception) {
+                    Log.e(TAG, e.localizedMessage, e)
+                    stop()
+                }
+            }
             audioPlayer.startStream()
         }
     }
