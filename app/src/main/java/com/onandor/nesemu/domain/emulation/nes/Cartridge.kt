@@ -198,7 +198,7 @@ class Cartridge : Savable<CartridgeState> {
 
         val prgRamShiftCount = if (header.prgRamSize and 0xF0 > 0) {
             isPrgRamBatteryBacked = true
-            header.prgRamSize and 0xF0
+            (header.prgRamSize and 0xF0) ushr 4
         } else {
             header.prgRamSize and 0x0F
         }

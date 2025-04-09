@@ -347,10 +347,8 @@ class Ppu(
             }
         }
 
-        val frame = frameBuffer.array().copyOf()
+        onFrameReady(frameBuffer.array(), dbgPatternTableFrame, dbgNametableFrame, dbgColorPalettes)
         frameBuffer.clear()
-
-        onFrameReady(frame, dbgPatternTableFrame, dbgNametableFrame, dbgColorPalettes)
     }
 
     private fun fetchTileData() {

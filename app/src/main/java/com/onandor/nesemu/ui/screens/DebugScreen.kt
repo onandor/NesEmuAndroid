@@ -1,34 +1,32 @@
 package com.onandor.nesemu.ui.screens
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material3.BottomSheetScaffold
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.onandor.nesemu.ui.components.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -36,20 +34,29 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.composables.core.DragIndication
+import com.composables.core.ModalBottomSheet
+import com.composables.core.Scrim
+import com.composables.core.Sheet
+import com.composables.core.SheetDetent
+import com.composables.core.rememberModalBottomSheetState
 import com.onandor.nesemu.domain.emulation.nes.DebugFeature
 import com.onandor.nesemu.ui.components.CheckboxListItem
+import com.onandor.nesemu.ui.components.ColoredNavigationBar
+import com.onandor.nesemu.ui.components.RectangularIconButton
+import com.onandor.nesemu.ui.components.TopBar
 import com.onandor.nesemu.ui.components.game.NesRenderer
 import com.onandor.nesemu.viewmodels.DebugViewModel
 import com.onandor.nesemu.viewmodels.DebugViewModel.Event
 import com.onandor.nesemu.ui.components.game.NesSurfaceView
-import kotlinx.coroutines.launch
+import com.onandor.nesemu.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,52 +64,21 @@ fun DebugScreen(
     viewModel: DebugViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val scaffoldState = rememberBottomSheetScaffoldState()
-    val coroutineScope = rememberCoroutineScope()
+    val bottomSheetState = rememberModalBottomSheetState(initialDetent = SheetDetent.Hidden)
 
-    LaunchedEffect(Unit) {
-        scaffoldState.bottomSheetState.expand()
-    }
-
-    BottomSheetScaffold(
-        topBar = { TopBar(onEvent = viewModel::onEvent) },
-        scaffoldState = scaffoldState,
-        sheetPeekHeight = 70.dp,
-        sheetDragHandle = {
-            val expanded = scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded
-            val arrowAngle by animateFloatAsState(if (expanded) 0f else 180f, label = "")
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(70.dp)
-                    .clickable {
-                        coroutineScope.launch {
-                            if (expanded) {
-                                scaffoldState.bottomSheetState.partialExpand()
-                            } else {
-                                scaffoldState.bottomSheetState.expand()
-                            }
-                        }
-                    },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    modifier = Modifier.padding(start = 30.dp),
-                    text = "View options"
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                Box(modifier = Modifier.rotate(arrowAngle)) {
-                    Icon(imageVector = Icons.Default.KeyboardArrowDown, null)
-                }
-                Spacer(modifier = Modifier.width(30.dp))
-            }
+    Scaffold(
+        topBar = {
+            TopBar(
+                emulationPaused = uiState.emulationPaused,
+                onEvent = viewModel::onEvent
+            )
         },
-        sheetContent = {
-            SheetContent(onEvent = viewModel::onEvent)
-        }
+        bottomBar = { ColoredNavigationBar() }
     ) { padding ->
         LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             if (uiState.renderColorPalettes) {
@@ -159,25 +135,83 @@ fun DebugScreen(
         }
     }
 
-    BackHandler {
-        if (scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded) {
-            coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
+    LaunchedEffect(uiState.showBottomSheet) {
+        if (uiState.showBottomSheet) {
+            bottomSheetState.currentDetent = SheetDetent.FullyExpanded
         } else {
-            viewModel.onEvent(Event.OnNavigateBack)
+            bottomSheetState.currentDetent = SheetDetent.Hidden
         }
+    }
+
+    ModalBottomSheet(
+        state = bottomSheetState,
+        onDismiss = { viewModel.onEvent(Event.OnHideBottomSheet) }
+    ) {
+        Scrim()
+        Sheet(
+            modifier = Modifier
+                .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp))
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.background)
+                .navigationBarsPadding()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                DragIndication(
+                    modifier = Modifier
+                        .padding(top = 15.dp, bottom = 15.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                            shape = RoundedCornerShape(100)
+                        )
+                        .width(32.dp)
+                        .height(4.dp)
+                )
+                SheetContent(
+                    onEvent = viewModel::onEvent,
+                    renderColorPalettes = uiState.renderColorPalettes,
+                    renderPatternTable = uiState.renderPatternTable,
+                    renderNametable = uiState.renderNametable
+                )
+            }
+        }
+    }
+
+    BackHandler {
+        viewModel.onEvent(Event.OnNavigateBack)
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TopBar(
+    emulationPaused: Boolean,
     onEvent: (Event) -> Unit
 ) {
-    TopAppBar(
-        title = { Text("Debug view") },
+    TopBar(
+        modifier = Modifier
+            .background(MaterialTheme.colorScheme.tertiaryContainer)
+            .statusBarsPadding()
+            .padding(top = 10.dp, bottom = 10.dp),
+        title = "Debug view",
         navigationIcon = {
-            IconButton(onClick = { onEvent(Event.OnNavigateBack) }) {
+            RectangularIconButton(onClick = { onEvent(Event.OnNavigateBack) }) {
                 Icon(imageVector = Icons.AutoMirrored.Default.ArrowBack, null)
+            }
+        },
+        actions = {
+            RectangularIconButton(onClick = { onEvent(Event.OnToggleEmulationPaused) }) {
+                if (emulationPaused) {
+                    Icon(imageVector = Icons.Default.PlayArrow, null)
+                } else {
+                    Icon(painter = painterResource(R.drawable.ic_pause), null)
+                }
+            }
+            RectangularIconButton(onClick = { onEvent(Event.OnShowBottomSheet) }) {
+                Icon(imageVector = Icons.Default.Build, null)
             }
         }
     )
@@ -186,10 +220,14 @@ private fun TopBar(
 @Composable
 private fun SheetContent(
     modifier: Modifier = Modifier,
+    renderColorPalettes: Boolean,
+    renderPatternTable: Boolean,
+    renderNametable: Boolean,
     onEvent: (Event) -> Unit
 ) {
-    Column(modifier = modifier.navigationBarsPadding().padding(bottom = 10.dp)) {
+    Column(modifier = modifier.fillMaxWidth()) {
         CheckboxListItem(
+            initialValue = renderColorPalettes,
             onCheckedChange = {
                 onEvent(Event.OnSetDebugFeatureBool(DebugFeature.PpuRenderColorPalettes, it))
             }
@@ -197,6 +235,7 @@ private fun SheetContent(
             Text(text = "Show color palettes")
         }
         CheckboxListItem(
+            initialValue = renderPatternTable,
             onCheckedChange = {
                 onEvent(Event.OnSetDebugFeatureBool(DebugFeature.PpuRenderPatternTable, it))
             }
@@ -204,6 +243,7 @@ private fun SheetContent(
             Text(text = "Show pattern tables")
         }
         CheckboxListItem(
+            initialValue = renderNametable,
             onCheckedChange = {
                 onEvent(Event.OnSetDebugFeatureBool(DebugFeature.PpuRenderNametable, it))
             }

@@ -6,6 +6,7 @@ import com.onandor.nesemu.domain.emulation.EmulationListener
 import com.onandor.nesemu.domain.emulation.Emulator
 import com.onandor.nesemu.navigation.NavigationManager
 import com.onandor.nesemu.domain.emulation.nes.DebugFeature
+import com.onandor.nesemu.domain.service.EmulationService
 import com.onandor.nesemu.ui.components.game.NesRenderer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,13 +17,16 @@ import javax.inject.Inject
 @HiltViewModel
 class DebugViewModel @Inject constructor(
     private val navManager: NavigationManager,
-    private val emulator: Emulator
+    private val emulator: Emulator,
+    private val emulationService: EmulationService
 ) : ViewModel() {
 
     data class UiState(
-        val renderPatternTable: Boolean = false,
-        val renderNametable: Boolean = false,
-        val renderColorPalettes: Boolean = false
+        val renderPatternTable: Boolean = true,
+        val renderNametable: Boolean = true,
+        val renderColorPalettes: Boolean = true,
+        val showBottomSheet: Boolean = false,
+        val emulationPaused: Boolean = true
     )
 
     sealed class Event {
@@ -35,6 +39,9 @@ class DebugViewModel @Inject constructor(
         data class OnColorPaletteTouch(val index: Int, val motionEvent: MotionEvent) : Event()
         data class OnSetDebugFeatureBool(val feature: DebugFeature, val value: Boolean) : Event()
         data object OnNavigateBack : Event()
+        data object OnShowBottomSheet : Event()
+        data object OnHideBottomSheet : Event()
+        data object OnToggleEmulationPaused : Event()
     }
 
     val patternTableRenderer: NesRenderer = NesRenderer(256, 128)
@@ -71,7 +78,10 @@ class DebugViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     init {
-        emulator.registerListener(emulationListener)
+        emulationService.registerListener(emulationListener)
+        emulator.nes.setDebugFeatureBool(DebugFeature.PpuRenderPatternTable, true)
+        emulator.nes.setDebugFeatureBool(DebugFeature.PpuRenderNametable, true)
+        emulator.nes.setDebugFeatureBool(DebugFeature.PpuRenderColorPalettes, true)
     }
 
     fun onEvent(event: Event) {
@@ -107,6 +117,21 @@ class DebugViewModel @Inject constructor(
             }
             is Event.OnNavigateBack -> {
                 navManager.navigateBack()
+            }
+            Event.OnShowBottomSheet -> {
+                _uiState.update { it.copy(showBottomSheet = true) }
+            }
+            Event.OnHideBottomSheet -> {
+                _uiState.update { it.copy(showBottomSheet = false) }
+            }
+            Event.OnToggleEmulationPaused -> {
+                val newPaused = !_uiState.value.emulationPaused
+                if (newPaused) {
+                    emulationService.pause()
+                } else {
+                    emulationService.start()
+                }
+                _uiState.update { it.copy(emulationPaused = newPaused) }
             }
         }
     }
