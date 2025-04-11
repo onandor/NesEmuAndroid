@@ -10,11 +10,11 @@ class Mapper3(cartridge: Cartridge) : Mapper(cartridge) {
     private var chrRomBank: Int = 0
 
     override fun readPrgRom(address: Int): Int {
-        var eaddress = address - 0x8000
+        var romAddress = address - 0x8000
         if (cartridge.prgRom.size == 0x4000) {
-            eaddress = eaddress and 0x3FFF
+            romAddress = romAddress and 0x3FFF
         }
-        return cartridge.prgRom[eaddress]
+        return cartridge.prgRom[romAddress]
     }
 
     override fun writePrgRom(address: Int, value: Int) {

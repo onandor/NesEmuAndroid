@@ -29,9 +29,9 @@ abstract class Mapper(open val cartridge: Cartridge) : Savable<MapperState> {
         ),
         Mirroring.SingleScreen to mapOf(
             0 to 0x000,
-            1 to 0x000,
-            2 to 0x000,
-            3 to 0x000
+            1 to 0x400,
+            2 to 0x800,
+            3 to 0xC00
         ),
         Mirroring.FourScreen to mapOf(
             0 to 0x000,

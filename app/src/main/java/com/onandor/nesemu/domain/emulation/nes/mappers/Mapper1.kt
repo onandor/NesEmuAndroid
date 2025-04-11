@@ -24,16 +24,17 @@ class Mapper1(cartridge: Cartridge) : Mapper(cartridge) {
         First16KFixed
     }
 
-    private var shifter: Int = 0b10000
+    private var shifter: Int = 0
+    private var shiftCount: Int = 0
 
     private var prgBankSize = PrgBankSize.Double16K
     private var chrBankSize = ChrBankSize.Single8K
     private var prgBankSwitchMode = PrgBankSwitchMode.Last16KFixed
     private var prgRomBank: Int = 0
-    private var chrRomBank0: Int = 0
-    private var chrRomBank1: Int = 0
+    private var chrRomBank4k0: Int = 0
+    private var chrRomBank4k1: Int = 0
+    private var chrRomBank8k: Int = 0
     private var isPrgRamEnabled: Boolean = false
-    private val usesChrRam: Boolean = cartridge.chrRam != null
 
     private val chrMemory: IntArray
     private val chrMemoryBanks: Int
@@ -76,36 +77,37 @@ class Mapper1(cartridge: Cartridge) : Mapper(cartridge) {
     override fun writePrgRom(address: Int, value: Int) {
         if (value and 0x80 > 0) {
             // Writing a value with bit 7 set resets the shifter
-            shifter = 0b10000
+            shifter = 0
+            shiftCount = 0
             return
         }
 
-        val finalWrite = shifter or 1 == 1
+        // Copy the lowest bit of the value into the highest bit of the shifter
+        shifter = (shifter ushr 1) or ((value and 0x01) shl 4)
+        shiftCount += 1
 
-        // Copy the new bit into the shifter
-        shifter = (shifter or (value shl 4)) ushr 1
-
-        if (finalWrite) {
+        if (shiftCount == 5) {
             // Final write sets the appropriate register and resets the shifter
             when (address) {
                 in 0x8000 .. 0x9FFF -> setControlRegister(shifter)
-                in 0xA000 .. 0xBFFF -> setChrBank1Register(shifter)
-                in 0xC000 .. 0xDFFF -> setChrBank2Register(shifter)
+                in 0xA000 .. 0xBFFF -> setChrBank0Register(shifter)
+                in 0xC000 .. 0xDFFF -> setChrBank1Register(shifter)
                 in 0xE000 .. 0xFFFF -> setPrgBankRegister(shifter)
             }
-            shifter = 0b10000
+            shifter = 0
+            shiftCount = 0
         }
     }
 
     override fun readChrRom(address: Int): Int {
         return if (chrBankSize == ChrBankSize.Double4K) {
             // 8K address space is divided up and switched separately by two 4K banks
-            val bank = if (address < 0x1000) chrRomBank0 else chrRomBank1
+            val bank = if (address < 0x1000) chrRomBank4k0 else chrRomBank4k1
             val eaddress = address and 0x0FFF
-            chrMemory[bank * 0x2000 + eaddress]
+            chrMemory[bank * 0x1000 + eaddress]
         } else {
             // Whole 8K address space is switched at once
-            chrMemory[chrRomBank0 * 0x2000 + address]
+            chrMemory[chrRomBank8k * 0x2000 + address]
         }
     }
 
@@ -113,12 +115,12 @@ class Mapper1(cartridge: Cartridge) : Mapper(cartridge) {
         if (!isPrgRamEnabled) {
             return OPEN_BUS
         }
-        return cartridge.prgRam?.get(address) ?: OPEN_BUS
+        return cartridge.prgRam?.get(address and 0x1FFF) ?: OPEN_BUS
     }
 
     override fun writePrgRam(address: Int, value: Int) {
         if (isPrgRamEnabled && cartridge.prgRam != null) {
-            cartridge.prgRam!![address] = value
+            cartridge.prgRam!![address and 0x1FFF] = value
         }
     }
 
@@ -128,15 +130,16 @@ class Mapper1(cartridge: Cartridge) : Mapper(cartridge) {
         chrBankSize = ChrBankSize.Single8K
         prgBankSwitchMode = PrgBankSwitchMode.Last16KFixed
         prgRomBank = 0
-        chrRomBank0 = 0
-        chrRomBank1 = 0
+        chrRomBank4k0 = 0
+        chrRomBank4k1 = 0
+        chrRomBank8k = 0
         isPrgRamEnabled = false
     }
 
     private fun setControlRegister(value: Int) {
         when (value and 0b11) {
-            0b00 -> cartridge.mirroring = Mirroring.SingleScreen // TODO: nametable select - http://kevtris.org/mappers/mmc1/index.html
-            0b01 -> cartridge.mirroring = Mirroring.SingleScreen // TODO: nametable select
+            0b00 -> cartridge.mirroring = Mirroring.SingleScreen
+            0b01 -> cartridge.mirroring = Mirroring.SingleScreen
             0b10 -> cartridge.mirroring = Mirroring.Vertical
             0b11 -> cartridge.mirroring = Mirroring.Horizontal
         }
@@ -150,19 +153,17 @@ class Mapper1(cartridge: Cartridge) : Mapper(cartridge) {
         chrBankSize = if (value and 0b10000 > 0) ChrBankSize.Double4K else ChrBankSize.Single8K
     }
 
-    private fun setChrBank1Register(value: Int) {
-        chrRomBank0 = if (chrBankSize == ChrBankSize.Single8K) {
-            // On real hardware, the address lines used for selecting the banks are only wide enough
-            // to index the available number of banks => discard the unnecessary high bits
-            (value and 0b11110) and (chrMemoryBanks - 1)
+    private fun setChrBank0Register(value: Int) {
+        if (chrBankSize == ChrBankSize.Single8K) {
+            chrRomBank8k = value and 0b11110
         } else {
-            (value and 0b11111) and (chrMemoryBanks - 1)
+            chrRomBank4k0 = value and 0b11111
         }
     }
 
-    private fun setChrBank2Register(value: Int) {
+    private fun setChrBank1Register(value: Int) {
         if (chrBankSize == ChrBankSize.Double4K) {
-            chrRomBank1 = value and 0x1F
+            chrRomBank4k1 = value and 0x1F
         }
     }
 
@@ -178,26 +179,30 @@ class Mapper1(cartridge: Cartridge) : Mapper(cartridge) {
     override fun createSaveState(): MapperState {
         val state = Mapper1State(
             shifter = shifter,
+            shiftCount = shiftCount,
             prgBankSize = prgBankSize,
             chrBankSize = chrBankSize,
             prgBankSwitchMode = prgBankSwitchMode,
             prgRomBank = prgRomBank,
-            chrRomBank0 = chrRomBank0,
-            chrRomBank1 = chrRomBank1,
+            chrRomBank4k0 = chrRomBank4k0,
+            chrRomBank4k1 = chrRomBank4k1,
+            chrRomBank8k = chrRomBank8k,
             isPrgRamEnabled = isPrgRamEnabled
         )
         return MapperState(mapper1State = state)
     }
 
     override fun loadState(state: MapperState) {
-        val _state = state.mapper1State!!
-        shifter = _state.shifter
-        prgBankSize = _state.prgBankSize
-        chrBankSize = _state.chrBankSize
-        prgBankSwitchMode = _state.prgBankSwitchMode
-        prgRomBank = _state.prgRomBank
-        chrRomBank0 = _state.chrRomBank0
-        chrRomBank1 = _state.chrRomBank1
-        isPrgRamEnabled = _state.isPrgRamEnabled
+        val state = state.mapper1State!!
+        shifter = state.shifter
+        shiftCount = state.shiftCount
+        prgBankSize = state.prgBankSize
+        chrBankSize = state.chrBankSize
+        prgBankSwitchMode = state.prgBankSwitchMode
+        prgRomBank = state.prgRomBank
+        chrRomBank4k0 = state.chrRomBank4k0
+        chrRomBank4k1 = state.chrRomBank4k1
+        chrRomBank8k = state.chrRomBank8k
+        isPrgRamEnabled = state.isPrgRamEnabled
     }
 }

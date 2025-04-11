@@ -10,14 +10,14 @@ class Mapper2(cartridge: Cartridge) : Mapper(cartridge) {
     private var prgRomBank: Int = 0
 
     override fun readPrgRom(address: Int): Int {
-        var eaddress = address - 0x8000
-        return if (eaddress < 0x4000) {
+        var romAddress = address - 0x8000
+        return if (romAddress < 0x4000) {
             // Reading switchable bank
-            cartridge.prgRom[prgRomBank * 0x4000 + eaddress]
+            cartridge.prgRom[prgRomBank * 0x4000 + romAddress]
         } else {
             // Reading last bank (fixed)
             val bankAddress = (cartridge.prgRomBanks - 1) * 0x4000
-            cartridge.prgRom[bankAddress + (eaddress and 0x3FFF)]
+            cartridge.prgRom[bankAddress + (romAddress and 0x3FFF)]
         }
     }
 

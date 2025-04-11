@@ -13,12 +13,14 @@ data class MapperState(
 @Serializable
 data class Mapper1State(
     val shifter: Int,
+    val shiftCount: Int,
     val prgBankSize: Mapper1.PrgBankSize,
     val chrBankSize: Mapper1.ChrBankSize,
     val prgBankSwitchMode: Mapper1.PrgBankSwitchMode,
     val prgRomBank: Int,
-    val chrRomBank0: Int,
-    val chrRomBank1: Int,
+    val chrRomBank4k0: Int,
+    val chrRomBank4k1: Int,
+    val chrRomBank8k: Int,
     val isPrgRamEnabled: Boolean
 )
 
