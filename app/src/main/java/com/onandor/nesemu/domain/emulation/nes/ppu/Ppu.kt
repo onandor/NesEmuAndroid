@@ -529,6 +529,9 @@ class Ppu(
     private fun evaluateSprites() {
         oamBuffer = IntArray(32) { 0xFF }
         numSpritesOnScanline = 0
+        sprPatternDataLow = IntArray(8)
+        sprPatternDataHigh = IntArray(8)
+
         for (n in 0 ..< 64) {
             val y = oamData[n * 4]
             val height = 8 + controlReg.tallSprites * 8

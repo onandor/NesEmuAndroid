@@ -36,19 +36,6 @@ class Mapper1(cartridge: Cartridge) : Mapper(cartridge) {
     private var chrRomBank8k: Int = 0
     private var isPrgRamEnabled: Boolean = false
 
-    private val chrMemory: IntArray
-    private val chrMemoryBanks: Int
-
-    init {
-        if (cartridge.chrRam != null) {
-            chrMemory = cartridge.chrRam!!
-            chrMemoryBanks = cartridge.chrRam!!.size / 0x2000
-        } else {
-            chrMemory = cartridge.chrRom
-            chrMemoryBanks = cartridge.chrRomBanks
-        }
-    }
-
     override fun readPrgRom(address: Int): Int {
         val eaddress = address - 0x8000
         return if (prgBankSize == PrgBankSize.Single32K) {
@@ -104,10 +91,36 @@ class Mapper1(cartridge: Cartridge) : Mapper(cartridge) {
             // 8K address space is divided up and switched separately by two 4K banks
             val bank = if (address < 0x1000) chrRomBank4k0 else chrRomBank4k1
             val eaddress = address and 0x0FFF
-            chrMemory[bank * 0x1000 + eaddress]
+            if (cartridge.chrRomBanks == 0) {
+                cartridge.chrRam!![bank * 0x1000 + eaddress]
+            } else {
+                cartridge.chrRom[bank * 0x1000 + eaddress]
+            }
         } else {
             // Whole 8K address space is switched at once
-            chrMemory[chrRomBank8k * 0x2000 + address]
+            if (cartridge.chrRomBanks == 0) {
+                cartridge.chrRam!![chrRomBank8k * 0x2000 + address]
+            } else {
+                cartridge.chrRom[chrRomBank8k * 0x2000 + address]
+            }
+        }
+    }
+
+    override fun writeChrRom(address: Int, value: Int) {
+        if (chrBankSize == ChrBankSize.Double4K) {
+            val bank = if (address < 0x1000) chrRomBank4k0 else chrRomBank4k1
+            val eaddress = address and 0x0FFF
+            if (cartridge.chrRomBanks == 0) {
+                cartridge.chrRam!![bank * 0x1000 + eaddress] = value
+            } else {
+                cartridge.chrRom[bank * 0x1000 + eaddress] = value
+            }
+        } else {
+            if (cartridge.chrRomBanks == 0) {
+                cartridge.chrRam!![chrRomBank8k * 0x2000 + address] = value
+            } else {
+                cartridge.chrRom[chrRomBank8k * 0x2000 + address] = value
+            }
         }
     }
 
