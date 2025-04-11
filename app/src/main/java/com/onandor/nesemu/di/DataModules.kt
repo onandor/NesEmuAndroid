@@ -22,11 +22,18 @@ import com.onandor.nesemu.data.dao.LibraryEntryDao
 import com.onandor.nesemu.data.dao.SaveStateDao
 import com.onandor.nesemu.data.preferences.PreferencesSerializer
 import com.onandor.nesemu.data.preferences.proto.Preferences
+import com.onandor.nesemu.data.repository.CoverArtRepository
+import com.onandor.nesemu.data.repository.LibraryEntryRepository
+import com.onandor.nesemu.data.repository.MainCoverArtRepository
+import com.onandor.nesemu.data.repository.MainLibraryEntryRepository
+import com.onandor.nesemu.data.repository.MainSaveStateRepository
+import com.onandor.nesemu.data.repository.SaveStateRepository
+import dagger.Binds
 import kotlinx.coroutines.CoroutineScope
 
 @Module
 @InstallIn(SingletonComponent::class)
-class DatabaseModule {
+object DatabaseModule {
 
     @Provides
     @Singleton
@@ -53,7 +60,7 @@ class DatabaseModule {
 
 @Module
 @InstallIn(SingletonComponent::class)
-class PreferencesModule {
+object PreferencesModule {
 
     @Singleton
     @Provides
@@ -78,4 +85,20 @@ class PreferencesModule {
         ),
         produceFile = { context.dataStoreFile("proto_prefs.preferences_pb") }
     )
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+interface RepositoryModule {
+
+    @Binds
+    fun bindCoverArtRepository(coverArtRepository: MainCoverArtRepository): CoverArtRepository
+
+    @Binds
+    fun bindLibraryEntryRepository(
+        libraryEntryRepository: MainLibraryEntryRepository
+    ): LibraryEntryRepository
+
+    @Binds
+    fun bindSaveStateRepository(saveStateRepository: MainSaveStateRepository): SaveStateRepository
 }

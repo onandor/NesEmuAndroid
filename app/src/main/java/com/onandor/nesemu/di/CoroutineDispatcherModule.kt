@@ -25,7 +25,7 @@ annotation class MainDispatcher
 
 @Module
 @InstallIn(SingletonComponent::class)
-class CoroutineDispatcherModule {
+object CoroutineDispatcherModule {
 
     @DefaultDispatcher
     @Provides

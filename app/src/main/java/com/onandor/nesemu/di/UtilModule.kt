@@ -1,6 +1,7 @@
 package com.onandor.nesemu.di
 
 import android.content.Context
+import android.hardware.input.InputManager
 import com.onandor.nesemu.util.DocumentAccessor
 import com.onandor.nesemu.util.GlobalLifecycleObserver
 import dagger.Module
@@ -13,7 +14,7 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-class UtilModule {
+object UtilModule {
 
     @Singleton
     @Provides
@@ -26,4 +27,9 @@ class UtilModule {
     fun provideFileAccessor(
         @ApplicationContext context: Context
     ): DocumentAccessor = DocumentAccessor(context)
+
+    @Provides
+    fun provideInputManager(
+        @ApplicationContext context: Context
+    ): InputManager = context.getSystemService(Context.INPUT_SERVICE) as InputManager
 }

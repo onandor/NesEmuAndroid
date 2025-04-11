@@ -147,7 +147,7 @@ class PreferencesViewModel @Inject constructor(
                 updateSelectedPlayerId(null)
             }
             is Event.OnDeviceSelected -> {
-                inputManager.setInputDevice(event.playerId, event.device)
+                inputManager.changeInputDevice(event.playerId, event.device)
                 updateSelectedPlayerId(null)
             }
 

@@ -9,7 +9,6 @@ import com.onandor.nesemu.domain.emulation.savestate.NesState
 import com.onandor.nesemu.domain.service.InputService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject

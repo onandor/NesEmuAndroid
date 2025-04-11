@@ -23,7 +23,7 @@ annotation class SteamGridDB
 
 @Module
 @InstallIn(SingletonComponent::class)
-class HttpClientModule {
+object HttpClientModule {
 
     @Provides
     @SteamGridDB
