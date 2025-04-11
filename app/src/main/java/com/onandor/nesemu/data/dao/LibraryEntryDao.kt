@@ -42,7 +42,7 @@ interface LibraryEntryDao {
         where parentDirectoryUri = :parentDirectoryUri
         group by le.id
     """)
-    suspend fun findAllByParentDirectoryUri(parentDirectoryUri: String): List<LibraryEntryWithDate>
+    fun observeAllByParentDirectoryUri(parentDirectoryUri: String): Flow<List<LibraryEntryWithDate>>
 
     @Upsert
     suspend fun upsert(vararg libraryEntries: LibraryEntry)

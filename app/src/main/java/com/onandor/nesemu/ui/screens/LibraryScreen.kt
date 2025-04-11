@@ -120,11 +120,15 @@ fun LibraryScreen(
                     }
                 ) { targetState ->
                     if (targetState == NavBarPage.RecentlyPlayed) {
-                        LibraryList(
-                            entries = uiState.recentGames,
-                            coverArtUrls = uiState.coverArtUrls,
-                            onEvent = viewModel::onEvent
-                        )
+                        if (uiState.recentGames.isEmpty()) {
+                            RecentlyPlayedEmpty()
+                        } else {
+                            LibraryList(
+                                entries = uiState.recentGames,
+                                coverArtUrls = uiState.coverArtUrls,
+                                onEvent = viewModel::onEvent
+                            )
+                        }
                     } else {
                         LibraryBrowser(
                             entries = uiState.displayedEntries,
@@ -337,6 +341,27 @@ private fun LibraryScanning() {
                     .padding(bottom = 30.dp)
             )
             Text("Scanning library...")
+        }
+    }
+}
+
+@Composable
+private fun RecentlyPlayedEmpty() {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.align(Alignment.Center),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                modifier = Modifier.size(150.dp),
+                painter = painterResource(R.drawable.ic_history),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+            )
+            Text(
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                text = "Your recently played games will appear here"
+            )
         }
     }
 }

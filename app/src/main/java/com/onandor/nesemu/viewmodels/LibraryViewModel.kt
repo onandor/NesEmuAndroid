@@ -85,15 +85,18 @@ class LibraryViewModel @Inject constructor(
     }
 
     private var libraryDirectory: LibraryEntry? = null
-    private var currentDirectory: LibraryEntry? = null
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState = combine(
-        _uiState, coverArtRepository.observeAllUrls(), libraryEntryRepository.observeRecentlyPlayed()
-    ) { uiState, coverArtUrls, recentGames ->
+        _uiState,
+        coverArtRepository.observeAllUrls(),
+        libraryEntryRepository.observeRecentlyPlayed(),
+        libraryService.displayedEntries
+    ) { uiState, coverArtUrls, recentGames, displayedEntries ->
         uiState.copy(
             coverArtUrls = coverArtUrls,
-            recentGames = recentGames.map { it.toUiLibraryEntry() }
+            recentGames = recentGames.map { it.toUiLibraryEntry() },
+            displayedEntries = displayedEntries.map { it.toUiLibraryEntry() }
         )
     }
         .stateIn(
@@ -177,10 +180,7 @@ class LibraryViewModel @Inject constructor(
     }
 
     private fun navigateToDirectory(directory: LibraryEntry) = ioScope.launch {
-        val displayedEntries = libraryService
-            .getEntriesInDirectory(directory)
-            .map { it.toUiLibraryEntry() }
-
+        libraryService.navigateToDirectory(directory)
         _uiState.update {
             val path = if (directory.uri == libraryDirectory?.uri) {
                 "/"
@@ -191,22 +191,13 @@ class LibraryViewModel @Inject constructor(
             }
             it.copy(
                 inSubdirectory = directory.parentDirectoryUri != null,
-                displayedEntries = displayedEntries,
                 path = path
             )
         }
-
-        currentDirectory = directory
     }
 
     private fun navigateUpOneDirectory() = ioScope.launch {
-        if (currentDirectory == null) {
-            return@launch
-        }
-
-        val listing = libraryService.getEntriesInParentDirectory(currentDirectory!!)
-        currentDirectory = listing.directory ?: libraryDirectory
-
+        val newDirectory = libraryService.navigateUpOneDirectory()
         _uiState.update {
             val pathEndIndex = if (it.path.count { char -> char == '/' } > 1) {
                 it.path.lastIndexOf('/')
@@ -214,8 +205,7 @@ class LibraryViewModel @Inject constructor(
                 1
             }
             it.copy(
-                inSubdirectory = currentDirectory?.parentDirectoryUri != null,
-                displayedEntries = listing.entries.map { it.toUiLibraryEntry() },
+                inSubdirectory = newDirectory?.parentDirectoryUri != null,
                 path = it.path.substring(0, pathEndIndex)
             )
         }
@@ -256,18 +246,7 @@ class LibraryViewModel @Inject constructor(
         libraryService.state.collect { state ->
             if (state.libraryDirectory != null && libraryDirectory != state.libraryDirectory) {
                 libraryDirectory = state.libraryDirectory
-                currentDirectory = state.libraryDirectory
-
-                val displayedEntries = libraryService
-                    .getEntriesInDirectory(state.libraryDirectory)
-                    .map { it.toUiLibraryEntry() }
-
-                _uiState.update {
-                    it.copy(
-                        inSubdirectory = false,
-                        displayedEntries = displayedEntries
-                    )
-                }
+                _uiState.update { it.copy(inSubdirectory = false) }
             }
 
             _uiState.update {

@@ -16,8 +16,8 @@ class LibraryEntryRepository @Inject constructor(
         return libraryEntryDao.observeRecentlyPlayed()
     }
 
-    suspend fun findAllByParentDirectoryUri(parentDirectoryUri: String): List<LibraryEntryWithDate> {
-        return libraryEntryDao.findAllByParentDirectoryUri(parentDirectoryUri)
+    fun observeAllByParentDirectoryUri(parentDirectoryUri: String): Flow<List<LibraryEntryWithDate>> {
+        return libraryEntryDao.observeAllByParentDirectoryUri(parentDirectoryUri)
     }
 
     suspend fun findAllNotDirectory(): List<LibraryEntry> {

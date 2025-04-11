@@ -1,6 +1,5 @@
 package com.onandor.nesemu.domain.service
 
-import android.net.Uri
 import com.onandor.nesemu.data.entity.LibraryEntry
 import com.onandor.nesemu.data.repository.LibraryEntryRepository
 import com.onandor.nesemu.di.IODispatcher
@@ -17,6 +16,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import androidx.core.net.toUri
 import com.onandor.nesemu.data.entity.LibraryEntryWithDate
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.map
 
 @Singleton
 class LibraryService @Inject constructor(
@@ -32,15 +33,15 @@ class LibraryService @Inject constructor(
         val libraryDirectory: LibraryEntry? = null
     )
 
-    data class DirectoryListing(
-        val directory: LibraryEntry?,
-        val entries: List<LibraryEntryWithDate>
-    )
-
     private val _state = MutableStateFlow(State())
     val state = _state.asStateFlow()
 
+    private var entryJob: Job? = null
+    private val _displayedEntries = MutableStateFlow<List<LibraryEntryWithDate>>(emptyList())
+    val displayedEntries = _displayedEntries.asStateFlow()
+
     private var libraryDirectory: LibraryEntry? = null
+    private var currentDirectory: LibraryEntry? = null
 
     init {
         // Retrieve the current URI first, so that the library only gets refreshed when the uri
@@ -53,6 +54,9 @@ class LibraryService @Inject constructor(
                 libraryEntryRepository.getLibraryRoot()
             }
             _state.update { it.copy(libraryDirectory = libraryDirectory) }
+            libraryDirectory?.let {
+                navigateToDirectory(it)
+            }
         }
 
         ioScope.launch {
@@ -69,6 +73,8 @@ class LibraryService @Inject constructor(
 
                 val games = persistLibrary()
 
+                navigateToDirectory(libraryDirectory!!)
+
                 _state.update {
                     it.copy(
                         isLoading = false,
@@ -84,6 +90,9 @@ class LibraryService @Inject constructor(
     suspend fun rescanLibrary() {
         _state.update { it.copy(isLoading = true) }
         val games = persistLibrary()
+        libraryDirectory?.let {
+            navigateToDirectory(it)
+        }
         _state.update { it.copy(isLoading = false) }
         ioScope.launch { coverArtService.sourceUrls(games) }
     }
@@ -117,36 +126,45 @@ class LibraryService @Inject constructor(
         return entries.filterNot { it.isDirectory }
     }
 
-    suspend fun getEntriesInParentDirectory(directory: LibraryEntry): DirectoryListing {
-        val parentDirectory: LibraryEntry?
-        val entries: List<LibraryEntryWithDate>
-
-        if (directory.parentDirectoryUri == null) {
-            // We are in the root, cannot go up
-            parentDirectory = directory
-            entries = libraryEntryRepository.findAllByParentDirectoryUri(directory.uri)
-                .sortedBy { it.entry.name }
-                .sortedBy { !it.entry.isDirectory }
-        } else {
-            parentDirectory = libraryEntryRepository.findByUri(directory.parentDirectoryUri)
-            entries = libraryEntryRepository.findAllByParentDirectoryUri(directory.parentDirectoryUri)
-                .sortedBy { it.entry.name }
-                .sortedBy { !it.entry.isDirectory }
-        }
-
-        return DirectoryListing(
-            directory = parentDirectory,
-            entries = entries
-        )
+    fun navigateToDirectory(directory: LibraryEntry) {
+        currentDirectory = directory
+        collectDirectoryEntries(directory)
     }
 
-    suspend fun getEntriesInDirectory(directory: LibraryEntry): List<LibraryEntryWithDate> {
-        return libraryEntryRepository.findAllByParentDirectoryUri(directory.uri)
-            .sortedBy { it.entry.name }
-            .sortedBy { !it.entry.isDirectory }
+    suspend fun navigateUpOneDirectory(): LibraryEntry? {
+        currentDirectory?.let {
+            if (it.parentDirectoryUri == null) {
+                return@let
+            }
+
+            val parentDirectory = libraryEntryRepository.findByUri(it.parentDirectoryUri)
+            if (parentDirectory == null) {
+                return@let
+            }
+
+            navigateToDirectory(parentDirectory)
+        }
+
+        return currentDirectory
     }
 
     suspend fun changeLibraryUri(libraryUri: String) {
         prefManager.updateLibraryUri(libraryUri)
+    }
+
+    private fun collectDirectoryEntries(directory: LibraryEntry) {
+        entryJob?.cancel()
+        entryJob = ioScope.launch {
+            libraryEntryRepository
+                .observeAllByParentDirectoryUri(directory.uri)
+                .map { entries ->
+                    entries
+                        .sortedBy { it.entry.name }
+                        .sortedBy { !it.entry.isDirectory }
+                }
+                .collect { entries ->
+                    _displayedEntries.update { entries }
+                }
+        }
     }
 }
