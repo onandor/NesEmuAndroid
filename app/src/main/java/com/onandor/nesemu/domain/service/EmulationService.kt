@@ -13,7 +13,7 @@ interface EmulationService {
 
     fun loadGame(game: LibraryEntry, saveState: SaveState? = null)
     fun loadSave(saveState: SaveState)
-    fun saveGame(slot: Int, immediate: Boolean = false)
+    fun saveGame(slot: Int, blocking: Boolean = false)
     fun start()
     fun stop(immediate: Boolean = false)
     fun pause()

@@ -20,7 +20,11 @@ import com.onandor.nesemu.R
 import com.onandor.nesemu.data.dao.CoverArtDao
 import com.onandor.nesemu.data.dao.LibraryEntryDao
 import com.onandor.nesemu.data.dao.SaveStateDao
+import com.onandor.nesemu.data.preferences.MainPreferenceManager
+import com.onandor.nesemu.data.preferences.MainProtoPreferenceStore
+import com.onandor.nesemu.data.preferences.PreferenceManager
 import com.onandor.nesemu.data.preferences.PreferencesSerializer
+import com.onandor.nesemu.data.preferences.ProtoPreferenceStore
 import com.onandor.nesemu.data.preferences.proto.Preferences
 import com.onandor.nesemu.data.repository.CoverArtRepository
 import com.onandor.nesemu.data.repository.LibraryEntryRepository
@@ -58,9 +62,20 @@ object DatabaseModule {
     fun provideCoverArtDao(database: NesEmuDatabase): CoverArtDao = database.coverArtDao()
 }
 
-@Module
+@Module(includes = [PreferencesModule.BindsModule::class])
 @InstallIn(SingletonComponent::class)
 object PreferencesModule {
+
+    @Module
+    @InstallIn(SingletonComponent::class)
+    interface BindsModule {
+
+        @Binds
+        fun bindPreferenceManager(preferenceManager: MainPreferenceManager): PreferenceManager
+
+        @Binds
+        fun bindProtoPreferenceStore(prefStore: MainProtoPreferenceStore): ProtoPreferenceStore
+    }
 
     @Singleton
     @Provides

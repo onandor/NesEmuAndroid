@@ -23,7 +23,7 @@ import javax.inject.Inject
 @HiltViewModel
 class PreferencesViewModel @Inject constructor(
     private val navManager: NavigationManager,
-    private val inputManager: InputService,
+    private val inputService: InputService,
     private val libraryService: LibraryService,
     private val prefManager: PreferenceManager
 ) : ViewModel() {
@@ -86,7 +86,7 @@ class PreferencesViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(UiState())
     val uiState = combine(
         _uiState,
-        inputManager.state,
+        inputService.state,
         libraryService.state,
         prefManager.observeSteamGridDBApiKey(),
         prefManager.observeUseDarkTheme()
@@ -102,8 +102,8 @@ class PreferencesViewModel @Inject constructor(
             libraryDirectory = libraryServiceState.libraryDirectory?.name ?: "<no folder selected>",
             coverArtApiKey = coverArtApiKey,
             availableDevices = inputManagerState.availableDevices,
-            player1Device = inputManagerState.controller1Device,
-            player2Device = inputManagerState.controller2Device,
+            player1Device = inputManagerState.player1InputDevice,
+            player2Device = inputManagerState.player2InputDevice,
             displayedButtonMapping = buttonMappings[buttonMapKey]!!.inverse().toMap()
         )
     }
@@ -147,7 +147,7 @@ class PreferencesViewModel @Inject constructor(
                 updateSelectedPlayerId(null)
             }
             is Event.OnDeviceSelected -> {
-                inputManager.changeInputDevice(event.playerId, event.device)
+                inputService.changeInputDevice(event.playerId, event.device)
                 updateSelectedPlayerId(null)
             }
 
@@ -181,7 +181,7 @@ class PreferencesViewModel @Inject constructor(
                 _uiState.update { it.copy(editedButton = null) }
             }
             is Event.OnUpdateEditedButton -> {
-                inputManager.changeButtonMapping(
+                inputService.changeButtonMapping(
                     event.keyCode,
                     _uiState.value.editedButton!!,
                     _uiState.value.buttonMappingPlayerId,

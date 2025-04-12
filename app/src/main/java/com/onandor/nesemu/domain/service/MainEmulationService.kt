@@ -76,7 +76,7 @@ class MainEmulationService @Inject constructor(
         }
     }
 
-    override fun saveGame(slot: Int, immediate: Boolean) {
+    override fun saveGame(slot: Int, blocking: Boolean) {
         if (state == EmulationState.Uninitialized ||
             state == EmulationState.Ready ||
             loadedGame == null) {
@@ -96,7 +96,7 @@ class MainEmulationService @Inject constructor(
             slot = slot,
             preview = createPreview()
         )
-        if (immediate) {
+        if (blocking) {
             runBlocking { saveStateRepository.upsert(saveState) }
         } else {
             ioScope.launch { saveStateRepository.upsert(saveState) }

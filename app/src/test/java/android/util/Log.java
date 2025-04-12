@@ -21,4 +21,9 @@ public class Log {
         System.out.println("ERROR: " + tag + ": " + msg);
         return 0;
     }
+
+    public static int e(String tag, String msg, Throwable t) {
+        System.out.println("ERROR: " + tag + ": " + msg);
+        return 0;
+    }
 }

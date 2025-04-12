@@ -79,6 +79,9 @@ android {
     kotlinOptions {
         jvmTarget = "1.8"
     }
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
     buildFeatures {
         compose = true
         prefab = true
@@ -103,6 +106,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     testImplementation(libs.junit)
+    testImplementation(libs.kotlin.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
@@ -130,6 +134,8 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     // Kotlinx serialization
     implementation(libs.kotlinx.serialization.json)
+    // Kotlinx coroutines
+    implementation(libs.kotlinx.coroutines.core)
     // Composables
     implementation(libs.composables.core)
     // Ktor
@@ -138,7 +144,11 @@ dependencies {
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.client.auth)
     implementation(libs.ktor.serialization.kotlinx.json)
+    testImplementation(libs.ktor.client.mock)
     // Coil
     implementation(libs.coil.compose)
     implementation(libs.coil.network.ktor)
+    // Mockk
+    testImplementation(libs.mockk.android)
+    testImplementation(libs.mockk.agent)
 }

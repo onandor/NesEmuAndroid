@@ -5,7 +5,6 @@ import com.onandor.nesemu.domain.emulation.savestate.CartridgeState
 import com.onandor.nesemu.domain.emulation.savestate.Savable
 import okio.internal.commonToUtf8String
 import java.io.ByteArrayInputStream
-import java.security.MessageDigest
 import kotlin.math.ceil
 import kotlin.math.pow
 
@@ -315,12 +314,5 @@ class Cartridge : Savable<CartridgeState> {
             2 to "multiple",
             3 to "Dendy (UA6538)"
         )
-
-        fun calculateRomHash(rom: ByteArray): String {
-            val hashBytes = MessageDigest.getInstance("SHA-1").run {
-                digest(rom.copyOfRange(16, rom.size))
-            }
-            return hashBytes.joinToString("") { byte -> "%02x".format(byte) }
-        }
     }
 }

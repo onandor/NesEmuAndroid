@@ -15,8 +15,8 @@ interface InputService {
 
     data class State(
         val availableDevices: List<NesInputDevice> = emptyList(),
-        val controller1Device: NesInputDevice? = null,
-        val controller2Device: NesInputDevice? = null,
+        val player1InputDevice: NesInputDevice? = null,
+        val player2InputDevice: NesInputDevice? = null,
         val buttonMappings: Map<ButtonMapKey, BiMap<Int, NesButton>> = emptyMap()
     )
 

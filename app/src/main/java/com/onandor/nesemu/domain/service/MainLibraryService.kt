@@ -3,7 +3,6 @@ package com.onandor.nesemu.domain.service
 import com.onandor.nesemu.data.entity.LibraryEntry
 import com.onandor.nesemu.data.repository.LibraryEntryRepository
 import com.onandor.nesemu.di.IODispatcher
-import com.onandor.nesemu.domain.emulation.nes.Cartridge
 import com.onandor.nesemu.data.preferences.PreferenceManager
 import com.onandor.nesemu.util.DocumentAccessor
 import kotlinx.coroutines.CoroutineScope
@@ -17,6 +16,7 @@ import javax.inject.Singleton
 import androidx.core.net.toUri
 import com.onandor.nesemu.data.entity.LibraryEntryWithDate
 import com.onandor.nesemu.domain.service.LibraryService.State
+import com.onandor.nesemu.util.sha1Hash
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.map
 
@@ -103,16 +103,16 @@ class MainLibraryService @Inject constructor(
             .filter { it.isDirectory || it.name.endsWith(".nes") }
             .map {
                 val romHash = if (!it.isDirectory) {
-                    Cartridge.calculateRomHash(documentAccessor.readBytes(it.uri.toString()))
+                    documentAccessor.readBytes(it.uri).sha1Hash(fromIndex = 16)
                 } else {
                     ""
                 }
                 LibraryEntry(
                     romHash = romHash,
                     name = it.name,
-                    uri = it.uri.toString(),
+                    uri = it.uri,
                     isDirectory = it.isDirectory,
-                    parentDirectoryUri = it.parentDirectoryUri.toString()
+                    parentDirectoryUri = it.parentDirectoryUri
                 )
             }
 

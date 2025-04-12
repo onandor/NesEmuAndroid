@@ -10,10 +10,10 @@ import javax.inject.Singleton
 import androidx.core.net.toUri
 
 data class Document(
-    val uri: Uri,
+    val uri: String,
     val name: String,
     val isDirectory: Boolean,
-    val parentDirectoryUri: Uri
+    val parentDirectoryUri: String
 )
 
 @Singleton
@@ -59,10 +59,10 @@ class DocumentAccessor @Inject constructor(
 
                 documentList.add(
                     Document(
-                        uri = documentUri,
+                        uri = documentUri.toString(),
                         name = displayName,
                         isDirectory = mimeType == DocumentsContract.Document.MIME_TYPE_DIR,
-                        parentDirectoryUri = directoryUri
+                        parentDirectoryUri = directoryUri.toString()
                     )
                 )
 

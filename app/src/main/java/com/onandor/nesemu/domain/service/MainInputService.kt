@@ -43,13 +43,13 @@ class MainInputService @Inject constructor(
 
     private val buttonMappings: MutableMap<ButtonMapKey, BiMap<Int, NesButton>> = mutableMapOf(
         ButtonMapKey(InputService.PLAYER_1, NesInputDeviceType.Controller)
-                to HashBiMap.create(ButtonMapping.Companion.DEFAULT_CONTROLLER_BUTTON_MAP),
+                to HashBiMap.create(ButtonMapping.DEFAULT_CONTROLLER_BUTTON_MAP),
         ButtonMapKey(InputService.PLAYER_1, NesInputDeviceType.Keyboard)
-                to HashBiMap.create(ButtonMapping.Companion.DEFAULT_KEYBOARD_BUTTON_MAP),
+                to HashBiMap.create(ButtonMapping.DEFAULT_KEYBOARD_BUTTON_MAP),
         ButtonMapKey(InputService.PLAYER_2, NesInputDeviceType.Controller)
-                to HashBiMap.create(ButtonMapping.Companion.DEFAULT_CONTROLLER_BUTTON_MAP),
+                to HashBiMap.create(ButtonMapping.DEFAULT_CONTROLLER_BUTTON_MAP),
         ButtonMapKey(InputService.PLAYER_2, NesInputDeviceType.Keyboard)
-                to HashBiMap.create(ButtonMapping.Companion.DEFAULT_KEYBOARD_BUTTON_MAP)
+                to HashBiMap.create(ButtonMapping.DEFAULT_KEYBOARD_BUTTON_MAP)
     )
 
     private val player1Buttons: MutableMap<NesButton, NesButtonState> = initControllerButtons()
@@ -335,8 +335,8 @@ class MainInputService @Inject constructor(
         _state.update {
             it.copy(
                 availableDevices = availableDevicesMap.values.toList(),
-                controller1Device = player1Device,
-                controller2Device = player2Device,
+                player1InputDevice = player1Device,
+                player2InputDevice = player2Device,
                 buttonMappings = buttonMappings
             )
         }
@@ -383,7 +383,7 @@ class MainInputService @Inject constructor(
         private const val TAG = "NesInputManager"
 
         private const val VIRTUAL_CONTROLLER_DEVICE_DESCRIPTOR = "VIRTUAL_CONTROLLER"
-        private val VIRTUAL_CONTROLLER = NesInputDevice(
+        internal val VIRTUAL_CONTROLLER = NesInputDevice(
             name = "Virtual controller",
             id = InputService.VIRTUAL_CONTROLLER_DEVICE_ID,
             descriptor = VIRTUAL_CONTROLLER_DEVICE_DESCRIPTOR,
