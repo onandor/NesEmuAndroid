@@ -32,9 +32,6 @@ import kotlin.test.assertTrue
 
 class MainLibraryServiceTest {
 
-    @get:Rule
-    val mockkRule = MockKRule(this)
-
     val testScope = CoroutineScope(Dispatchers.Unconfined)
 
     val mockPrefManager = mockk<PreferenceManager> {
