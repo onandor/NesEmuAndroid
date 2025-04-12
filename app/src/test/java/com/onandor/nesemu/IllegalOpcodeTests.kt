@@ -7,14 +7,14 @@ import kotlin.collections.listOf
 
 class IllegalOpcodeTests {
 
-    private object Verbosities {
+    private object Verbosity {
         const val FAIL = CpuOpcodeTestRunner.Verbosity.BASIC_INFO or CpuOpcodeTestRunner.Verbosity.FAIL
         const val NONE = CpuOpcodeTestRunner.Verbosity.NONE
         const val ALL = CpuOpcodeTestRunner.Verbosity.ALL
     }
 
     private val testRunner = CpuOpcodeTestRunner(
-        verbosity = Verbosities.NONE,
+        verbosity = Verbosity.NONE,
         testsToRun = 9999,
         skipDecimalMode = true,
         stopOnFail = false

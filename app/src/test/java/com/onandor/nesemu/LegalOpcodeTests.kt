@@ -11,14 +11,14 @@ import org.junit.Test
  */
 class LegalOpcodeTests {
 
-    private object Verbosities {
+    private object Verbosity {
         const val FAIL = CpuOpcodeTestRunner.Verbosity.BASIC_INFO or CpuOpcodeTestRunner.Verbosity.FAIL
         const val NONE = CpuOpcodeTestRunner.Verbosity.NONE
         const val ALL = CpuOpcodeTestRunner.Verbosity.ALL
     }
 
     private val testRunner = CpuOpcodeTestRunner(
-        verbosity = Verbosities.FAIL,
+        verbosity = Verbosity.FAIL,
         testsToRun = 5000,
         skipDecimalMode = false,
         stopOnFail = false
