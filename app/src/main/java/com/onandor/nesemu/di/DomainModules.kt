@@ -1,6 +1,5 @@
 package com.onandor.nesemu.di
 
-import android.content.Context
 import android.hardware.input.InputManager
 import com.onandor.nesemu.data.preferences.PreferenceManager
 import com.onandor.nesemu.data.repository.CoverArtRepository
@@ -21,7 +20,6 @@ import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
@@ -35,7 +33,7 @@ object EmulationModule {
     @Provides
     fun provideEmulator(
         @DefaultDispatcher coroutineScope: CoroutineScope,
-        inputService: MainInputService
+        inputService: InputService
     ): Emulator = Emulator(coroutineScope, inputService)
 }
 
@@ -67,7 +65,7 @@ object ServiceModule {
         prefManager: PreferenceManager,
         documentAccessor: DocumentAccessor,
         libraryEntryRepository: LibraryEntryRepository,
-        coverArtService: MainCoverArtService
+        coverArtService: CoverArtService
     ): LibraryService =
         MainLibraryService(
             ioScope = ioScope,
@@ -79,6 +77,7 @@ object ServiceModule {
 
     @Provides
     @Singleton
+    @JvmSuppressWildcards
     fun provideCoverArtService(
         @SteamGridDB httpClientFactory: (String) -> HttpClient,
         prefManager: PreferenceManager,

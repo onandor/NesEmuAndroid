@@ -22,7 +22,7 @@ import javax.inject.Singleton
 
 @Singleton
 class MainCoverArtService @Inject constructor(
-    @SteamGridDB private val httpClientFactory: @JvmSuppressWildcards (String) -> HttpClient,
+    @SteamGridDB private val httpClientFactory: (String) -> HttpClient,
     private val prefManager: PreferenceManager,
     @IODispatcher private val ioScope: CoroutineScope,
     private val libraryEntryRepository: LibraryEntryRepository,
