@@ -10,7 +10,8 @@ class PulseChannel(val channelNumber: Int) {
     private var sequencePhase: Int = 0
 
     // The timer has an 11 bit long period, which is decreased every APU cycle
-    // When it reaches zero, it clocks the sequencer, and is automatically reloaded with the value stored in timerReload
+    // When it reaches zero, it clocks the sequencer, and is automatically reloaded with the value
+    // stored in timerPeriod
     var timer: Int = 0
     var timerPeriod: Int = 0
 
@@ -84,6 +85,9 @@ class PulseChannel(val channelNumber: Int) {
     // 0x4015
     fun setEnabled(enabled: Boolean) {
         lengthCounter.enabled = enabled
+        if (!enabled) {
+            lengthCounter.length = 0
+        }
     }
 
     fun getLength(): Int {
@@ -92,7 +96,7 @@ class PulseChannel(val channelNumber: Int) {
 
     // https://www.nesdev.org/wiki/APU_Pulse#Pulse_channel_output_to_mixer
     fun getOutput(): Int {
-        return if ((sequencer shl sequencePhase) and 0x80 == 0 || !lengthCounter.enabled || sweep.isMuting())
+        return if ((sequencer shl sequencePhase) and 0x80 == 0 || lengthCounter.length == 0 || sweep.isMuting())
             0
         else
             return envelope.getOutput()

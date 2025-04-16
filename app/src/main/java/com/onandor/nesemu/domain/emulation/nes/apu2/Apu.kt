@@ -20,6 +20,7 @@ class Apu(private val onAudioSampleReady: (Int) -> Unit) : Savable<ApuState> {
     // Channels
     private val pulse1 = PulseChannel(PulseChannel.CHANNEL_1)
     private val pulse2 = PulseChannel(PulseChannel.CHANNEL_2)
+    private val triangle = TriangleChannel()
 
     // Mixer tables
     private val pulseOutputTable = FloatArray(31)
@@ -75,18 +76,21 @@ class Apu(private val onAudioSampleReady: (Int) -> Unit) : Savable<ApuState> {
         if (isQuarterFrame) {
             pulse1.clockEnvelope()
             pulse2.clockEnvelope()
+            triangle.clockLinearCounter()
         }
         if (isHalfFrame) {
             pulse1.clockLengthCounter()
             pulse2.clockLengthCounter()
             pulse1.clockSweep()
             pulse2.clockSweep()
+            triangle.clockLengthCounter()
         }
 
         if (cpuCycles % 2 == 0) {
             pulse1.clockTimer()
             pulse2.clockTimer()
         }
+        triangle.clockTimer()
 
         cpuCycles += 1
         cycles = cpuCycles / 2
@@ -114,9 +118,13 @@ class Apu(private val onAudioSampleReady: (Int) -> Unit) : Savable<ApuState> {
             0x4005 -> pulse2.writeSweep(value)
             0x4006 -> pulse2.writeTimer(value)
             0x4007 -> pulse2.writeLengthCounter(value)
+            0x4008 -> triangle.writeLinearCounter(value)
+            0x400A -> triangle.writeTimer(value)
+            0x400B -> triangle.writeLengthCounter(value)
             0x4015 -> {
                 pulse1.setEnabled(value and 0x01 != 0)
                 pulse2.setEnabled(value and 0x02 != 0)
+                triangle.setEnabled(value and 0x04 != 0)
             }
             0x4017 -> {
                 sequenceCycles = if (value and 0x80 > 0) SEQ_5_STEP_CYCLES else SEQ_4_STEP_CYCLES
@@ -131,6 +139,7 @@ class Apu(private val onAudioSampleReady: (Int) -> Unit) : Savable<ApuState> {
         cycles = 0
         pulse1.reset()
         pulse2.reset()
+        triangle.reset()
     }
 
     fun setSampleRate(sampleRate: Int) {
@@ -143,7 +152,7 @@ class Apu(private val onAudioSampleReady: (Int) -> Unit) : Savable<ApuState> {
 //        val mixedPulse = 0.014f * (pulse1.getOutput() + pulse2.getOutput())
 //        val pulseSample = if (mixedPulse == 0f) 0f else mixedPulse * 2.0f - 1.0f
 
-        val pulseSample = (0.00752f * (pulse1.getOutput() + pulse2.getOutput()) * Short.MAX_VALUE).toInt()
+//        val pulseSample = (0.00752f * (pulse1.getOutput() + pulse2.getOutput()) * Short.MAX_VALUE).toInt()
 
 //        val pulseSample = pulseOutputTable[pulse1.getOutput() + pulse2.getOutput()]
 //        val pulseSampleInt = ((pulseSample - 0.5f) * 2.0f * Short.MAX_VALUE).toInt()
@@ -155,7 +164,11 @@ class Apu(private val onAudioSampleReady: (Int) -> Unit) : Savable<ApuState> {
 //        return pulseSampleInt.coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
 
         //return (pulseOutputTable[pulse1.getOutput() + pulse2.getOutput()] * Short.MAX_VALUE).toInt()
-        return pulseSample
+        val pulseSample = pulseOutputTable[pulse1.getOutput() + pulse2.getOutput()]
+        val pulseSampleInt = ((pulseSample - 0.5f) * 2.0f * Short.MAX_VALUE * 0.2f).toInt()
+        val tndSample = tndOutputTable[3 * triangle.getOutput()]
+        val tndSampleInt = ((tndSample - 0.5f) * 2.0f * Short.MAX_VALUE * 0.2f).toInt()
+        return pulseSampleInt + tndSampleInt
     }
 
     override fun createSaveState(): ApuState {
