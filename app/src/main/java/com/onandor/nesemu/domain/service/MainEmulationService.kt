@@ -68,7 +68,7 @@ class MainEmulationService @Inject constructor(
         }
 
         emulator.reset()
-        emulator.loadSaveState(saveState.nesState)
+        //emulator.loadSaveState(saveState.nesState)
         playtime = saveState.playtime
 
         if (isRunning) {
@@ -88,19 +88,19 @@ class MainEmulationService @Inject constructor(
             pause()
         }
 
-        val saveState = SaveState(
-            playtime = playtime,
-            modificationDate = OffsetDateTime.now(),
-            nesState = emulator.createSaveState(),
-            romHash = loadedGame!!.romHash,
-            slot = slot,
-            preview = createPreview()
-        )
-        if (blocking) {
-            runBlocking { saveStateRepository.upsert(saveState) }
-        } else {
-            ioScope.launch { saveStateRepository.upsert(saveState) }
-        }
+//        val saveState = SaveState(
+//            playtime = playtime,
+//            modificationDate = OffsetDateTime.now(),
+//            nesState = emulator.createSaveState(),
+//            romHash = loadedGame!!.romHash,
+//            slot = slot,
+//            preview = createPreview()
+//        )
+//        if (blocking) {
+//            runBlocking { saveStateRepository.upsert(saveState) }
+//        } else {
+//            ioScope.launch { saveStateRepository.upsert(saveState) }
+//        }
 
         if (isRunning) {
             start()
@@ -127,7 +127,7 @@ class MainEmulationService @Inject constructor(
             emulator.stop()
         }
         emulator.destroyAudioPlayer()
-        saveGame(0, immediate)
+        //saveGame(0, immediate)
 
         state = EmulationState.Ready
     }

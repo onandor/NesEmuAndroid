@@ -23,9 +23,9 @@ JNIEnv *getJNIEnv() {
     return env;
 }
 
-int requestSamples(int numSamples, float *outputData) {
+int requestSamples(int numSamples, int16_t *outputData) {
     JNIEnv *env = getJNIEnv();
-    jobject buffer = env->NewDirectByteBuffer(outputData, numSamples * sizeof(float));
+    jobject buffer = env->NewDirectByteBuffer(outputData, numSamples * sizeof(int16_t));
     int numSamplesGot = env->CallIntMethod(gJvmAudioPlayerInstance,
                                            gRequestSamplesCallback,
                                            buffer);

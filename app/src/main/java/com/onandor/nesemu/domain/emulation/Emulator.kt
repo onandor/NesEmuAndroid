@@ -45,7 +45,7 @@ class Emulator @Inject constructor(
         nes.apu.setSampleRate(sampleRate)
     }
 
-    private fun provideAudioSamples(numSamples: Int): FloatArray {
+    private fun provideAudioSamples(numSamples: Int): ShortArray {
         return nes.drainAudioBuffer(numSamples)
     }
 

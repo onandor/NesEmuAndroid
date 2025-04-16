@@ -2,7 +2,8 @@ package com.onandor.nesemu.domain.emulation.nes
 
 import android.util.Log
 import androidx.collection.mutableFloatListOf
-import com.onandor.nesemu.domain.emulation.nes.apu.Apu
+import androidx.collection.mutableIntListOf
+import com.onandor.nesemu.domain.emulation.nes.apu2.Apu
 import com.onandor.nesemu.domain.emulation.nes.mappers.Mapper
 import com.onandor.nesemu.domain.emulation.nes.mappers.Mapper0
 import com.onandor.nesemu.domain.emulation.nes.mappers.Mapper1
@@ -36,7 +37,8 @@ class Nes(
     private var vram: IntArray = IntArray(MEMORY_SIZE)
     val cpu: Cpu = Cpu(::cpuReadMemory, ::cpuWriteMemory)
     val ppu: Ppu = Ppu(::ppuReadMemory, ::ppuWriteMemory, cpu::NMI, ::ppuFrameReady)
-    val apu: Apu = Apu(cpu::IRQ, ::apuReadMemory, ::apuSampleReady)
+    //val apu: Apu = Apu(cpu::IRQ, ::apuReadMemory, ::apuSampleReady)
+    val apu: Apu = Apu(::apuSampleReady)
     private var cartridge: Cartridge? = null
     private lateinit var mapper: Mapper
 
@@ -44,7 +46,7 @@ class Nes(
     private var controller1Buttons: Int = 0
     private var controller2Buttons: Int = 0
 
-    private var audioBuffer = mutableFloatListOf()
+    private var audioBuffer = mutableIntListOf()
     private val audioSampleSizeQueue = SlidingWindowIntQueue(100)
     private var targetAudioBufferSize: Int = 0
 
@@ -176,11 +178,11 @@ class Nes(
         ppu.mirroring = cartridge.mirroring
     }
 
-    private fun apuSampleReady(sample: Float) {
+    private fun apuSampleReady(sample: Int) {
         audioBuffer.add(sample)
     }
 
-    fun drainAudioBuffer(numSamples: Int): FloatArray {
+    fun drainAudioBuffer(numSamples: Int): ShortArray {
 //        if (!audioSampleSizeQueue.isFull()) {
 //            audioSampleSizeQueue.add(numSamples)
 //        } else if (targetAudioBufferSize == 0) {
@@ -188,9 +190,9 @@ class Nes(
 //        }
 
         val size = if (audioBuffer.size < numSamples) audioBuffer.size else numSamples
-        val samples = FloatArray(size)
+        val samples = ShortArray(size)
         for (i in 0 ..< size) {
-            samples[i] = audioBuffer[i]
+            samples[i] = audioBuffer[i].toShort()
         }
         audioBuffer.removeRange(0, size)
 

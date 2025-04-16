@@ -1,6 +1,8 @@
 package com.onandor.nesemu.domain.emulation.nes.apu
 
+import android.util.Log
 import com.onandor.nesemu.domain.emulation.nes.Cpu
+import com.onandor.nesemu.domain.emulation.nes.toInt
 import com.onandor.nesemu.domain.emulation.savestate.ApuState
 import com.onandor.nesemu.domain.emulation.savestate.Savable
 
@@ -99,7 +101,14 @@ class Apu(
     }
 
     fun readStatus(): Int {
-        return 0 // TODO
+        return (pulse1.length > 0).toInt() or
+                (pulse2.length > 0).toInt() shl 1 or
+                (triangle.length > 0).toInt() shl 2 or
+                (noise.length > 0).toInt() shl 3 or
+                0 shl 4 or
+                0 shl 5 or
+                0 shl 6 or
+                0 shl 7
     }
 
     fun writeRegister(address: Int, value: Int) {
@@ -187,10 +196,19 @@ class Apu(
     }
 
     private fun getSample(): Float {
-        val pulseSample = 0.00752f * (pulse1.getOutput() + pulse2.getOutput())
-        val tndSample = 0.00851f * triangle.getOutput() + 0.00494f * noise.getOutput() + 0.00335f * dmc.getOutput()
+        //val pulseSample = 0.00752f * (pulse1.getOutput() + pulse2.getOutput())
+        //val pulseSample = (0.014f * (pulse1.getOutput() + pulse2.getOutput())) * 2.0f - 1.0f
+        val mixedPulse = 0.014f * (pulse1.getOutput() + pulse2.getOutput())
+        val pulseSample = if (mixedPulse == 0f) 0f else mixedPulse * 2.0f - 1.0f
+
+        //val tndSample = 0.00851f * triangle.getOutput() + 0.00494f * noise.getOutput() + 0.00335f * dmc.getOutput()
+        //val tndSample = (0.016f * triangle.getOutput() + 0.01f * noise.getOutput() + 0.00335f * dmc.getOutput()) * 2.0f - 1.0f
+        val mixedTnd = 0.016f * triangle.getOutput() + 0.01f * noise.getOutput() + 0.00335f * dmc.getOutput()
+        val tndSample = if (mixedTnd == 0f) 0f else mixedTnd * 2.0f - 1.0f
+
         //val pulseSample = pulseTable[pulse1.getOutput() + pulse2.getOutput()]
         //val tndSample = tndTable[3 * triangle.getOutput() + 2 * noise.getOutput() + dmc.getOutput()]
+        //return pulseSample + tndSample
         return pulseSample + tndSample
     }
 

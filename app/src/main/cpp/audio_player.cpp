@@ -21,7 +21,7 @@ oboe::AudioStreamBuilder& AudioPlayer::getBuilder() {
     builder.setPerformanceMode(oboe::PerformanceMode::None)
             ->setSharingMode(oboe::SharingMode::Exclusive)
             ->setDataCallback(this)
-            ->setFormat(oboe::AudioFormat::Float)
+            ->setFormat(oboe::AudioFormat::I16)
             ->setChannelCount(oboe::ChannelCount::Mono)
             ->setDirection(oboe::Direction::Output)
             ->setUsage(oboe::Usage::Game)
@@ -85,11 +85,11 @@ int AudioPlayer::getSampleRate() {
 
 oboe::DataCallbackResult
 AudioPlayer::onAudioReady(oboe::AudioStream *audioStream, void *audioData, int32_t numFrames) {
-    auto *outputData = static_cast<float *>(audioData);
+    auto *outputData = static_cast<int16_t *>(audioData);
 
     int numSamples = requestSamples(numFrames, outputData);
     for (int i = 0; i < numSamples; i++) {
-        //outputData[i] = outputData[i] * 0.0000000001f;
+        //outputData[i] = outputData[i] * 0.01f;
     }
     if (numSamples < numFrames) {
         for (int i = numSamples; i < numFrames; i++) {

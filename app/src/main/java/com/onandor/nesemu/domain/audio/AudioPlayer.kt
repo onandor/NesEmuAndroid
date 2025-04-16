@@ -8,7 +8,7 @@ import java.nio.ByteBuffer
 @OptIn(InternalCoroutinesApi::class)
 class AudioPlayer(
     private val onSampleRateAcquired: (Int) -> Unit,
-    private val onSamplesRequested: (Int) -> FloatArray
+    private val onSamplesRequested: (Int) -> ShortArray
 ) {
 
     private companion object {
@@ -29,9 +29,9 @@ class AudioPlayer(
     private external fun getSampleRate(handle: Long): Int
 
     fun onSamplesRequested(buffer: ByteBuffer): Int {
-        val floatBuffer = buffer.asFloatBuffer()
-        val samples: FloatArray = onSamplesRequested(floatBuffer.capacity())
-        floatBuffer.put(samples)
+        val shortBuffer = buffer.asShortBuffer()
+        val samples: ShortArray = onSamplesRequested(shortBuffer.capacity())
+        shortBuffer.put(samples)
         return samples.size
     }
 
