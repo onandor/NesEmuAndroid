@@ -8,23 +8,21 @@ package com.onandor.nesemu.domain.emulation.nes.apu2
 class LengthCounter {
 
     var length: Int = 0
-    var enabled: Boolean = false
+    var halt: Boolean = false
 
     fun clock() {
-        if (length > 0 && enabled) {
+        if (length > 0 && !halt) {
             length -= 1
         }
     }
 
     fun load(index: Int) {
-        if (enabled) {
-            length = LENGTH_VALUE_LOOKUP[index]
-        }
+        length = LENGTH_VALUE_LOOKUP[index]
     }
 
     fun reset() {
         length = 0
-        enabled = false
+        halt = false
     }
 
     companion object {

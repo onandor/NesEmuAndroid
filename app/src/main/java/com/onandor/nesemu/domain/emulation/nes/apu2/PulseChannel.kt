@@ -5,6 +5,8 @@ package com.onandor.nesemu.domain.emulation.nes.apu2
 
 class PulseChannel(val channelNumber: Int) {
 
+    private var enabled: Boolean = false
+
     // The sequencer holds an 8 bit value representing the duty cycle of the generated waveform.
     private var sequencer: Int = 0
     private var sequencePhase: Int = 0
@@ -40,6 +42,7 @@ class PulseChannel(val channelNumber: Int) {
     }
 
     fun reset() {
+        enabled = false
         timer = 0
         timerPeriod = 0
         sequencer = 0
@@ -56,7 +59,7 @@ class PulseChannel(val channelNumber: Int) {
     // 0x4000 / 0x4004
     fun writeControl(value: Int) {
         sequencer = SEQUENCE_LOOKUP[(value ushr 6)]
-        setEnabled((value and 0x20) == 0)
+        lengthCounter.halt = (value and 0x20) != 0
         envelope.loop = (value and 0x20) != 0
         envelope.constant = (value and 0x10) != 0
         envelope.volume = value and 0x0F
@@ -84,7 +87,7 @@ class PulseChannel(val channelNumber: Int) {
 
     // 0x4015
     fun setEnabled(enabled: Boolean) {
-        lengthCounter.enabled = enabled
+        this.enabled = enabled
         if (!enabled) {
             lengthCounter.length = 0
         }
@@ -96,10 +99,9 @@ class PulseChannel(val channelNumber: Int) {
 
     // https://www.nesdev.org/wiki/APU_Pulse#Pulse_channel_output_to_mixer
     fun getOutput(): Int {
-        return if ((sequencer shl sequencePhase) and 0x80 == 0 || lengthCounter.length == 0 || sweep.isMuting())
-            0
-        else
-            return envelope.getOutput()
+        val silenced = (sequencer shl sequencePhase) and 0x80 == 0 ||
+                lengthCounter.length == 0 || sweep.isMuting()|| !enabled
+        return if (silenced) 0 else envelope.getOutput()
     }
 
     companion object {

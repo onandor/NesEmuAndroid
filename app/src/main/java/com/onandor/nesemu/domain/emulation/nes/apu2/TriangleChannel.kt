@@ -6,6 +6,8 @@ package com.onandor.nesemu.domain.emulation.nes.apu2
 
 class TriangleChannel {
 
+    private var enabled: Boolean = false
+
     // The sequencer holds a value between 0 and 32, indexing into the SEQUENCE_LOOKUP table, which holds the volume
     // levels that the channel outputs.
     private var sequencer: Int = 0
@@ -54,6 +56,7 @@ class TriangleChannel {
     }
 
     fun reset() {
+        enabled = false
         sequencer = 0
         timer = 0
         timerPeriod = 0
@@ -66,7 +69,7 @@ class TriangleChannel {
 
     // 0x4008
     fun writeLinearCounter(value: Int) {
-        setEnabled((value and 0x80) == 0)
+        lengthCounter.halt = (value and 0x80) != 0
         controlFlag = (value and 0x80) != 0
         linearCounterPeriod = value and 0x7F
     }
@@ -84,7 +87,7 @@ class TriangleChannel {
     }
 
     fun setEnabled(enabled: Boolean) {
-        lengthCounter.enabled = enabled
+        this.enabled = enabled
         if (!enabled) {
             lengthCounter.length = 0
         }

@@ -5,6 +5,8 @@ package com.onandor.nesemu.domain.emulation.nes.apu2
 
 class NoiseChannel {
 
+    private var enabled: Boolean = false
+
     // The timer has 16 different periods (the channel has 16 different frequencies), which are chosen from the
     // TIMER_PERIOD_LOOKUP table. The timer clocks the linear feedback shift register, which results in a pseudo-random
     // bit sequence, which is used to silence the channel.
@@ -37,6 +39,7 @@ class NoiseChannel {
     }
 
     fun reset() {
+        enabled = false
         timer = 0
         timerPeriod = 0
         shifter = 1
@@ -47,7 +50,7 @@ class NoiseChannel {
 
     // 0x400C
     fun writeControl(value: Int) {
-        setEnabled((value and 0x20) == 0)
+        lengthCounter.halt = (value and 0x20) != 0
         envelope.loop = (value and 0x20) != 0
         envelope.constant = (value and 0x10) != 0
         envelope.volume = value and 0x0F
@@ -66,7 +69,7 @@ class NoiseChannel {
     }
 
     fun setEnabled(enabled: Boolean) {
-        lengthCounter.enabled = enabled
+        this.enabled = enabled
         if (!enabled) {
             lengthCounter.length = 0
         }
