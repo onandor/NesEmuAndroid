@@ -66,7 +66,7 @@ class TriangleChannel {
 
     // 0x4008
     fun writeLinearCounter(value: Int) {
-        lengthCounter.enabled = (value and 0x80) == 0
+        setEnabled((value and 0x80) == 0)
         controlFlag = (value and 0x80) != 0
         linearCounterPeriod = value and 0x7F
     }

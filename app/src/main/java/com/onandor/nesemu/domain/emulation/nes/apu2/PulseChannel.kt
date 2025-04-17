@@ -56,7 +56,7 @@ class PulseChannel(val channelNumber: Int) {
     // 0x4000 / 0x4004
     fun writeControl(value: Int) {
         sequencer = SEQUENCE_LOOKUP[(value ushr 6)]
-        lengthCounter.enabled = (value and 0x20) == 0
+        setEnabled((value and 0x20) == 0)
         envelope.loop = (value and 0x20) != 0
         envelope.constant = (value and 0x10) != 0
         envelope.volume = value and 0x0F

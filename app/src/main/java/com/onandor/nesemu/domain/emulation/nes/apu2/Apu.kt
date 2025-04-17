@@ -21,6 +21,7 @@ class Apu(private val onAudioSampleReady: (Int) -> Unit) : Savable<ApuState> {
     private val pulse1 = PulseChannel(PulseChannel.CHANNEL_1)
     private val pulse2 = PulseChannel(PulseChannel.CHANNEL_2)
     private val triangle = TriangleChannel()
+    private val noise = NoiseChannel()
 
     // Mixer tables
     private val pulseOutputTable = FloatArray(31)
@@ -77,6 +78,7 @@ class Apu(private val onAudioSampleReady: (Int) -> Unit) : Savable<ApuState> {
             pulse1.clockEnvelope()
             pulse2.clockEnvelope()
             triangle.clockLinearCounter()
+            noise.clockEnvelope()
         }
         if (isHalfFrame) {
             pulse1.clockLengthCounter()
@@ -84,11 +86,13 @@ class Apu(private val onAudioSampleReady: (Int) -> Unit) : Savable<ApuState> {
             pulse1.clockSweep()
             pulse2.clockSweep()
             triangle.clockLengthCounter()
+            noise.clockLengthCounter()
         }
 
         if (cpuCycles % 2 == 0) {
             pulse1.clockTimer()
             pulse2.clockTimer()
+            noise.clockTimer()
         }
         triangle.clockTimer()
 
@@ -121,10 +125,14 @@ class Apu(private val onAudioSampleReady: (Int) -> Unit) : Savable<ApuState> {
             0x4008 -> triangle.writeLinearCounter(value)
             0x400A -> triangle.writeTimer(value)
             0x400B -> triangle.writeLengthCounter(value)
+            0x400C -> noise.writeControl(value)
+            0x400E -> noise.writeTimer(value)
+            0x400F -> noise.writeLengthCounter(value)
             0x4015 -> {
                 pulse1.setEnabled(value and 0x01 != 0)
                 pulse2.setEnabled(value and 0x02 != 0)
                 triangle.setEnabled(value and 0x04 != 0)
+                noise.setEnabled(value and 0x08 != 0)
             }
             0x4017 -> {
                 sequenceCycles = if (value and 0x80 > 0) SEQ_5_STEP_CYCLES else SEQ_4_STEP_CYCLES
