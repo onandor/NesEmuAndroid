@@ -1,6 +1,8 @@
 package com.onandor.nesemu.di
 
+import android.content.Context
 import android.hardware.input.InputManager
+import android.media.AudioManager
 import com.onandor.nesemu.data.preferences.PreferenceManager
 import com.onandor.nesemu.data.repository.CoverArtRepository
 import com.onandor.nesemu.data.repository.LibraryEntryRepository
@@ -20,6 +22,7 @@ import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
@@ -32,9 +35,12 @@ object EmulationModule {
     @Singleton
     @Provides
     fun provideEmulator(
-        @DefaultDispatcher coroutineScope: CoroutineScope,
+        @ApplicationContext context: Context,
         inputService: InputService
-    ): Emulator = Emulator(coroutineScope, inputService)
+    ): Emulator = Emulator(
+        audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager,
+        inputService = inputService
+    )
 }
 
 @Module
@@ -99,12 +105,14 @@ object ServiceModule {
         emulator: Emulator,
         saveStateRepository: SaveStateRepository,
         documentAccessor: DocumentAccessor,
+        @DefaultDispatcher defaultScope: CoroutineScope,
         @IODispatcher ioScope: CoroutineScope
     ): EmulationService =
         MainEmulationService(
             emulator = emulator,
             saveStateRepository = saveStateRepository,
             documentAccessor = documentAccessor,
+            defaultScope = defaultScope,
             ioScope = ioScope
         )
 }

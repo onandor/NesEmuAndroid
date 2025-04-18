@@ -6,6 +6,7 @@ import com.onandor.nesemu.domain.emulation.EmulationListener
 import com.onandor.nesemu.domain.emulation.Emulator
 import com.onandor.nesemu.navigation.NavigationManager
 import com.onandor.nesemu.domain.emulation.nes.DebugFeature
+import com.onandor.nesemu.domain.emulation.nes.Nes
 import com.onandor.nesemu.domain.service.EmulationService
 import com.onandor.nesemu.ui.components.game.NesRenderer
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -55,20 +56,15 @@ class DebugViewModel @Inject constructor(
 
     private val emulationListener = object : EmulationListener {
 
-        override fun onFrameReady(
-            frame: IntArray,
-            patternTable: IntArray,
-            nametable: IntArray,
-            colorPalettes: Array<IntArray>
-        ) {
-            patternTableRenderer.setTextureData(patternTable)
+        override fun onFrameReady(frame: Nes.Frame) {
+            patternTableRenderer.setTextureData(frame.patternTable)
             requestPatternTableRender()
 
-            nametableRenderer.setTextureData(nametable)
+            nametableRenderer.setTextureData(frame.nametable)
             requestNametableRender()
 
             for (i in 0 ..< 8) {
-                colorPaletteRenderers[i].setTextureData(colorPalettes[i])
+                colorPaletteRenderers[i].setTextureData(frame.colorPalettes[i])
                 requestColorPaletteRender[i]()
             }
         }

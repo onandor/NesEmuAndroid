@@ -1,19 +1,21 @@
 package com.onandor.nesemu.domain.service
 
 import android.graphics.Bitmap
+import android.util.Log
 import com.onandor.nesemu.data.entity.LibraryEntry
 import com.onandor.nesemu.data.repository.SaveStateRepository
 import com.onandor.nesemu.data.entity.SaveState
+import com.onandor.nesemu.di.DefaultDispatcher
 import com.onandor.nesemu.di.IODispatcher
 import com.onandor.nesemu.domain.emulation.EmulationListener
 import com.onandor.nesemu.domain.emulation.Emulator
 import com.onandor.nesemu.ui.components.game.NesRenderer
 import com.onandor.nesemu.util.DocumentAccessor
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.io.ByteArrayOutputStream
-import java.time.OffsetDateTime
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.time.TimeSource
@@ -31,6 +33,7 @@ class MainEmulationService @Inject constructor(
     private val emulator: Emulator,
     private val saveStateRepository: SaveStateRepository,
     private val documentAccessor: DocumentAccessor,
+    @DefaultDispatcher private val defaultScope: CoroutineScope,
     @IODispatcher private val ioScope: CoroutineScope
 ) : EmulationService {
 
@@ -39,6 +42,7 @@ class MainEmulationService @Inject constructor(
     override var state: EmulationState = EmulationState.Uninitialized
         private set
 
+    private var emulatorJob: Job? = null
     private val timeSource = TimeSource.Monotonic
     private var playtime: Long = 0
     private var lastResumed: ValueTimeMark = timeSource.markNow()
@@ -111,8 +115,9 @@ class MainEmulationService @Inject constructor(
         if (state != EmulationState.Ready && state != EmulationState.Paused) {
             return
         }
-        emulator.initAudioPlayer()
-        emulator.start()
+
+        startEmulation()
+
         lastResumed = timeSource.markNow()
         state = EmulationState.Running
     }
@@ -124,9 +129,8 @@ class MainEmulationService @Inject constructor(
         if (state == EmulationState.Running) {
             pause()
         } else {
-            emulator.stop()
+            stopEmulation()
         }
-        emulator.destroyAudioPlayer()
         //saveGame(0, immediate)
 
         state = EmulationState.Ready
@@ -136,15 +140,14 @@ class MainEmulationService @Inject constructor(
         if (state != EmulationState.Running) {
             return
         }
-        emulator.stop()
+        stopEmulation()
         playtime += lastResumed.elapsedNow().inWholeSeconds
         state = EmulationState.Paused
     }
 
     override fun reset() {
-        emulator.stop()
+        stopEmulation()
         emulator.reset()
-        emulator.start()
     }
 
     override fun registerListener(listener: EmulationListener) {
@@ -155,6 +158,24 @@ class MainEmulationService @Inject constructor(
         emulator.unregisterListener(listener)
     }
 
+    private fun startEmulation() {
+        emulatorJob = defaultScope.launch {
+            try {
+                emulator.run()
+            } catch (e: Exception) {
+                Log.e(TAG, e.localizedMessage, e)
+                state = EmulationState.Ready
+            }
+        }
+    }
+
+    private fun stopEmulation() {
+        emulator.stop(true)
+        emulatorJob?.cancel()
+        runBlocking { emulatorJob?.join() }
+        emulatorJob = null
+    }
+
     private fun createPreview(): ByteArray {
         renderer?.let { renderer ->
             return ByteArrayOutputStream().use { out ->
@@ -163,5 +184,9 @@ class MainEmulationService @Inject constructor(
             }
         }
         return ByteArray(0)
+    }
+
+    companion object {
+        private const val TAG = "MainEmulationService"
     }
 }

@@ -1,22 +1,21 @@
 package com.onandor.nesemu.domain.emulation
 
+import android.media.AudioManager
 import android.util.Log
 import com.onandor.nesemu.domain.audio.AudioPlayer
-import com.onandor.nesemu.di.DefaultDispatcher
 import com.onandor.nesemu.domain.emulation.nes.Cartridge
 import com.onandor.nesemu.domain.emulation.nes.Nes
 import com.onandor.nesemu.domain.emulation.savestate.NesState
 import com.onandor.nesemu.domain.service.InputService
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.delay
+import java.util.concurrent.CountDownLatch
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.TimeSource
 
 @Singleton
 class Emulator @Inject constructor(
-    @DefaultDispatcher private val coroutineScope: CoroutineScope,
+    audioManager: AudioManager,
     private val inputService: InputService
 ) {
 
@@ -25,15 +24,20 @@ class Emulator @Inject constructor(
     }
 
     val nes = Nes(
-        onFrameReady = ::notifyListenersFrameReady,
         onPollController1 = { inputService.getButtonStates(InputService.PLAYER_1) },
         onPollController2 = { inputService.getButtonStates(InputService.PLAYER_2) }
     )
     private lateinit var cartridge: Cartridge
 
-    private val audioPlayer = AudioPlayer(::setAudioSampleRate, ::provideAudioSamples)
-    private var nesRunnerJob: Job? = null
+    private val audioPlayer = AudioPlayer(audioManager)
     private val listeners = mutableListOf<EmulationListener>()
+
+    private var running: Boolean = false
+    private var stopLatch = CountDownLatch(1)
+
+    init {
+        nes.apu.setSampleRate(audioPlayer.sampleRate)
+    }
 
     fun loadRom(rom: ByteArray) {
         cartridge = Cartridge()
@@ -45,40 +49,37 @@ class Emulator @Inject constructor(
         nes.apu.setSampleRate(sampleRate)
     }
 
-    private fun provideAudioSamples(numSamples: Int): ShortArray {
-        return nes.drainAudioBuffer(numSamples)
-    }
+    suspend fun run() {
+        audioPlayer.start()
+        val timeSource = TimeSource.Monotonic
+        running = true
 
-    private fun notifyListenersFrameReady(
-        frame: IntArray,
-        patternTable: IntArray,
-        nametable: IntArray,
-        colorPalettes: Array<IntArray>
-    ) {
-        listeners.forEach { it.onFrameReady(frame, patternTable, nametable, colorPalettes) }
-    }
+        while (running) {
+            val frameStart = timeSource.markNow()
 
-    fun start() {
-        if (!nes.running) {
-            nesRunnerJob = coroutineScope.launch {
-                try {
-                    nes.run()
-                } catch (e: Exception) {
-                    Log.e(TAG, e.localizedMessage, e)
-                    stop()
-                }
-            }
-            audioPlayer.startStream()
+            val frame = nes.generateFrame()
+            val audioSamples = nes.drainAudioBuffer()
+
+            listeners.forEach { it.onFrameReady(frame) }
+            audioPlayer.queueSamples(audioSamples)
+
+            val now = timeSource.markNow()
+            delay(1000 / 60 - (now - frameStart).inWholeMilliseconds)
         }
+
+        stopLatch.countDown()
     }
 
-    fun stop() {
-        if (nes.running) {
-            audioPlayer.pauseStream()
-            nes.stop()
-            nesRunnerJob?.cancel()
-            runBlocking { nesRunnerJob?.join() }
+    fun stop(blocking: Boolean) {
+        if (!running) {
+            return
         }
+        running = false
+        audioPlayer.stop()
+        if (blocking) {
+            stopLatch.await()
+        }
+        stopLatch = CountDownLatch(1)
     }
 
     fun reset() {
@@ -93,10 +94,6 @@ class Emulator @Inject constructor(
         listeners.remove(listener)
     }
 
-    fun initAudioPlayer() {
-        audioPlayer.init()
-    }
-
     fun destroyAudioPlayer() {
         audioPlayer.destroy()
     }
@@ -104,9 +101,7 @@ class Emulator @Inject constructor(
     fun createSaveState(): NesState = nes.createSaveState()
 
     fun loadSaveState(nesState: NesState) {
-        if (nes.running) {
-            stop()
-        }
+        stop(true)
         nes.reset()
         nes.loadState(nesState)
     }

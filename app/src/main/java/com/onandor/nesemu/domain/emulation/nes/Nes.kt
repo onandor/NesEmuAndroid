@@ -18,14 +18,16 @@ import java.util.concurrent.CountDownLatch
 import kotlin.time.TimeSource
 
 class Nes(
-    private val onFrameReady: (
-        frame: IntArray,
-        patternTable: IntArray,
-        nametable: IntArray,
-        colorPalettes: Array<IntArray>) -> Unit,
     private val onPollController1: () -> Int,
     private val onPollController2: () -> Int
 ) : Savable<NesState> {
+
+    data class Frame(
+        val frame: IntArray,
+        val patternTable: IntArray,
+        val nametable: IntArray,
+        val colorPalettes: Array<IntArray>
+    )
 
     private companion object {
         const val TAG = "Nes"
@@ -37,7 +39,6 @@ class Nes(
     private var vram: IntArray = IntArray(MEMORY_SIZE)
     val cpu: Cpu = Cpu(::cpuReadMemory, ::cpuWriteMemory)
     val ppu: Ppu = Ppu(::ppuReadMemory, ::ppuWriteMemory, cpu::NMI, ::ppuFrameReady)
-    //val apu: Apu = Apu(cpu::IRQ, ::apuReadMemory, ::apuSampleReady)
     val apu: Apu = Apu(::apuSampleReady)
     private var cartridge: Cartridge? = null
     private lateinit var mapper: Mapper
@@ -46,18 +47,11 @@ class Nes(
     private var controller1Buttons: Int = 0
     private var controller2Buttons: Int = 0
 
+    var frame: Frame? = null
+        private set
     private var audioBuffer = mutableIntListOf()
     private val audioSampleSizeQueue = SlidingWindowIntQueue(100)
     private var targetAudioBufferSize: Int = 0
-
-    var running: Boolean = false
-        private set
-    private var isFrameReady: Boolean = false
-    private var numFrames: Int = 0
-    var fps: Float = 0f
-        private set
-
-    private var stopLatch = CountDownLatch(1)
 
     fun cpuReadMemory(address: Int): Int {
         lastValueRead = when (address) {
@@ -157,8 +151,12 @@ class Nes(
         nametable: IntArray,
         colorPalettes: Array<IntArray>
     ) {
-        isFrameReady = true
-        onFrameReady(frame, patternTable, nametable, colorPalettes)
+        this.frame = Frame(
+            frame = frame,
+            patternTable = patternTable,
+            nametable = nametable,
+            colorPalettes = colorPalettes
+        )
     }
 
     fun apuReadMemory(address: Int): Int {
@@ -182,19 +180,18 @@ class Nes(
         audioBuffer.add(sample)
     }
 
-    fun drainAudioBuffer(numSamples: Int): ShortArray {
+    fun drainAudioBuffer(): ShortArray {
 //        if (!audioSampleSizeQueue.isFull()) {
 //            audioSampleSizeQueue.add(numSamples)
 //        } else if (targetAudioBufferSize == 0) {
 //            targetAudioBufferSize = (audioSampleSizeQueue.average * 3).toInt()
 //        }
 
-        val size = if (audioBuffer.size < numSamples) audioBuffer.size else numSamples
-        val samples = ShortArray(size)
-        for (i in 0 ..< size) {
+        val samples = ShortArray(audioBuffer.size)
+        for (i in 0 ..< audioBuffer.size) {
             samples[i] = audioBuffer[i].toShort()
         }
-        audioBuffer.removeRange(0, size)
+        audioBuffer.clear()
 
 //        if (targetAudioBufferSize != 0) {
 //            if (audioBuffer.size > targetAudioBufferSize * 1.5) {
@@ -213,8 +210,7 @@ class Nes(
         cpuMemory = IntArray(MEMORY_SIZE)
         vram = IntArray(MEMORY_SIZE)
         lastValueRead = 0
-        numFrames = 0
-        isFrameReady = false
+        frame = null
         audioBuffer.clear()
         audioSampleSizeQueue.clear()
         controller1Buttons = 0
@@ -225,49 +221,22 @@ class Nes(
         apu.reset()
         cartridge!!.reset()
         mapper.reset()
+        Log.d(TAG, "Reset complete")
     }
 
-    suspend fun run() {
-        running = true
-        val timeSource = TimeSource.Monotonic
-        var fpsMeasureStart = timeSource.markNow()
+    fun generateFrame(): Frame {
+        while (frame == null) {
+            val cpuCycles = cpu.step()
 
-        while (running) {
-            val frameStart = timeSource.markNow()
-            while (!isFrameReady) {
-                var cpuCycles = cpu.step()
-
-                for (i in 0 ..< cpuCycles * 3) {
-                    ppu.tick()
-                }
-
-                for (i in 0 ..< cpuCycles) {
-                    apu.clock()
-                }
+            for (i in 0 ..< cpuCycles * 3) {
+                ppu.tick()
             }
-            isFrameReady = false
-            numFrames += 1
 
-            val now = timeSource.markNow()
-            // If we are lagging behind, the delta will be negative and the call to delay will
-            // return immediately
-            delay(1000 / TARGET_FPS - (now - frameStart).inWholeMilliseconds)
-
-            if ((now - fpsMeasureStart).inWholeMilliseconds >= 3000) {
-                fps = numFrames / 3f
-                numFrames = 0
-                fpsMeasureStart = timeSource.markNow()
-                Log.i(TAG, "FPS: $fps")
+            for (i in 0 ..< cpuCycles) {
+                apu.clock()
             }
         }
-
-        stopLatch.countDown()
-    }
-
-    fun stop() {
-        running = false
-        stopLatch.await()
-        stopLatch = CountDownLatch(1)
+        return frame!!.also { frame = null }
     }
 
     // Functions used for debugging

@@ -8,7 +8,7 @@ import com.onandor.nesemu.domain.emulation.savestate.Savable
 class Apu(private val onAudioSampleReady: (Int) -> Unit) : Savable<ApuState> {
 
     // Sample generation
-    private var cpuCyclesPerSample: Int = Int.MAX_VALUE
+    private var cpuCyclesPerSample: Int = Cpu.FREQUENCY_HZ / 4800
     private var cpuCyclesSinceSample: Int = 0
 
     // Frame counter
@@ -172,11 +172,15 @@ class Apu(private val onAudioSampleReady: (Int) -> Unit) : Savable<ApuState> {
 //        return pulseSampleInt.coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
 
         //return (pulseOutputTable[pulse1.getOutput() + pulse2.getOutput()] * Short.MAX_VALUE).toInt()
-        val pulseSample = pulseOutputTable[pulse1.getOutput() + pulse2.getOutput()]
-        val pulseSampleInt = ((pulseSample - 0.5f) * 2.0f * Short.MAX_VALUE * 0.2f).toInt()
-        val tndSample = tndOutputTable[3 * triangle.getOutput()]
-        val tndSampleInt = ((tndSample - 0.5f) * 2.0f * Short.MAX_VALUE * 0.2f).toInt()
-        return pulseSampleInt + tndSampleInt
+//        val pulseSample = pulseOutputTable[pulse1.getOutput() + pulse2.getOutput()]
+//        val pulseSampleInt = ((pulseSample - 0.5f) * 2.0f * Short.MAX_VALUE * 0.2f).toInt()
+//        val tndSample = tndOutputTable[3 * triangle.getOutput()]
+//        val tndSampleInt = ((tndSample - 0.5f) * 2.0f * Short.MAX_VALUE * 0.2f).toInt()
+//        return pulseSampleInt + tndSampleInt
+
+        val pulseSample = (pulseOutputTable[pulse1.getOutput() + pulse2.getOutput()] * Short.MAX_VALUE).toInt()
+        val tndSample = (tndOutputTable[3 * triangle.getOutput() + 2 * noise.getOutput()] * Short.MAX_VALUE).toInt()
+        return pulseSample + tndSample
     }
 
     override fun createSaveState(): ApuState {

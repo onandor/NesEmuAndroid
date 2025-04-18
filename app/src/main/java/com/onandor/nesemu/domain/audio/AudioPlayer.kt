@@ -1,80 +1,60 @@
 package com.onandor.nesemu.domain.audio
 
+import android.media.AudioAttributes
+import android.media.AudioFormat
+import android.media.AudioManager
+import android.media.AudioTrack
 import android.util.Log
-import kotlinx.coroutines.InternalCoroutinesApi
-import kotlinx.coroutines.internal.synchronized
-import java.nio.ByteBuffer
 
-@OptIn(InternalCoroutinesApi::class)
-class AudioPlayer(
-    private val onSampleRateAcquired: (Int) -> Unit,
-    private val onSamplesRequested: (Int) -> ShortArray
-) {
+class AudioPlayer(audioManager: AudioManager) {
 
-    private companion object {
-        const val TAG = "AudioPlayer"
-        init {
-            System.loadLibrary("audio-player")
+    private var audioTrack: AudioTrack
+    val sampleRate: Int = audioManager.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE).toInt()
+
+    init {
+        var bufferSizeBytes = AudioTrack.getMinBufferSize(
+            sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT) * 2
+
+        audioTrack = AudioTrack.Builder()
+            .setAudioFormat(AudioFormat.Builder()
+                .setSampleRate(sampleRate)
+                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                .build())
+            .setAudioAttributes(AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_GAME)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build())
+            //.setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
+            .setTransferMode(AudioTrack.MODE_STREAM)
+            .setBufferSizeInBytes(bufferSizeBytes)
+            .build()
+    }
+
+    fun queueSamples(samples: ShortArray) {
+        //Log.i(TAG, "Underruns: ${audioTrack.underrunCount}")
+        audioTrack.write(samples, 0, samples.size)
+    }
+
+    fun start() {
+        if (audioTrack.playState != AudioTrack.PLAYSTATE_PLAYING) {
+            audioTrack.play()
         }
     }
 
-    private var nativeInstanceHandle: Long = -1L
-    private val mutex: Any = Object()
-    private var isStreamRunning: Boolean = false
-
-    private external fun create(): Long
-    private external fun delete(handle: Long)
-    private external fun startStream(handle: Long)
-    private external fun pauseStream(handle: Long)
-    private external fun getSampleRate(handle: Long): Int
-
-    fun onSamplesRequested(buffer: ByteBuffer): Int {
-        val shortBuffer = buffer.asShortBuffer()
-        val samples: ShortArray = onSamplesRequested(shortBuffer.capacity())
-        shortBuffer.put(samples)
-        return samples.size
-    }
-
-    fun startStream() {
-        synchronized(mutex) {
-            startStream(nativeInstanceHandle)
-            isStreamRunning = true
-        }
-    }
-
-    fun pauseStream() {
-        synchronized(mutex) {
-            pauseStream(nativeInstanceHandle)
-            isStreamRunning = false
-        }
-    }
-
-    fun init() {
-        synchronized(mutex) {
-            val firstInit = if (nativeInstanceHandle > 0L) return else nativeInstanceHandle == -1L
-            nativeInstanceHandle = create()
-            Log.d(TAG, "Native AudioPlayer created")
-
-            if (firstInit) {
-                val sampleRate = getSampleRate(nativeInstanceHandle)
-                onSampleRateAcquired(sampleRate)
-                Log.d(TAG, "Sample rate set as $sampleRate")
-            }
-            if (isStreamRunning) {
-                startStream(nativeInstanceHandle)
-            }
+    fun stop() {
+        if (audioTrack.playState == AudioTrack.PLAYSTATE_PLAYING) {
+            audioTrack.pause()
+            audioTrack.flush()
         }
     }
 
     fun destroy() {
-        synchronized(mutex) {
-            if (nativeInstanceHandle <= 0L) {
-                return
-            }
+        stop()
+        audioTrack.release()
+    }
 
-            delete(nativeInstanceHandle)
-            nativeInstanceHandle = 0L
-            Log.d(TAG, "Native AudioPlayer destroyed")
-        }
+    companion object {
+        private const val TAG = "AudioPlayer"
     }
 }

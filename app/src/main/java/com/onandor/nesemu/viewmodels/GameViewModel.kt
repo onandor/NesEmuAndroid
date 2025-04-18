@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.onandor.nesemu.data.repository.SaveStateRepository
 import com.onandor.nesemu.di.IODispatcher
 import com.onandor.nesemu.domain.emulation.EmulationListener
+import com.onandor.nesemu.domain.emulation.nes.Nes
 import com.onandor.nesemu.navigation.NavigationManager
 import com.onandor.nesemu.domain.emulation.nes.NesException
 import com.onandor.nesemu.ui.components.game.NesRenderer
@@ -88,13 +89,8 @@ class GameViewModel @Inject constructor(
 
     private val emulationListener = object : EmulationListener {
 
-        override fun onFrameReady(
-            frame: IntArray,
-            patternTable: IntArray,
-            nametable: IntArray,
-            colorPalettes: Array<IntArray>
-        ) {
-            renderer.setTextureData(frame)
+        override fun onFrameReady(frame: Nes.Frame) {
+            renderer.setTextureData(frame.frame)
             requestRender()
         }
     }

@@ -1,10 +1,7 @@
 package com.onandor.nesemu.domain.emulation
 
+import com.onandor.nesemu.domain.emulation.nes.Nes
+
 interface EmulationListener {
-    fun onFrameReady(
-        frame: IntArray,
-        patternTable: IntArray,
-        nametable: IntArray,
-        colorPalettes: Array<IntArray>
-    )
+    fun onFrameReady(frame: Nes.Frame)
 }
