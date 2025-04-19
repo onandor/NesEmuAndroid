@@ -146,23 +146,26 @@ class NesRenderer(private val width: Int, private val height: Int) : GLSurfaceVi
     }
 
     companion object {
-        private const val VERTEX_SHADER_SOURCE =
+        private val VERTEX_SHADER_SOURCE =
             """
                 #version 300 es
                 
                 layout (location = 0) in vec2 vPos;
                 layout (location = 1) in vec2 vTexCoord;
-                layout (location = 2) uniform mat4 MVP;
+                
                 out vec2 TexCoord;
                 
                 void main() {
                     gl_Position = vec4(vPos.x, vPos.y, 0.0, 1.0);
                     TexCoord = vTexCoord;
                 }
-            """
-        private const val FRAGMENT_SHADER_SOURCE =
+            """.trim()
+
+        private val FRAGMENT_SHADER_SOURCE =
             """
                 #version 300 es
+                
+                precision mediump float;
                 
                 in vec2 TexCoord;
                 out vec4 FragColor;
@@ -171,7 +174,7 @@ class NesRenderer(private val width: Int, private val height: Int) : GLSurfaceVi
                 void main() {
                     FragColor = texture(_texture, TexCoord);
                 }
-            """
+            """.trim()
 
         private const val SIZE_OF_FLOAT = 4
         private const val SIZE_OF_SHORT = 2

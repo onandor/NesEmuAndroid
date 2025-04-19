@@ -7,7 +7,6 @@ import com.onandor.nesemu.domain.emulation.nes.Cartridge
 import com.onandor.nesemu.domain.emulation.nes.Nes
 import com.onandor.nesemu.domain.emulation.savestate.NesState
 import com.onandor.nesemu.domain.service.InputService
-import kotlinx.coroutines.delay
 import java.util.concurrent.CountDownLatch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -52,6 +51,8 @@ class Emulator @Inject constructor(
     suspend fun run() {
         audioPlayer.start()
         val timeSource = TimeSource.Monotonic
+        var fpsMeasureStart = timeSource.markNow()
+        var numFrames: Int = 0
         running = true
 
         while (running) {
@@ -64,7 +65,22 @@ class Emulator @Inject constructor(
             audioPlayer.queueSamples(audioSamples)
 
             val now = timeSource.markNow()
-            delay(1000 / 60 - (now - frameStart).inWholeMilliseconds)
+
+            val sleepMicros = 1_000_000 / 60 - (now - frameStart).inWholeMicroseconds
+            if (sleepMicros > 0) {
+                val millis = sleepMicros / 1000
+                val nanos = ((sleepMicros % 1_000) * 1_000).toInt()
+                Thread.sleep(millis, nanos)
+            }
+
+            numFrames += 1
+
+            if ((now - fpsMeasureStart).inWholeMilliseconds >= 3000) {
+                val fps = numFrames / 3f
+                numFrames = 0
+                fpsMeasureStart = timeSource.markNow()
+                Log.i(TAG, "FPS: $fps")
+            }
         }
 
         stopLatch.countDown()
