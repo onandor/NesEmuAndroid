@@ -1,18 +1,22 @@
 package com.onandor.nesemu.domain.service
 
 import android.graphics.Bitmap
+import android.media.AudioManager
 import android.util.Log
 import com.onandor.nesemu.data.entity.LibraryEntry
 import com.onandor.nesemu.data.repository.SaveStateRepository
 import com.onandor.nesemu.data.entity.SaveState
 import com.onandor.nesemu.di.DefaultDispatcher
 import com.onandor.nesemu.di.IODispatcher
-import com.onandor.nesemu.domain.emulation.EmulationListener
 import com.onandor.nesemu.domain.emulation.Emulator
+import com.onandor.nesemu.domain.emulation.nes.Nes
 import com.onandor.nesemu.ui.components.game.NesRenderer
 import com.onandor.nesemu.util.DocumentAccessor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.io.ByteArrayOutputStream
@@ -30,13 +34,28 @@ enum class EmulationState {
 
 @Singleton
 class MainEmulationService @Inject constructor(
-    private val emulator: Emulator,
+    audioManager: AudioManager,
+    inputService: InputService,
     private val saveStateRepository: SaveStateRepository,
     private val documentAccessor: DocumentAccessor,
     @DefaultDispatcher private val defaultScope: CoroutineScope,
     @IODispatcher private val ioScope: CoroutineScope
 ) : EmulationService {
 
+    override val emulator = Emulator(
+        audioManager = audioManager,
+        onFrameReady = { _frames.tryEmit(it) },
+        onPollController1 = { inputService.getButtonStates(InputService.PLAYER_1) },
+        onPollController2 = { inputService.getButtonStates(InputService.PLAYER_2) }
+    )
+
+    private val _frames = MutableSharedFlow<Nes.Frame>(
+        extraBufferCapacity = 2,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+    override val frames = _frames.asSharedFlow()
+
+    override var renderer: NesRenderer? = null
     override var loadedGame: LibraryEntry? = null
         private set
     override var state: EmulationState = EmulationState.Uninitialized
@@ -46,8 +65,6 @@ class MainEmulationService @Inject constructor(
     private val timeSource = TimeSource.Monotonic
     private var playtime: Long = 0
     private var lastResumed: ValueTimeMark = timeSource.markNow()
-
-    override var renderer: NesRenderer? = null
 
     override fun loadGame(game: LibraryEntry, saveState: SaveState?) {
         val rom = documentAccessor.readBytes(game.uri)
@@ -148,14 +165,6 @@ class MainEmulationService @Inject constructor(
     override fun reset() {
         stopEmulation()
         emulator.reset()
-    }
-
-    override fun registerListener(listener: EmulationListener) {
-        emulator.registerListener(listener)
-    }
-
-    override fun unregisterListener(listener: EmulationListener) {
-        emulator.unregisterListener(listener)
     }
 
     private fun startEmulation() {

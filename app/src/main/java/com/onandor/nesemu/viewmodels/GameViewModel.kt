@@ -6,8 +6,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.onandor.nesemu.data.repository.SaveStateRepository
 import com.onandor.nesemu.di.IODispatcher
-import com.onandor.nesemu.domain.emulation.EmulationListener
-import com.onandor.nesemu.domain.emulation.nes.Nes
 import com.onandor.nesemu.navigation.NavigationManager
 import com.onandor.nesemu.domain.emulation.nes.NesException
 import com.onandor.nesemu.ui.components.game.NesRenderer
@@ -87,19 +85,11 @@ class GameViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(UiState())
     val uiState = _uiState.asStateFlow()
 
-    private val emulationListener = object : EmulationListener {
-
-        override fun onFrameReady(frame: Nes.Frame) {
-            renderer.setTextureData(frame.frame)
-            requestRender()
-        }
-    }
-
     init {
+        collectRenderedFrames()
         collectLifecycleEvents()
         collectInputManagerEvents()
         collectNavigationEvents()
-        emulationService.registerListener(emulationListener)
         emulationService.renderer = renderer
 
         try {
@@ -213,6 +203,13 @@ class GameViewModel @Inject constructor(
         }
     }
 
+    private fun collectRenderedFrames(): Job = viewModelScope.launch {
+        emulationService.frames.collect { frame ->
+            renderer.setTextureData(frame.frame)
+            requestRender()
+        }
+    }
+
     private fun collectInputManagerEvents(): Job = viewModelScope.launch {
         inputManager.events.collect { event ->
             when (event) {
@@ -262,7 +259,6 @@ class GameViewModel @Inject constructor(
 
     private fun cleanUp() {
         emulationService.stop(immediate = true)
-        emulationService.unregisterListener(emulationListener)
         emulationService.renderer = null
     }
 

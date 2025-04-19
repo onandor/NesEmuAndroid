@@ -7,7 +7,6 @@ import com.onandor.nesemu.data.preferences.PreferenceManager
 import com.onandor.nesemu.data.repository.CoverArtRepository
 import com.onandor.nesemu.data.repository.LibraryEntryRepository
 import com.onandor.nesemu.data.repository.SaveStateRepository
-import com.onandor.nesemu.domain.emulation.Emulator
 import com.onandor.nesemu.domain.service.CoverArtService
 import com.onandor.nesemu.domain.service.EmulationService
 import com.onandor.nesemu.domain.service.InputService
@@ -18,7 +17,6 @@ import com.onandor.nesemu.domain.service.MainInputService
 import com.onandor.nesemu.domain.service.MainLibraryService
 import com.onandor.nesemu.util.DocumentAccessor
 import com.onandor.nesemu.util.GlobalLifecycleObserver
-import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -27,21 +25,6 @@ import dagger.hilt.components.SingletonComponent
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
 import javax.inject.Singleton
-
-@Module
-@InstallIn(SingletonComponent::class)
-object EmulationModule {
-
-    @Singleton
-    @Provides
-    fun provideEmulator(
-        @ApplicationContext context: Context,
-        inputService: InputService
-    ): Emulator = Emulator(
-        audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager,
-        inputService = inputService
-    )
-}
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -102,14 +85,16 @@ object ServiceModule {
     @Provides
     @Singleton
     fun provideEmulationService(
-        emulator: Emulator,
+        @ApplicationContext context: Context,
         saveStateRepository: SaveStateRepository,
         documentAccessor: DocumentAccessor,
         @DefaultDispatcher defaultScope: CoroutineScope,
-        @IODispatcher ioScope: CoroutineScope
+        @IODispatcher ioScope: CoroutineScope,
+        inputService: InputService
     ): EmulationService =
         MainEmulationService(
-            emulator = emulator,
+            audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager,
+            inputService = inputService,
             saveStateRepository = saveStateRepository,
             documentAccessor = documentAccessor,
             defaultScope = defaultScope,

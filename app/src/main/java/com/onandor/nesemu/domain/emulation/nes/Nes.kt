@@ -1,7 +1,6 @@
 package com.onandor.nesemu.domain.emulation.nes
 
 import android.util.Log
-import androidx.collection.mutableFloatListOf
 import androidx.collection.mutableIntListOf
 import com.onandor.nesemu.domain.emulation.nes.apu2.Apu
 import com.onandor.nesemu.domain.emulation.nes.mappers.Mapper
@@ -13,9 +12,6 @@ import com.onandor.nesemu.domain.emulation.nes.ppu.Ppu
 import com.onandor.nesemu.domain.emulation.savestate.NesState
 import com.onandor.nesemu.domain.emulation.savestate.Savable
 import com.onandor.nesemu.util.SlidingWindowIntQueue
-import kotlinx.coroutines.delay
-import java.util.concurrent.CountDownLatch
-import kotlin.time.TimeSource
 
 class Nes(
     private val onPollController1: () -> Int,

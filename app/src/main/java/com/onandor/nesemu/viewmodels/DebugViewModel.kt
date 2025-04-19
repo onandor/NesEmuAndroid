@@ -2,23 +2,22 @@ package com.onandor.nesemu.viewmodels
 
 import android.view.MotionEvent
 import androidx.lifecycle.ViewModel
-import com.onandor.nesemu.domain.emulation.EmulationListener
-import com.onandor.nesemu.domain.emulation.Emulator
+import androidx.lifecycle.viewModelScope
 import com.onandor.nesemu.navigation.NavigationManager
 import com.onandor.nesemu.domain.emulation.nes.DebugFeature
-import com.onandor.nesemu.domain.emulation.nes.Nes
 import com.onandor.nesemu.domain.service.EmulationService
 import com.onandor.nesemu.ui.components.game.NesRenderer
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class DebugViewModel @Inject constructor(
     private val navManager: NavigationManager,
-    private val emulator: Emulator,
     private val emulationService: EmulationService
 ) : ViewModel() {
 
@@ -54,30 +53,14 @@ class DebugViewModel @Inject constructor(
     val colorPaletteRenderers = Array(8) { NesRenderer(60, 15) }
     private var requestColorPaletteRender = Array(8) { {} }
 
-    private val emulationListener = object : EmulationListener {
-
-        override fun onFrameReady(frame: Nes.Frame) {
-            patternTableRenderer.setTextureData(frame.patternTable)
-            requestPatternTableRender()
-
-            nametableRenderer.setTextureData(frame.nametable)
-            requestNametableRender()
-
-            for (i in 0 ..< 8) {
-                colorPaletteRenderers[i].setTextureData(frame.colorPalettes[i])
-                requestColorPaletteRender[i]()
-            }
-        }
-    }
-
     private val _uiState = MutableStateFlow(UiState())
     val uiState = _uiState.asStateFlow()
 
     init {
-        emulationService.registerListener(emulationListener)
-        emulator.nes.setDebugFeatureBool(DebugFeature.PpuRenderPatternTable, true)
-        emulator.nes.setDebugFeatureBool(DebugFeature.PpuRenderNametable, true)
-        emulator.nes.setDebugFeatureBool(DebugFeature.PpuRenderColorPalettes, true)
+        collectRenderedFrames()
+        emulationService.emulator.setDebugFeatureBool(DebugFeature.PpuRenderPatternTable, true)
+        emulationService.emulator.setDebugFeatureBool(DebugFeature.PpuRenderNametable, true)
+        emulationService.emulator.setDebugFeatureBool(DebugFeature.PpuRenderColorPalettes, true)
     }
 
     fun onEvent(event: Event) {
@@ -93,7 +76,8 @@ class DebugViewModel @Inject constructor(
             }
             is Event.OnColorPaletteTouch -> {
                 if (event.motionEvent.action == MotionEvent.ACTION_DOWN) {
-                    emulator.nes.setDebugFeatureInt(DebugFeature.PpuSetColorPalette, event.index)
+                    emulationService.emulator
+                        .setDebugFeatureInt(DebugFeature.PpuSetColorPalette, event.index)
                 }
             }
             is Event.OnSetDebugFeatureBool -> {
@@ -109,7 +93,7 @@ class DebugViewModel @Inject constructor(
                     }
                     else -> {}
                 }
-                emulator.nes.setDebugFeatureBool(event.feature, event.value)
+                emulationService.emulator.setDebugFeatureBool(event.feature, event.value)
             }
             is Event.OnNavigateBack -> {
                 navManager.navigateBack()
@@ -132,11 +116,25 @@ class DebugViewModel @Inject constructor(
         }
     }
 
+    private fun collectRenderedFrames(): Job = viewModelScope.launch {
+        emulationService.frames.collect { frame ->
+            patternTableRenderer.setTextureData(frame.patternTable)
+            requestPatternTableRender()
+
+            nametableRenderer.setTextureData(frame.nametable)
+            requestNametableRender()
+
+            for (i in 0 ..< 8) {
+                colorPaletteRenderers[i].setTextureData(frame.colorPalettes[i])
+                requestColorPaletteRender[i]()
+            }
+        }
+    }
+
     override fun onCleared() {
-        emulator.nes.setDebugFeatureInt(DebugFeature.PpuSetColorPalette, 0)
-        emulator.nes.setDebugFeatureBool(DebugFeature.PpuRenderPatternTable, false)
-        emulator.nes.setDebugFeatureBool(DebugFeature.PpuRenderNametable, false)
-        emulator.nes.setDebugFeatureBool(DebugFeature.PpuRenderColorPalettes, false)
-        emulator.unregisterListener(emulationListener)
+        emulationService.emulator.setDebugFeatureInt(DebugFeature.PpuSetColorPalette, 0)
+        emulationService.emulator.setDebugFeatureBool(DebugFeature.PpuRenderPatternTable, false)
+        emulationService.emulator.setDebugFeatureBool(DebugFeature.PpuRenderNametable, false)
+        emulationService.emulator.setDebugFeatureBool(DebugFeature.PpuRenderColorPalettes, false)
     }
 }

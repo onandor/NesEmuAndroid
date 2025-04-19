@@ -48,11 +48,6 @@ class AudioPlayer(audioManager: AudioManager) {
         }
     }
 
-    fun destroy() {
-        stop()
-        audioTrack.release()
-    }
-
     companion object {
         private const val TAG = "AudioPlayer"
     }

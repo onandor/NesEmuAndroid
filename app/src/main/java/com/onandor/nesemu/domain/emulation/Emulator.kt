@@ -4,32 +4,30 @@ import android.media.AudioManager
 import android.util.Log
 import com.onandor.nesemu.domain.audio.AudioPlayer
 import com.onandor.nesemu.domain.emulation.nes.Cartridge
+import com.onandor.nesemu.domain.emulation.nes.DebugFeature
 import com.onandor.nesemu.domain.emulation.nes.Nes
 import com.onandor.nesemu.domain.emulation.savestate.NesState
-import com.onandor.nesemu.domain.service.InputService
 import java.util.concurrent.CountDownLatch
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlin.time.TimeSource
 
-@Singleton
-class Emulator @Inject constructor(
+class Emulator (
     audioManager: AudioManager,
-    private val inputService: InputService
+    private val onFrameReady: (Nes.Frame) -> Unit,
+    private val onPollController1: () -> Int,
+    private val onPollController2: () -> Int
 ) {
 
     private companion object {
         const val TAG = "Emulator"
     }
 
-    val nes = Nes(
-        onPollController1 = { inputService.getButtonStates(InputService.PLAYER_1) },
-        onPollController2 = { inputService.getButtonStates(InputService.PLAYER_2) }
+    private val nes = Nes(
+        onPollController1 = onPollController1,
+        onPollController2 = onPollController2
     )
     private lateinit var cartridge: Cartridge
 
     private val audioPlayer = AudioPlayer(audioManager)
-    private val listeners = mutableListOf<EmulationListener>()
 
     private var running: Boolean = false
     private var stopLatch = CountDownLatch(1)
@@ -44,15 +42,11 @@ class Emulator @Inject constructor(
         nes.insertCartridge(cartridge)
     }
 
-    private fun setAudioSampleRate(sampleRate: Int) {
-        nes.apu.setSampleRate(sampleRate)
-    }
-
-    suspend fun run() {
+    fun run() {
         audioPlayer.start()
         val timeSource = TimeSource.Monotonic
         var fpsMeasureStart = timeSource.markNow()
-        var numFrames: Int = 0
+        var numFrames = 0
         running = true
 
         while (running) {
@@ -61,12 +55,12 @@ class Emulator @Inject constructor(
             val frame = nes.generateFrame()
             val audioSamples = nes.drainAudioBuffer()
 
-            listeners.forEach { it.onFrameReady(frame) }
+            onFrameReady(frame)
             audioPlayer.queueSamples(audioSamples)
 
             val now = timeSource.markNow()
 
-            val sleepMicros = 1_000_000 / 60 - (now - frameStart).inWholeMicroseconds
+            val sleepMicros = 1_000_000 / 62 - (now - frameStart).inWholeMicroseconds
             if (sleepMicros > 0) {
                 val millis = sleepMicros / 1000
                 val nanos = ((sleepMicros % 1_000) * 1_000).toInt()
@@ -102,16 +96,12 @@ class Emulator @Inject constructor(
         nes.reset()
     }
 
-    fun registerListener(listener: EmulationListener) {
-        listeners.add(listener)
+    fun setDebugFeatureBool(feature: DebugFeature, value: Boolean) {
+        nes.setDebugFeatureBool(feature, value)
     }
 
-    fun unregisterListener(listener: EmulationListener) {
-        listeners.remove(listener)
-    }
-
-    fun destroyAudioPlayer() {
-        audioPlayer.destroy()
+    fun setDebugFeatureInt(feature: DebugFeature, value: Int) {
+        nes.setDebugFeatureInt(feature, value)
     }
 
     fun createSaveState(): NesState = nes.createSaveState()
