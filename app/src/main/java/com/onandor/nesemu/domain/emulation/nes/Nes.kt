@@ -2,7 +2,7 @@ package com.onandor.nesemu.domain.emulation.nes
 
 import android.util.Log
 import androidx.collection.mutableFloatListOf
-import com.onandor.nesemu.domain.emulation.nes.apu2.Apu
+import com.onandor.nesemu.domain.emulation.nes.apu.Apu
 import com.onandor.nesemu.domain.emulation.nes.mappers.Mapper
 import com.onandor.nesemu.domain.emulation.nes.mappers.Mapper0
 import com.onandor.nesemu.domain.emulation.nes.mappers.Mapper1

@@ -1,4 +1,4 @@
-package com.onandor.nesemu.domain.emulation.nes.apu2
+package com.onandor.nesemu.domain.emulation.nes.apu
 
 // https://www.nesdev.org/wiki/APU_DMC
 // Unlike the other channels, the DMC channel reads from the memory and then outputs delta-encoded

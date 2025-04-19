@@ -1,103 +1,116 @@
 package com.onandor.nesemu.domain.emulation.nes.apu
 
-import com.onandor.nesemu.domain.emulation.savestate.PulseChannelState
-import com.onandor.nesemu.domain.emulation.savestate.Savable
+// https://www.nesdev.org/wiki/APU_Pulse
+// The pulse channel outputs a square waveform with variable duty.
 
-class PulseChannel(channel: Int) : Clockable, Savable<PulseChannelState> {
-    var length: Int = 0
-    var lengthFrozen: Boolean = false
-    var dutyCycle: Int = DUTY_CYCLE_LOOKUP[0]
-    var phase: Int = 0
+class PulseChannel(val channelNumber: Int) {
 
-    val divider = Divider { phase = (phase + 1) % 8 }
-    val envelope = Envelope()
-    val sweep = Sweep(this, channel)
+    private var enabled: Boolean = false
 
-    override fun reset() {
-        length = 0
-        lengthFrozen = false
-        dutyCycle = DUTY_CYCLE_LOOKUP[0]
-        phase = 0
+    // The sequencer holds an 8 bit value representing the duty cycle of the generated waveform.
+    private var sequencer: Int = 0
+    private var sequencePhase: Int = 0
 
-        divider.reset()
+    // The timer has an 11 bit long period, which is decreased every APU cycle
+    // When it reaches zero, it clocks the sequencer, and is automatically reloaded with the value
+    // stored in timerPeriod
+    var timer: Int = 0
+    var timerPeriod: Int = 0
+
+    private val envelope = Envelope()
+    private val lengthCounter = LengthCounter()
+    private val sweep = Sweep(this)
+
+    fun clockTimer() {
+        timer -= 1
+        if (timer == -1) {
+            timer = timerPeriod
+            sequencePhase = (sequencePhase + 1) % 8
+        }
+    }
+
+    fun clockEnvelope() {
+        envelope.clock()
+    }
+
+    fun clockLengthCounter() {
+        lengthCounter.clock()
+    }
+
+    fun clockSweep() {
+        sweep.clock()
+    }
+
+    fun reset() {
+        enabled = false
+        timer = 0
+        timerPeriod = 0
+        sequencer = 0
+        sequencePhase = 0
         envelope.reset()
+        lengthCounter.reset()
         sweep.reset()
     }
 
-    override fun clock() {
-        if (!lengthFrozen && length > 0) {
-            length -= 1
+    // Registers
+    // https://www.nesdev.org/wiki/APU#Specification
+    // https://www.nesdev.org/wiki/APU_registers
+
+    // 0x4000 / 0x4004
+    fun writeControl(value: Int) {
+        sequencer = SEQUENCE_LOOKUP[(value ushr 6)]
+        lengthCounter.halt = (value and 0x20) != 0
+        envelope.loop = (value and 0x20) != 0
+        envelope.constant = (value and 0x10) != 0
+        envelope.volume = value and 0x0F
+    }
+
+    // 0x4001 / 0x4005
+    fun writeSweep(value: Int) {
+        sweep.load(value)
+    }
+
+    // 0x4002 / 0x4006
+    fun writeTimer(value: Int) {
+        timerPeriod = (timerPeriod and 0x700) or value
+        sweep.updateTargetPeriod()
+    }
+
+    // 0x4003 / 0x4007
+    fun writeLengthCounter(value: Int) {
+        timerPeriod = ((value and 0x07) shl 8) or (timerPeriod and 0x00FF)
+        sweep.updateTargetPeriod()
+        lengthCounter.load(value ushr 3)
+        envelope.start = true
+        sequencePhase = 0
+    }
+
+    // 0x4015
+    fun writeEnabled(enabled: Boolean) {
+        this.enabled = enabled
+        if (!enabled) {
+            lengthCounter.length = 0
         }
     }
 
-    fun setControl(value: Int) {
-        dutyCycle = DUTY_CYCLE_LOOKUP[(value and 0xC0) ushr 6]
-        lengthFrozen = value and 0x20 > 0
-        envelope.isLooping = value and 0x20 > 0
-        envelope.isConstant = value and 0x10 > 0
-        if (envelope.isConstant) {
-            envelope.divider.period = value and 0x0F
-        } else {
-            envelope.volume = value and 0x0F
-        }
-        envelope.isStarted = true
+    fun getLength(): Int {
+        return lengthCounter.length
     }
 
-    fun setSweep(value: Int) {
-        sweep.isEnabled = value and 0x80 > 0
-        sweep.divider.period = (value and 0x70) ushr 4
-        sweep.isNegated = value and 0x08 > 0
-        sweep.shiftCount = value and 0x07
-    }
-
-    fun setDividerLow(value: Int) {
-        divider.period = (divider.period and 0x700) or (value and 0xFF)
-    }
-
-    fun setDividerHigh(value: Int) {
-        divider.period = ((value and 0b111) shl 8) or (divider.period and 0xFF)
-        divider.counter = divider.period
-        phase = 0
-        length = Apu.LENGTH_COUNTER_LOOKUP[(value and 0xF8) ushr 3]
-        envelope.isStarted = true
-    }
-
+    // https://www.nesdev.org/wiki/APU_Pulse#Pulse_channel_output_to_mixer
     fun getOutput(): Int {
-        return if (sweep.muting() ||
-            length == 0 ||
-            (dutyCycle shl phase) and 0x80 == 0) {
-            0
-        } else {
-            envelope.getOutput()
-        }
-    }
-
-    override fun createSaveState(): PulseChannelState {
-        return PulseChannelState(
-            length = length,
-            lengthFrozen = lengthFrozen,
-            dutyCycle = dutyCycle,
-            phase = phase,
-            divider = divider.createSaveState(),
-            envelope = envelope.createSaveState(),
-            sweep = sweep.createSaveState()
-        )
-    }
-
-    override fun loadState(state: PulseChannelState) {
-        length = state.length
-        lengthFrozen = state.lengthFrozen
-        dutyCycle = state.dutyCycle
-        phase = state.phase
-        divider.loadState(state.divider)
-        envelope.loadState(state.envelope)
-        sweep.loadState(state.sweep)
+        val silenced = (sequencer shl sequencePhase) and 0x80 == 0 ||
+                lengthCounter.length == 0 || sweep.isMuting()|| !enabled
+        return if (silenced) 0 else envelope.getOutput()
     }
 
     companion object {
-        private val DUTY_CYCLE_LOOKUP: Array<Int> = arrayOf(
-            //  12.5%       25%         50%         75% (25% negated)
-            0b00000001, 0b00000011, 0b00001111, 0b00111111
+        const val CHANNEL_1 = 1
+        const val CHANNEL_2 = 2
+
+        private val SEQUENCE_LOOKUP: Array<Int> = arrayOf(
+            //  12.5%        25%          50%          75%
+            0b0000_0001, 0b0000_0011, 0b0000_1111, 0b1111_1100
         )
     }
 }

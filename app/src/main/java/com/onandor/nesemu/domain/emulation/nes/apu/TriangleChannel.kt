@@ -1,102 +1,107 @@
 package com.onandor.nesemu.domain.emulation.nes.apu
 
-import com.onandor.nesemu.domain.emulation.savestate.Savable
-import com.onandor.nesemu.domain.emulation.savestate.TriangleChannelState
+// https://www.nesdev.org/wiki/APU_Triangle
+// The triangle channel produces a triangle waveform. It outputs a volume in the range of 0 and 15, chosen from 32
+// possible values depending on the sequencer.
 
-class TriangleChannel : Clockable, Savable<TriangleChannelState> {
+class TriangleChannel {
 
-    var length: Int = 0
-    var control: Boolean = false
-    var counter: Int = 0
-    var reloadValue: Int = 0
-    var reloadCounter: Boolean = false
-    var phase: Int = 0
+    private var enabled: Boolean = false
 
-    val divider = Divider {
-        if (counter > 0 && length > 0) {
-            phase = (phase + 1) % 32
+    // The sequencer holds a value between 0 and 32, indexing into the SEQUENCE_LOOKUP table, which holds the volume
+    // levels that the channel outputs.
+    private var sequencer: Int = 0
+
+    // The timer has an 11 bit long period, which is decreased every CPU (!) cycle
+    // When it reaches zero, it clocks the sequencer, and is automatically reloaded with the value stored in timerPeriod
+    private var timer: Int = 0
+    private var timerPeriod: Int = 0
+
+    // High precision linear counter for duration
+    private var linearCounter: Int = 0
+    private var linearCounterPeriod: Int = 0
+    private var reloadLinearCounter: Boolean = false
+
+    // Control bit for the length counter and the linear counter
+    private var controlFlag: Boolean = false
+
+    private val lengthCounter = LengthCounter()
+
+    fun clockTimer() {
+        timer -= 1
+        if (timer == -1) {
+            timer = timerPeriod
+            if (lengthCounter.length > 0 && linearCounter > 0) {
+                // The triangle channel doesn't become silenced the same way the pulse channels do. When either of the
+                // counters reaches zero, it halts (stops clocking the sequencer) and continues to output its last
+                // value rather than 0.
+                sequencer = (sequencer + 1) % 32
+            }
         }
     }
 
-    override fun clock() {
-        if (!control && length > 0) {
-            length -= 1
+    fun clockLinearCounter() {
+        if (reloadLinearCounter) {
+            linearCounter = linearCounterPeriod
+        } else if (linearCounter > 0) {
+            linearCounter -= 1
+        }
+        if (!controlFlag) {
+            reloadLinearCounter = false
         }
     }
 
-    fun clockCounter() {
-        if (reloadCounter) {
-            counter = reloadValue
-        } else if (counter > 0) {
-            counter -= 1
+    fun clockLengthCounter() {
+        lengthCounter.clock()
+    }
+
+    fun reset() {
+        enabled = false
+        sequencer = 0
+        timer = 0
+        timerPeriod = 0
+        linearCounter = 0
+        linearCounterPeriod = 0
+        reloadLinearCounter = false
+        controlFlag = false
+        lengthCounter.reset()
+    }
+
+    // 0x4008
+    fun writeLinearCounter(value: Int) {
+        lengthCounter.halt = (value and 0x80) != 0
+        controlFlag = (value and 0x80) != 0
+        linearCounterPeriod = value and 0x7F
+    }
+
+    // 0x400A
+    fun writeTimer(value: Int) {
+        timerPeriod = (timerPeriod and 0x700) or value
+    }
+
+    // 0x400B
+    fun writeLengthCounter(value: Int) {
+        timerPeriod = ((value and 0x07) shl 8) or (timerPeriod and 0x00FF)
+        lengthCounter.load(value ushr 3)
+        reloadLinearCounter = true
+    }
+
+    // 0x4015
+    fun writeEnabled(enabled: Boolean) {
+        this.enabled = enabled
+        if (!enabled) {
+            lengthCounter.length = 0
         }
-
-        if (!control) {
-            reloadCounter = false
-        }
-    }
-
-    override fun reset() {
-        length = 0
-        control = false
-        counter = 0
-        reloadValue = 0
-        reloadCounter = false
-        phase = 0
-
-        divider.reset()
-    }
-
-    fun setControl(value: Int) {
-        control = value and 0x80 > 0
-        reloadValue = value and 0x7F
-    }
-
-    fun setDividerLow(value: Int) {
-        divider.period = (divider.period and 0x700) or (value and 0xFF)
-    }
-
-    fun setDividerHigh(value: Int) {
-        divider.period = ((value and 0b111) shl 8) or (divider.period and 0xFF)
-        divider.reload()
-        reloadCounter = true
-        length = Apu.LENGTH_COUNTER_LOOKUP[(value and 0xF8) ushr 3]
     }
 
     fun getOutput(): Int {
-        return if (divider.period < 2 || length == 0 || counter == 0) {
-            0
-        } else {
-            SEQUENCE[phase]
-        }
-    }
-
-    override fun createSaveState(): TriangleChannelState {
-        return TriangleChannelState(
-            length = length,
-            control = control,
-            counter = counter,
-            reloadValue = reloadValue,
-            reloadCounter = reloadCounter,
-            phase = phase,
-            divider = divider.createSaveState()
-        )
-    }
-
-    override fun loadState(state: TriangleChannelState) {
-        length = state.length
-        control = state.control
-        counter = state.counter
-        reloadValue = state.reloadValue
-        reloadCounter = state.reloadCounter
-        phase = state.phase
-        divider.loadState(state.divider)
+        return SEQUENCE_LOOKUP[sequencer]
     }
 
     companion object {
-        private val SEQUENCE: IntArray = intArrayOf(
+        private val SEQUENCE_LOOKUP: Array<Int> = arrayOf(
             15, 14, 13, 12, 11, 10,  9,  8,  7,  6,  5,  4,  3,  2,  1,  0,
-             0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15
+            0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15
         )
     }
 }

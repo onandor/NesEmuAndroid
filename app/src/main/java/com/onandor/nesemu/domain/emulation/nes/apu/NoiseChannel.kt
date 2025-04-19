@@ -1,90 +1,87 @@
 package com.onandor.nesemu.domain.emulation.nes.apu
 
-import com.onandor.nesemu.domain.emulation.savestate.NoiseChannelState
-import com.onandor.nesemu.domain.emulation.savestate.Savable
+// https://www.nesdev.org/wiki/APU_Noise
+// The noise channel generates pseudo-random noise.
 
-class NoiseChannel : Clockable, Savable<NoiseChannelState> {
+class NoiseChannel {
 
-    var length: Int = 0
-    var lengthFrozen: Boolean = false
-    var mode: Boolean = false
-    var shifter: Int = 0b000_0000_0000_0001
+    private var enabled: Boolean = false
 
-    var divider = Divider {
-        val shift = if (mode) 6 else 1
-        val feedback = (shifter and 0x01) xor ((shifter shr shift) and 0x01)
-        shifter = (shifter ushr 1) or (feedback shl 14)
-    }
-    var envelope = Envelope()
+    // The timer has 16 different periods (the channel has 16 different frequencies), which are chosen from the
+    // TIMER_PERIOD_LOOKUP table. The timer clocks the linear feedback shift register, which results in a pseudo-random
+    // bit sequence, which is used to silence the channel.
+    private var timer: Int = 0
+    private var timerPeriod: Int = 0
 
-    override fun clock() {
-        if (!lengthFrozen && length > 0) {
-            length -= 1
+    private var shifter: Int = 1
+    private var mode: Boolean = false
+
+    private val envelope = Envelope()
+    private val lengthCounter = LengthCounter()
+
+    fun clockTimer() {
+        timer -= 1
+        if (timer == -1) {
+            timer = timerPeriod
+
+            val shift = if (mode) 6 else 1
+            val feedback = (shifter and 0x01) xor ((shifter ushr shift) and 0x01)
+            shifter = (shifter ushr 1) or (feedback shl 14)
         }
     }
 
-    override fun reset() {
-        length = 0
-        lengthFrozen = false
+    fun clockEnvelope() {
+        envelope.clock()
+    }
+
+    fun clockLengthCounter() {
+        lengthCounter.clock()
+    }
+
+    fun reset() {
+        enabled = false
+        timer = 0
+        timerPeriod = 0
+        shifter = 1
         mode = false
-        shifter = 0b000_0000_0000_0001
-
-        divider.reset()
         envelope.reset()
+        lengthCounter.reset()
     }
 
-    fun setControl(value: Int) {
-        lengthFrozen = value and 0x20 > 0
-        envelope.isLooping = value and 0x20 > 0
-        envelope.isConstant = value and 0x10 > 0
-        if (envelope.isConstant) {
-            envelope.divider.period = value and 0x0F
-        } else {
-            envelope.volume = value and 0x0F
+    // 0x400C
+    fun writeControl(value: Int) {
+        lengthCounter.halt = (value and 0x20) != 0
+        envelope.loop = (value and 0x20) != 0
+        envelope.constant = (value and 0x10) != 0
+        envelope.volume = value and 0x0F
+    }
+
+    // 0x400E
+    fun writeTimer(value: Int) {
+        mode = value and 0x80 != 0
+        timerPeriod = TIMER_PERIOD_LOOKUP[value and 0x0F]
+    }
+
+    // 0x400F
+    fun writeLengthCounter(value: Int) {
+        lengthCounter.load(value ushr 3)
+        envelope.start = true
+    }
+
+    // 0x4015
+    fun writeEnabled(enabled: Boolean) {
+        this.enabled = enabled
+        if (!enabled) {
+            lengthCounter.length = 0
         }
-        envelope.isStarted = true
-    }
-
-    fun setDivider(value: Int) {
-        mode = value and 0x80 > 0
-        divider.period = DIVIDER_PERIOD_LOOKUP[value and 0x0F]
-    }
-
-    fun setLengthAndEnvelope(value: Int) {
-        length = Apu.LENGTH_COUNTER_LOOKUP[(value and 0xF8) ushr 3]
-        envelope.isStarted = true
     }
 
     fun getOutput(): Int {
-        return if (shifter and 0x01 > 0 || length == 0) {
-            0
-        } else {
-            envelope.getOutput()
-        }
-    }
-
-    override fun createSaveState(): NoiseChannelState {
-        return NoiseChannelState(
-            length = length,
-            lengthFrozen = lengthFrozen,
-            mode = mode,
-            shifter = shifter,
-            divider = divider.createSaveState(),
-            envelope = envelope.createSaveState()
-        )
-    }
-
-    override fun loadState(state: NoiseChannelState) {
-        length = state.length
-        lengthFrozen = state.lengthFrozen
-        mode = state.mode
-        shifter = state.shifter
-        divider.loadState(state.divider)
-        envelope.loadState(state.envelope)
+        return if (shifter and 0x01 != 0 || lengthCounter.length == 0) 0 else envelope.getOutput()
     }
 
     companion object {
-        private val DIVIDER_PERIOD_LOOKUP: IntArray = intArrayOf(
+        private val TIMER_PERIOD_LOOKUP: Array<Int> = arrayOf(
             4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068
         )
     }

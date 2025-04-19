@@ -1,72 +1,61 @@
 package com.onandor.nesemu.domain.emulation.nes.apu
 
-import com.onandor.nesemu.domain.emulation.savestate.Savable
-import com.onandor.nesemu.domain.emulation.savestate.SweepState
+// https://www.nesdev.org/wiki/APU_Sweep
+// The sweep unit can periodically increase or decrease the corresponding pulse channel's period, effectively changing
+// its pitch.
 
-class Sweep(
-    private val pulse: PulseChannel,
-    private val channel: Int
-) : Clockable, Savable<SweepState> {
+class Sweep(private val pulse: PulseChannel) {
 
-    var isEnabled: Boolean = false
-    var isNegated: Boolean = false
-    var reload: Boolean = false
+    var divider: Int = 0
+    var dividerPeriod: Int = 0
+    var targetPulsePeriod: Int = 0
     var shiftCount: Int = 0
-    var targetPeriod: Int = 0
+    var reload: Boolean = false
+    var negate: Boolean = false
+    var enabled: Boolean = false
 
-    var divider = Divider {
-        var change = pulse.divider.period ushr shiftCount
-        if (isNegated) {
+    fun clock() {
+        if (divider == 0 && enabled && shiftCount > 0 && !isMuting()) {
+            pulse.timerPeriod = targetPulsePeriod
+            updateTargetPeriod()
+        }
+        if (divider == 0 || reload) {
+            divider = dividerPeriod
+            reload = false
+        } else {
+            divider -= 1
+        }
+    }
+
+    fun updateTargetPeriod() {
+        var change = pulse.timerPeriod ushr shiftCount
+        if (negate) {
             change *= -1
-            if (channel == Apu.PULSE_CHANNEL_1) {
+            if (pulse.channelNumber == PulseChannel.CHANNEL_1) {
                 change -= 1
             }
         }
-        targetPeriod = (pulse.divider.period + change).coerceAtLeast(0)
+
+        targetPulsePeriod = (pulse.timerPeriod + change).coerceAtLeast(0)
     }
 
-    override fun clock() {
-        if (divider.counter == 0 && isEnabled && shiftCount > 0) {
-            if (!muting()) {
-                pulse.divider.period = targetPeriod
-            }
-        }
-        if (divider.counter == 0 || reload) {
-            divider.reload()
-            reload = false
-        } else {
-            divider.clock()
-        }
+    fun load(value: Int) {
+        enabled = value and 0x80 != 0
+        dividerPeriod = (value and 0x70) ushr 4
+        negate = value and 0x08 != 0
+        shiftCount = value and 0x07
+        reload = true
+        updateTargetPeriod()
     }
 
-    fun muting() = targetPeriod > 0x7FF || pulse.divider.period < 8
+    fun isMuting() = pulse.timerPeriod < 8 || targetPulsePeriod > 0x07FF
 
-    override fun reset() {
-        isEnabled = false
-        isNegated = false
-        reload = false
+    fun reset() {
+        divider = 0
+        dividerPeriod = 0
         shiftCount = 0
-
-        divider.reset()
-    }
-
-    override fun createSaveState(): SweepState {
-        return SweepState(
-            isEnabled = isEnabled,
-            isNegated = isNegated,
-            reload = reload,
-            shiftCount = shiftCount,
-            targetPeriod = targetPeriod,
-            divider = divider.createSaveState()
-        )
-    }
-
-    override fun loadState(state: SweepState) {
-        isEnabled = state.isEnabled
-        isNegated = state.isNegated
-        reload = state.reload
-        shiftCount = state.shiftCount
-        targetPeriod = state.targetPeriod
-        divider.loadState(state.divider)
+        reload = false
+        negate = false
+        enabled = false
     }
 }

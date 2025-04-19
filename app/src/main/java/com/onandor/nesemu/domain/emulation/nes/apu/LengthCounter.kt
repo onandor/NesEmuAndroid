@@ -1,4 +1,4 @@
-package com.onandor.nesemu.domain.emulation.nes.apu2
+package com.onandor.nesemu.domain.emulation.nes.apu
 
 // https://www.nesdev.org/wiki/APU_Length_Counter
 // The length counter controls the duration of the waveform channels. It is clocked on every half frame.
