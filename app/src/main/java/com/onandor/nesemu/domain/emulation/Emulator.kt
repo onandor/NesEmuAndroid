@@ -60,7 +60,7 @@ class Emulator (
 
             val now = timeSource.markNow()
 
-            val sleepMicros = 1_000_000 / 62 - (now - frameStart).inWholeMicroseconds
+            val sleepMicros = 1_000_000 / 60 - (now - frameStart).inWholeMicroseconds
             if (sleepMicros > 0) {
                 val millis = sleepMicros / 1000
                 val nanos = ((sleepMicros % 1_000) * 1_000).toInt()

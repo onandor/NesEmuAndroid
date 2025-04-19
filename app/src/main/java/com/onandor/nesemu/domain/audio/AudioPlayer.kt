@@ -12,12 +12,12 @@ class AudioPlayer(audioManager: AudioManager) {
 
     init {
         var bufferSizeBytes = AudioTrack.getMinBufferSize(
-            sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT) * 2
+            sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_FLOAT) * 2
 
         audioTrack = AudioTrack.Builder()
             .setAudioFormat(AudioFormat.Builder()
                 .setSampleRate(sampleRate)
-                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                .setEncoding(AudioFormat.ENCODING_PCM_FLOAT)
                 .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                 .build())
             .setAudioAttributes(AudioAttributes.Builder()
@@ -30,9 +30,9 @@ class AudioPlayer(audioManager: AudioManager) {
             .build()
     }
 
-    fun queueSamples(samples: ShortArray) {
+    fun queueSamples(samples: FloatArray) {
         //Log.i(TAG, "Underruns: ${audioTrack.underrunCount}")
-        audioTrack.write(samples, 0, samples.size)
+        audioTrack.write(samples, 0, samples.size, AudioTrack.WRITE_NON_BLOCKING)
     }
 
     fun start() {

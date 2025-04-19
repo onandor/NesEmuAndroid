@@ -1,7 +1,7 @@
 package com.onandor.nesemu.domain.emulation.nes
 
 import android.util.Log
-import androidx.collection.mutableIntListOf
+import androidx.collection.mutableFloatListOf
 import com.onandor.nesemu.domain.emulation.nes.apu2.Apu
 import com.onandor.nesemu.domain.emulation.nes.mappers.Mapper
 import com.onandor.nesemu.domain.emulation.nes.mappers.Mapper0
@@ -45,7 +45,7 @@ class Nes(
 
     var frame: Frame? = null
         private set
-    private var audioBuffer = mutableIntListOf()
+    private var audioBuffer = mutableFloatListOf()
     private val audioSampleSizeQueue = SlidingWindowIntQueue(100)
     private var targetAudioBufferSize: Int = 0
 
@@ -172,22 +172,23 @@ class Nes(
         ppu.mirroring = cartridge.mirroring
     }
 
-    private fun apuSampleReady(sample: Int) {
+    private fun apuSampleReady(sample: Float) {
         audioBuffer.add(sample)
     }
 
-    fun drainAudioBuffer(): ShortArray {
+    fun drainAudioBuffer(): FloatArray {
 //        if (!audioSampleSizeQueue.isFull()) {
 //            audioSampleSizeQueue.add(numSamples)
 //        } else if (targetAudioBufferSize == 0) {
 //            targetAudioBufferSize = (audioSampleSizeQueue.average * 3).toInt()
 //        }
 
-        val samples = ShortArray(audioBuffer.size)
-        for (i in 0 ..< audioBuffer.size) {
-            samples[i] = audioBuffer[i].toShort()
+        val size = audioBuffer.size
+        val samples = FloatArray(size)
+        for (i in 0 ..< size) {
+            samples[i] = audioBuffer[i]
         }
-        audioBuffer.clear()
+        audioBuffer.removeRange(0, size)
 
 //        if (targetAudioBufferSize != 0) {
 //            if (audioBuffer.size > targetAudioBufferSize * 1.5) {
@@ -217,7 +218,6 @@ class Nes(
         apu.reset()
         cartridge!!.reset()
         mapper.reset()
-        Log.d(TAG, "Reset complete")
     }
 
     fun generateFrame(): Frame {

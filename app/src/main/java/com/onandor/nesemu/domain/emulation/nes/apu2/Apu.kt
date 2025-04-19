@@ -5,7 +5,7 @@ import com.onandor.nesemu.domain.emulation.nes.toInt
 import com.onandor.nesemu.domain.emulation.savestate.ApuState
 import com.onandor.nesemu.domain.emulation.savestate.Savable
 
-class Apu(private val onAudioSampleReady: (Int) -> Unit) : Savable<ApuState> {
+class Apu(private val onAudioSampleReady: (Float) -> Unit) : Savable<ApuState> {
 
     // Sample generation
     private var cpuCyclesPerSample: Int = Cpu.FREQUENCY_HZ / 4800
@@ -154,32 +154,9 @@ class Apu(private val onAudioSampleReady: (Int) -> Unit) : Savable<ApuState> {
         cpuCyclesPerSample = Cpu.FREQUENCY_HZ / sampleRate
     }
 
-    private fun generateSample(): Int {
-//        val pulseSample = 0.00752f * (pulse1.getOutput() + pulse2.getOutput())
-
-//        val mixedPulse = 0.014f * (pulse1.getOutput() + pulse2.getOutput())
-//        val pulseSample = if (mixedPulse == 0f) 0f else mixedPulse * 2.0f - 1.0f
-
-//        val pulseSample = (0.00752f * (pulse1.getOutput() + pulse2.getOutput()) * Short.MAX_VALUE).toInt()
-
-//        val pulseSample = pulseOutputTable[pulse1.getOutput() + pulse2.getOutput()]
-//        val pulseSampleInt = ((pulseSample - 0.5f) * 2.0f * Short.MAX_VALUE).toInt()
-//        return pulseSampleInt.coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
-
-
-//        val pulseSample = pulseOutputTable[pulse1.getOutput()]
-//        val pulseSampleInt = ((pulseSample - 0.5f) * 2.0f * Short.MAX_VALUE).toInt()
-//        return pulseSampleInt.coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
-
-        //return (pulseOutputTable[pulse1.getOutput() + pulse2.getOutput()] * Short.MAX_VALUE).toInt()
-//        val pulseSample = pulseOutputTable[pulse1.getOutput() + pulse2.getOutput()]
-//        val pulseSampleInt = ((pulseSample - 0.5f) * 2.0f * Short.MAX_VALUE * 0.2f).toInt()
-//        val tndSample = tndOutputTable[3 * triangle.getOutput()]
-//        val tndSampleInt = ((tndSample - 0.5f) * 2.0f * Short.MAX_VALUE * 0.2f).toInt()
-//        return pulseSampleInt + tndSampleInt
-
-        val pulseSample = (pulseOutputTable[pulse1.getOutput() + pulse2.getOutput()] * Short.MAX_VALUE).toInt()
-        val tndSample = (tndOutputTable[3 * triangle.getOutput() + 2 * noise.getOutput()] * Short.MAX_VALUE).toInt()
+    private fun generateSample(): Float {
+        val pulseSample = pulseOutputTable[pulse1.getOutput() + pulse2.getOutput()]
+        val tndSample = tndOutputTable[3 * triangle.getOutput() + 2 * noise.getOutput()]
         return pulseSample + tndSample
     }
 
