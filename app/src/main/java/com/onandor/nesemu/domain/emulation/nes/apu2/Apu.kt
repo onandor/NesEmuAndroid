@@ -5,7 +5,10 @@ import com.onandor.nesemu.domain.emulation.nes.toInt
 import com.onandor.nesemu.domain.emulation.savestate.ApuState
 import com.onandor.nesemu.domain.emulation.savestate.Savable
 
-class Apu(private val onAudioSampleReady: (Float) -> Unit) : Savable<ApuState> {
+class Apu(
+    onReadMemory: (Int) -> Int,
+    private val onAudioSampleReady: (Float) -> Unit
+) : Savable<ApuState> {
 
     // Sample generation
     private var cpuCyclesPerSample: Int = Cpu.FREQUENCY_HZ / 4800
@@ -22,6 +25,7 @@ class Apu(private val onAudioSampleReady: (Float) -> Unit) : Savable<ApuState> {
     private val pulse2 = PulseChannel(PulseChannel.CHANNEL_2)
     private val triangle = TriangleChannel()
     private val noise = NoiseChannel()
+    private val dmc = Dmc(onReadMemory)
 
     // Mixer tables
     private val pulseOutputTable = FloatArray(31)
@@ -95,6 +99,7 @@ class Apu(private val onAudioSampleReady: (Float) -> Unit) : Savable<ApuState> {
             noise.clockTimer()
         }
         triangle.clockTimer()
+        dmc.clockTimer()
 
         cpuCycles += 1
         cycles = cpuCycles / 2
@@ -128,11 +133,16 @@ class Apu(private val onAudioSampleReady: (Float) -> Unit) : Savable<ApuState> {
             0x400C -> noise.writeControl(value)
             0x400E -> noise.writeTimer(value)
             0x400F -> noise.writeLengthCounter(value)
+            0x4010 -> dmc.writeFlagsAndRate(value)
+            0x4011 -> dmc.writeDirectLoad(value)
+            0x4012 -> dmc.writeSampleAddress(value)
+            0x4013 -> dmc.writeSampleLength(value)
             0x4015 -> {
-                pulse1.setEnabled(value and 0x01 != 0)
-                pulse2.setEnabled(value and 0x02 != 0)
-                triangle.setEnabled(value and 0x04 != 0)
-                noise.setEnabled(value and 0x08 != 0)
+                pulse1.writeEnabled(value and 0x01 != 0)
+                pulse2.writeEnabled(value and 0x02 != 0)
+                triangle.writeEnabled(value and 0x04 != 0)
+                noise.writeEnabled(value and 0x08 != 0)
+                dmc.writeEnabled(value and 0x10 != 0)
             }
             0x4017 -> {
                 sequenceCycles = if (value and 0x80 > 0) SEQ_5_STEP_CYCLES else SEQ_4_STEP_CYCLES
@@ -156,7 +166,7 @@ class Apu(private val onAudioSampleReady: (Float) -> Unit) : Savable<ApuState> {
 
     private fun generateSample(): Float {
         val pulseSample = pulseOutputTable[pulse1.getOutput() + pulse2.getOutput()]
-        val tndSample = tndOutputTable[3 * triangle.getOutput() + 2 * noise.getOutput()]
+        val tndSample = tndOutputTable[3 * triangle.getOutput() + 2 * noise.getOutput() + dmc.getOutput()]
         return pulseSample + tndSample
     }
 

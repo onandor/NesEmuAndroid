@@ -86,7 +86,8 @@ class TriangleChannel {
         reloadLinearCounter = true
     }
 
-    fun setEnabled(enabled: Boolean) {
+    // 0x4015
+    fun writeEnabled(enabled: Boolean) {
         this.enabled = enabled
         if (!enabled) {
             lengthCounter.length = 0

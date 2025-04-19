@@ -86,7 +86,7 @@ class PulseChannel(val channelNumber: Int) {
     }
 
     // 0x4015
-    fun setEnabled(enabled: Boolean) {
+    fun writeEnabled(enabled: Boolean) {
         this.enabled = enabled
         if (!enabled) {
             lengthCounter.length = 0

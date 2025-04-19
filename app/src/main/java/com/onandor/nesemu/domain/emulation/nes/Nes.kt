@@ -35,7 +35,7 @@ class Nes(
     private var vram: IntArray = IntArray(MEMORY_SIZE)
     val cpu: Cpu = Cpu(::cpuReadMemory, ::cpuWriteMemory)
     val ppu: Ppu = Ppu(::ppuReadMemory, ::ppuWriteMemory, cpu::NMI, ::ppuFrameReady)
-    val apu: Apu = Apu(::apuSampleReady)
+    val apu: Apu = Apu(::apuReadMemory, ::apuSampleReady)
     private var cartridge: Cartridge? = null
     private lateinit var mapper: Mapper
 
