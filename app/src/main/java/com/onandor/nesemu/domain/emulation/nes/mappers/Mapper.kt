@@ -27,11 +27,19 @@ abstract class Mapper(open val cartridge: Cartridge) : Savable<MapperState> {
             2 to 0x800,
             3 to 0x800
         ),
-        Mirroring.SingleScreen to mapOf(
+        // Maps everything to the lower 1 KiB bank of the physical nametable memory (0x2000 - 0x23FF)
+        Mirroring.SingleScreenLowerBank to mapOf(
             0 to 0x000,
             1 to 0x400,
             2 to 0x800,
             3 to 0xC00
+        ),
+        // Maps everything to the upper 1 KiB bank of the physical nametable memory (0x2400 - 0x27FF)
+        Mirroring.SingleScreenUpperBank to mapOf(
+            0 to -0x400,
+            1 to 0x000,
+            2 to 0x400,
+            3 to 0x800
         ),
         Mirroring.FourScreen to mapOf(
             0 to 0x000,

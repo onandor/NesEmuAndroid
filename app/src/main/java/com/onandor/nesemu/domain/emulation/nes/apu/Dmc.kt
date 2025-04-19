@@ -51,11 +51,12 @@ class Dmc(
     private var timerPeriod: Int = 0
 
     private var interruptEnable: Boolean = false
-    private var interrupt: Boolean = false
+    var interrupt: Boolean = false
+        private set
     private var loop: Boolean = false
 
-    private var reader = Reader()
-    private var output = Output()
+    val reader = Reader()
+    private val output = Output()
 
     fun clockTimer() {
         clockReader()
@@ -94,6 +95,7 @@ class Dmc(
 
     private fun clockOutput() {
         if (output.bitsRemaining == 0) {
+            // Start next cycle
             output.bitsRemaining = 8
             if (reader.bufferEmpty) {
                 output.silenced = true

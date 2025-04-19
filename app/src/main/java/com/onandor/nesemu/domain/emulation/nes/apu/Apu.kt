@@ -16,6 +16,7 @@ class Apu(
 
     // Frame counter
     private var sequenceCycles: Int = SEQ_4_STEP_CYCLES
+    private var interrupt: Boolean = false
 
     private var cpuCycles: Int = 0
     private var cycles: Int = 0
@@ -64,34 +65,20 @@ class Apu(
                 isQuarterFrame = true
             }
             14914 -> {
+                // Last step of 4 step sequence
                 if (sequenceCycles == SEQ_4_STEP_CYCLES) {
                     isQuarterFrame = true
                     isHalfFrame = true
                 }
             }
             18640 -> {
-                // Redundant check but helps in readability
-                if (sequenceCycles == SEQ_5_STEP_CYCLES) {
-                    isQuarterFrame = true
-                    isHalfFrame = true
-                }
+                // Last step of 5 step sequence
+                isQuarterFrame = true
+                isHalfFrame = true
             }
         }
 
-        if (isQuarterFrame) {
-            pulse1.clockEnvelope()
-            pulse2.clockEnvelope()
-            triangle.clockLinearCounter()
-            noise.clockEnvelope()
-        }
-        if (isHalfFrame) {
-            pulse1.clockLengthCounter()
-            pulse2.clockLengthCounter()
-            pulse1.clockSweep()
-            pulse2.clockSweep()
-            triangle.clockLengthCounter()
-            noise.clockLengthCounter()
-        }
+        clockUnits(isQuarterFrame, isHalfFrame)
 
         if (cpuCycles % 2 == 0) {
             pulse1.clockTimer()
@@ -111,10 +98,32 @@ class Apu(
         }
     }
 
+    private fun clockUnits(isQuarterFrame: Boolean, isHalfFrame: Boolean) {
+        if (isQuarterFrame) {
+            pulse1.clockEnvelope()
+            pulse2.clockEnvelope()
+            triangle.clockLinearCounter()
+            noise.clockEnvelope()
+        }
+        if (isHalfFrame) {
+            pulse1.clockLengthCounter()
+            pulse2.clockLengthCounter()
+            pulse1.clockSweep()
+            pulse2.clockSweep()
+            triangle.clockLengthCounter()
+            noise.clockLengthCounter()
+        }
+    }
+
     fun readStatus(): Int {
-        // TODO
-        return (pulse1.getLength() > 0).toInt() or
-                (pulse2.getLength() > 0).toInt() shl 1
+        val status = (pulse1.lengthCounter.halt).toInt() or
+                (pulse2.lengthCounter.halt).toInt() shl 1 or
+                (triangle.lengthCounter.halt).toInt() shl 2 or
+                (noise.lengthCounter.halt).toInt() shl 3 or
+                (dmc.reader.bytesRemaining > 0).toInt() shl 4 or
+                interrupt.toInt() shl 6 or
+                dmc.interrupt.toInt() shl 7
+        return status.also { interrupt = false }
     }
 
     fun writeRegister(address: Int, value: Int) {
@@ -145,7 +154,13 @@ class Apu(
                 dmc.writeEnabled(value and 0x10 != 0)
             }
             0x4017 -> {
+                // The frame counter reset and the clocking of the units is supposed to happen
+                // 2 or 3 cycles after the write, but this will do for now.
+                cycles = 0
                 sequenceCycles = if (value and 0x80 > 0) SEQ_5_STEP_CYCLES else SEQ_4_STEP_CYCLES
+                if (sequenceCycles == SEQ_5_STEP_CYCLES) {
+                    clockUnits(true, true)
+                }
             }
         }
     }

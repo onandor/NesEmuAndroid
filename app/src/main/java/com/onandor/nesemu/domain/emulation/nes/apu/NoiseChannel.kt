@@ -17,7 +17,7 @@ class NoiseChannel {
     private var mode: Boolean = false
 
     private val envelope = Envelope()
-    private val lengthCounter = LengthCounter()
+    val lengthCounter = LengthCounter()
 
     fun clockTimer() {
         timer -= 1

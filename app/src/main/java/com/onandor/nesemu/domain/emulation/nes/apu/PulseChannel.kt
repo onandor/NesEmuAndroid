@@ -18,7 +18,7 @@ class PulseChannel(val channelNumber: Int) {
     var timerPeriod: Int = 0
 
     private val envelope = Envelope()
-    private val lengthCounter = LengthCounter()
+    val lengthCounter = LengthCounter()
     private val sweep = Sweep(this)
 
     fun clockTimer() {
@@ -91,10 +91,6 @@ class PulseChannel(val channelNumber: Int) {
         if (!enabled) {
             lengthCounter.length = 0
         }
-    }
-
-    fun getLength(): Int {
-        return lengthCounter.length
     }
 
     // https://www.nesdev.org/wiki/APU_Pulse#Pulse_channel_output_to_mixer

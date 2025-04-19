@@ -25,6 +25,10 @@ class Mapper3(cartridge: Cartridge) : Mapper(cartridge) {
         return cartridge.chrRom[chrRomBank * 0x2000 + address]
     }
 
+    override fun reset() {
+        chrRomBank = 0
+    }
+
     override fun createSaveState(): MapperState {
         val state = Mapper3State(chrRomBank = chrRomBank)
         return MapperState(mapper3State = state)

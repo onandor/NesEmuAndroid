@@ -33,7 +33,8 @@ private data class Nes2Header(
 enum class Mirroring {
     Horizontal,
     Vertical,
-    SingleScreen,
+    SingleScreenLowerBank,
+    SingleScreenUpperBank,
     FourScreen
 }
 

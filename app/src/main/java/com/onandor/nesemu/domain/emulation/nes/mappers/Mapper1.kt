@@ -151,8 +151,8 @@ class Mapper1(cartridge: Cartridge) : Mapper(cartridge) {
 
     private fun setControlRegister(value: Int) {
         when (value and 0b11) {
-            0b00 -> cartridge.mirroring = Mirroring.SingleScreen
-            0b01 -> cartridge.mirroring = Mirroring.SingleScreen
+            0b00 -> cartridge.mirroring = Mirroring.SingleScreenLowerBank
+            0b01 -> cartridge.mirroring = Mirroring.SingleScreenUpperBank
             0b10 -> cartridge.mirroring = Mirroring.Vertical
             0b11 -> cartridge.mirroring = Mirroring.Horizontal
         }

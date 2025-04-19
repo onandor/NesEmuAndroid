@@ -25,7 +25,7 @@ class TriangleChannel {
     // Control bit for the length counter and the linear counter
     private var controlFlag: Boolean = false
 
-    private val lengthCounter = LengthCounter()
+    val lengthCounter = LengthCounter()
 
     fun clockTimer() {
         timer -= 1

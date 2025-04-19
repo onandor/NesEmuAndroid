@@ -3,11 +3,7 @@ package com.onandor.nesemu.domain.emulation.nes
 import android.util.Log
 import androidx.collection.mutableFloatListOf
 import com.onandor.nesemu.domain.emulation.nes.apu.Apu
-import com.onandor.nesemu.domain.emulation.nes.mappers.Mapper
-import com.onandor.nesemu.domain.emulation.nes.mappers.Mapper0
-import com.onandor.nesemu.domain.emulation.nes.mappers.Mapper1
-import com.onandor.nesemu.domain.emulation.nes.mappers.Mapper2
-import com.onandor.nesemu.domain.emulation.nes.mappers.Mapper3
+import com.onandor.nesemu.domain.emulation.nes.mappers.*
 import com.onandor.nesemu.domain.emulation.nes.ppu.Ppu
 import com.onandor.nesemu.domain.emulation.savestate.NesState
 import com.onandor.nesemu.domain.emulation.savestate.Savable
@@ -166,6 +162,7 @@ class Nes(
             1 -> Mapper1(cartridge)
             2 -> Mapper2(cartridge)
             3 -> Mapper3(cartridge)
+            71 -> Mapper71(cartridge)
             else -> throw RomParseException("Unsupported mapper: ${cartridge.mapperId}")
         }
         this.cartridge = cartridge

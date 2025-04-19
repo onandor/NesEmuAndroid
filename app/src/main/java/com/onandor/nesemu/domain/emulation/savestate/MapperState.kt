@@ -7,7 +7,8 @@ import kotlinx.serialization.Serializable
 data class MapperState(
     val mapper1State: Mapper1State? = null,
     val mapper2State: Mapper2State? = null,
-    val mapper3State: Mapper3State? = null
+    val mapper3State: Mapper3State? = null,
+    val mapper71State: Mapper71State? = null
 ) : SaveState()
 
 @Serializable
@@ -32,4 +33,9 @@ data class Mapper2State(
 @Serializable
 data class Mapper3State(
     val chrRomBank: Int
+)
+
+@Serializable
+data class Mapper71State(
+    val prgRomBank: Int
 )
