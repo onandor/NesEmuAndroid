@@ -3,6 +3,7 @@ package com.onandor.nesemu.domain.emulation.nes
 import android.util.Log
 import androidx.collection.mutableFloatListOf
 import com.onandor.nesemu.domain.emulation.nes.apu.Apu
+import com.onandor.nesemu.domain.emulation.nes.cpu.Cpu
 import com.onandor.nesemu.domain.emulation.nes.mappers.*
 import com.onandor.nesemu.domain.emulation.nes.ppu.Ppu
 import com.onandor.nesemu.domain.emulation.savestate.NesState
@@ -30,8 +31,8 @@ class Nes(
     private var cpuMemory: IntArray = IntArray(MEMORY_SIZE)
     private var vram: IntArray = IntArray(MEMORY_SIZE)
     val cpu: Cpu = Cpu(::cpuReadMemory, ::cpuWriteMemory)
-    val ppu: Ppu = Ppu(::ppuReadMemory, ::ppuWriteMemory, cpu::NMI, ::ppuFrameReady)
-    val apu: Apu = Apu(::apuReadMemory, ::apuSampleReady)
+    val ppu: Ppu = Ppu(::ppuReadMemory, ::ppuWriteMemory, cpu::signalNMI, ::ppuFrameReady)
+    val apu: Apu = Apu(::apuReadMemory, cpu::signalIRQ, ::apuSampleReady)
     private var cartridge: Cartridge? = null
     private lateinit var mapper: Mapper
 
@@ -74,10 +75,7 @@ class Nes(
                 if (value == Mapper.OPEN_BUS) lastValueRead else value
             }
             in 0x8000 .. 0xFFFF -> mapper.readPrgRom(address)           // PRG-ROM
-            else -> {
-                Log.e(TAG, "Invalid CPU read at $${address.toHexString(4)}")
-                throw InvalidOperationException("Invalid CPU read at $${address.toHexString(4)}")
-            }
+            else -> Log.w(TAG, "CPU reading invalid address $${address.toHexString(4)}")
         }
         return lastValueRead
     }
@@ -101,8 +99,8 @@ class Nes(
             in 0x6000 .. 0x7FFF -> mapper.writePrgRam(address, value)           // Usually cartridge SRAM
             in 0x8000 .. 0xFFFF -> mapper.writePrgRom(address, value)           // PRG-ROM
             else -> {
-                Log.e(TAG, "Invalid CPU write at $${address.toHexString(4)}")
-                throw InvalidOperationException("Invalid CPU write at $${address.toHexString(4)}")
+                Log.w(TAG, "CPU writing invalid address $${address.toHexString(4)} " +
+                        "(value: $${value.toHexString(2)})")
             }
         }
     }
@@ -115,10 +113,7 @@ class Nes(
             in 0x3000 .. 0x3EFF -> ppuReadMemory(address and 0x2EFF) // Mirror of 0x2000-0x2EFF
             in 0x3F00 .. 0x3F1F -> 0    // Palette (access handled by PPU internally)
             in 0x3F20 .. 0x3FFF -> 0    // Mirror of 0x3F00-0x3F1F
-            else -> {
-                Log.e(TAG, "Invalid PPU read at $${address.toHexString(4)}")
-                throw InvalidOperationException("Invalid PPU read at $${address.toHexString(4)}")
-            }
+            else -> Log.w(TAG, "PPU reading invalid address $${address.toHexString(4)}")
         }
     }
 
@@ -131,8 +126,8 @@ class Nes(
             in 0x3F00 .. 0x3F1F -> {}    // Palette (access handled by PPU internally)
             in 0x3F20 .. 0x3FFF -> {}    // Mirror of 0x3F00-0x3F1F
             else -> {
-                Log.e(TAG, "Invalid PPU write at $${address.toHexString(4)}")
-                throw InvalidOperationException("Invalid PPU write at $${address.toHexString(4)}")
+                Log.w(TAG, "PPU writing invalid address $${address.toHexString(4)} " +
+                        "(value: $${value.toHexString(2)})")
             }
         }
     }
@@ -219,7 +214,7 @@ class Nes(
 
     fun generateFrame(): Frame {
         while (frame == null) {
-            val cpuCycles = cpu.step()
+            val cpuCycles = cpu.clock()
 
             for (i in 0 ..< cpuCycles * 3) {
                 ppu.tick()

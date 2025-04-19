@@ -1,5 +1,6 @@
 package com.onandor.nesemu.domain.emulation.savestate
 
+import com.onandor.nesemu.domain.emulation.nes.cpu.IRQSource
 import kotlinx.serialization.Serializable
 
 @Suppress("PropertyName")
@@ -16,6 +17,7 @@ data class CpuState(
     val addressingCycle: Boolean,
     val instructionCycle: Boolean,
     val totalCycles: Int,
-    val interruptCycles: Int,
-    val stallCycles: Int
+    val stallCycles: Int,
+    val nmiSignaled: Boolean,
+    val irqSignals: Set<IRQSource>
 ) : SaveState()

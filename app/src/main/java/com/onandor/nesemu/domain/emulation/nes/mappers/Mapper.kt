@@ -71,7 +71,7 @@ abstract class Mapper(open val cartridge: Cartridge) : Savable<MapperState> {
 
     open fun readPrgRam(address: Int): Int {
         Log.i(TAG, "CPU reading unmapped address $${address.toHexString(4)}")
-        return 0
+        return OPEN_BUS
     }
 
     open fun writePrgRam(address: Int, value: Int) {
@@ -81,7 +81,7 @@ abstract class Mapper(open val cartridge: Cartridge) : Savable<MapperState> {
 
     open fun readUnmappedRange(address: Int): Int {
         Log.i(TAG, "CPU reading unmapped address $${address.toHexString(4)}")
-        return 0
+        return OPEN_BUS
     }
 
     open fun writeUnmappedRange(address: Int, value: Int) {

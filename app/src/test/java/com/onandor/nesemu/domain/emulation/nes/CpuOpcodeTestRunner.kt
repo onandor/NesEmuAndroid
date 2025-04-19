@@ -1,5 +1,6 @@
 package com.onandor.nesemu.domain.emulation.nes
 
+import com.onandor.nesemu.domain.emulation.nes.cpu.Cpu
 import com.onandor.nesemu.domain.emulation.savestate.CpuState
 import kotlinx.serialization.json.Json
 import java.io.File

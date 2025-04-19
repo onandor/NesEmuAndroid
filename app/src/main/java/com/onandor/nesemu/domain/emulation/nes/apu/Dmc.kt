@@ -4,9 +4,7 @@ package com.onandor.nesemu.domain.emulation.nes.apu
 // Unlike the other channels, the DMC channel reads from the memory and then outputs delta-encoded
 // audio samples.
 
-class Dmc(
-    private val onReadMemory: (address: Int) -> Int
-) {
+class Dmc(private val onReadMemory: (address: Int) -> Int) {
 
     // The memory reader unit is responsible for filling the sample buffer byte with the next by from the currently
     // playing sample. It keeps track of the address and length of the sample.
@@ -87,7 +85,6 @@ class Dmc(
                 reader.address = reader.startingAddress
                 reader.bytesRemaining = reader.length
             } else if (interruptEnable) {
-                // TODO: generate IRQ
                 interrupt = true
             }
         }

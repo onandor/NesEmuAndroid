@@ -1,12 +1,14 @@
 package com.onandor.nesemu.domain.emulation.nes.apu
 
-import com.onandor.nesemu.domain.emulation.nes.Cpu
+import com.onandor.nesemu.domain.emulation.nes.cpu.Cpu
+import com.onandor.nesemu.domain.emulation.nes.cpu.IRQSource
 import com.onandor.nesemu.domain.emulation.nes.toInt
 import com.onandor.nesemu.domain.emulation.savestate.ApuState
 import com.onandor.nesemu.domain.emulation.savestate.Savable
 
 class Apu(
-    onReadMemory: (Int) -> Int,
+    onReadMemory: (address: Int) -> Int,
+    private val onSignalIRQ: (source: IRQSource, isRequest: Boolean) -> Unit,
     private val onAudioSampleReady: (Float) -> Unit
 ) : Savable<ApuState> {
 
@@ -17,6 +19,7 @@ class Apu(
     // Frame counter
     private var sequenceCycles: Int = SEQ_4_STEP_CYCLES
     private var interrupt: Boolean = false
+    private var interruptEnable: Boolean = false
 
     private var cpuCycles: Int = 0
     private var cycles: Int = 0
@@ -69,6 +72,9 @@ class Apu(
                 if (sequenceCycles == SEQ_4_STEP_CYCLES) {
                     isQuarterFrame = true
                     isHalfFrame = true
+                    if (interruptEnable) {
+                        interrupt = true
+                    }
                 }
             }
             18640 -> {
@@ -87,6 +93,9 @@ class Apu(
         }
         triangle.clockTimer()
         dmc.clockTimer()
+
+        onSignalIRQ(IRQSource.ApuDmc, dmc.interrupt)
+        onSignalIRQ(IRQSource.ApuFrameCounter, interrupt)
 
         cpuCycles += 1
         cycles = cpuCycles / 2
@@ -154,6 +163,11 @@ class Apu(
                 dmc.writeEnabled(value and 0x10 != 0)
             }
             0x4017 -> {
+                interruptEnable = value and 0x40 == 0
+                if (!interruptEnable) {
+                    interrupt = false
+                }
+
                 // The frame counter reset and the clocking of the units is supposed to happen
                 // 2 or 3 cycles after the write, but this will do for now.
                 cycles = 0
@@ -168,11 +182,15 @@ class Apu(
     fun reset() {
         cpuCyclesSinceSample = 0
         sequenceCycles = SEQ_4_STEP_CYCLES
+        interrupt = false
+        interruptEnable = false
         cpuCycles = 0
         cycles = 0
         pulse1.reset()
         pulse2.reset()
         triangle.reset()
+        noise.reset()
+        dmc.reset()
     }
 
     fun setSampleRate(sampleRate: Int) {

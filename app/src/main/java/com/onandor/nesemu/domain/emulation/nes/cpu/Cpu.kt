@@ -1,6 +1,10 @@
-package com.onandor.nesemu.domain.emulation.nes
+package com.onandor.nesemu.domain.emulation.nes.cpu
 
 import android.util.Log
+import com.onandor.nesemu.domain.emulation.nes.plus16
+import com.onandor.nesemu.domain.emulation.nes.plus8
+import com.onandor.nesemu.domain.emulation.nes.toInt
+import com.onandor.nesemu.domain.emulation.nes.toSigned8
 import com.onandor.nesemu.domain.emulation.savestate.CpuState
 import com.onandor.nesemu.domain.emulation.savestate.Savable
 
@@ -44,8 +48,10 @@ class Cpu(
     private var instructionCycle = false
 
     private var totalCycles: Int = 7
-    private var interruptCycles: Int = 0
     private var stallCycles: Int = 0
+
+    private var nmiSignaled: Boolean = false
+    private val irqSignals: MutableSet<IRQSource> = mutableSetOf()
 
     fun reset() {
         PC = read2Bytes(0xFFFC)
@@ -55,13 +61,16 @@ class Cpu(
         Y = 0
         PS = 0b00000100
         totalCycles = 7 // https://www.pagetable.com/?p=410
-        interruptCycles = 0
+        nmiSignaled = false
+        irqSignals.clear()
     }
 
-    fun step(): Int {
+    fun clock(): Int {
         if (debugCallback !== EMPTY_DEBUG_CALLBACK) {
             this.debugCallback(PC, SP, A, X, Y, PS, totalCycles)
         }
+
+        var stepCycles = 0
 
         if (stallCycles != 0) {
             val stepCycles = stallCycles
@@ -69,7 +78,20 @@ class Cpu(
             return stepCycles
         }
 
-        var stepCycles = interruptCycles
+        if (nmiSignaled) {
+            stepCycles += NMI()
+            nmiSignaled = false
+            return stepCycles
+        }
+
+        if (irqSignals.isNotEmpty()) {
+            stepCycles += IRQ()
+            if (stepCycles > 0) {
+                // Interrupt disable didn't mask the IRQ
+                return stepCycles
+            }
+        }
+
         addressingCycle = false
         instructionCycle = false
 
@@ -84,7 +106,6 @@ class Cpu(
         }
 
         this.totalCycles += stepCycles
-        interruptCycles = 0
         return stepCycles
     }
 
@@ -109,6 +130,18 @@ class Cpu(
             }
         }
         return this.totalCycles
+    }
+
+    fun signalNMI() {
+        nmiSignaled = true
+    }
+
+    fun signalIRQ(source: IRQSource, isRequest: Boolean) {
+        if (isRequest) {
+            irqSignals.add(source)
+        } else {
+            irqSignals.remove(source)
+        }
     }
 
     // For testing only
@@ -250,23 +283,23 @@ class Cpu(
 
     // ------- Interrupt handler functions -------
 
-    fun IRQ() {
+    fun IRQ(): Int {
         if (getFlag(Flags.INTERRUPT_DISABLE)) {
-            return
+            return 0
         }
         push2Bytes(PC)
         PHP()
         PC = read2Bytes(0xFFFE)
         setFlag(Flags.INTERRUPT_DISABLE, true)
-        interruptCycles = 7
+        return 7
     }
 
-    fun NMI() {
+    fun NMI(): Int {
         push2Bytes(PC)
         PHP()
         PC = read2Bytes(0xFFFA)
         setFlag(Flags.INTERRUPT_DISABLE, true)
-        interruptCycles = 7
+        return 7
     }
 
     // ------ Instruction handler functions ------
@@ -795,8 +828,9 @@ class Cpu(
             addressingCycle = addressingCycle,
             instructionCycle = instructionCycle,
             totalCycles = totalCycles,
-            interruptCycles = interruptCycles,
-            stallCycles = stallCycles
+            stallCycles = stallCycles,
+            nmiSignaled = nmiSignaled,
+            irqSignals = irqSignals
         )
     }
 
@@ -812,8 +846,9 @@ class Cpu(
         addressingCycle = state.addressingCycle
         instructionCycle = state.instructionCycle
         totalCycles = state.totalCycles
-        interruptCycles = state.interruptCycles
         stallCycles = state.stallCycles
+        nmiSignaled = state.nmiSignaled
+        irqSignals.addAll(state.irqSignals)
     }
 
     companion object {

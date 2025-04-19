@@ -1,7 +1,7 @@
 package com.onandor.nesemu
 
 import com.onandor.nesemu.domain.emulation.nes.Cartridge
-import com.onandor.nesemu.domain.emulation.nes.Cpu
+import com.onandor.nesemu.domain.emulation.nes.cpu.Cpu
 import com.onandor.nesemu.domain.emulation.nes.InvalidOperationException
 import com.onandor.nesemu.domain.emulation.nes.Nes
 import com.onandor.nesemu.domain.emulation.nes.plus16
@@ -337,7 +337,7 @@ class NesTestCpu {
 
         for (i in 0 until NUM_TEST_INSTRUCTIONS) {
             try {
-                nes.cpu.step()
+                nes.cpu.clock()
             } catch (e: InvalidOperationException) {
                 println(e.message)
             }
@@ -364,7 +364,7 @@ class NesTestCpu {
 
         for (i in 0 until 32000) {
             try {
-                val cycles = nes.cpu.step()
+                val cycles = nes.cpu.clock()
                 for (j in 0 ..< cycles * 3) {
                     nes.ppu.tick()
                 }
