@@ -1,6 +1,5 @@
 package com.onandor.nesemu.domain.emulation.nes.ppu
 
-import com.onandor.nesemu.domain.emulation.nes.Mirroring
 import com.onandor.nesemu.domain.emulation.nes.plus8
 import com.onandor.nesemu.domain.emulation.nes.toInt
 import com.onandor.nesemu.domain.emulation.savestate.PpuState
@@ -87,8 +86,6 @@ class Ppu(
     private var scanline: Int = 261  // Scanline 261 is the pre-render scanline
     private var oddFrame: Boolean = false
 
-    var mirroring: Mirroring = Mirroring.Horizontal
-
     // Variables related to tile fetching and rendering
     // Background
 
@@ -157,30 +154,39 @@ class Ppu(
         private set
 
     fun reset() {
-        cycle = 0
-        scanline = 261
-        oddFrame = false
+        controlReg.value = 0
+        maskReg.value = 0
+        statusReg.value = 0
+        oamAddressReg.value = 0
+        scrollReg.value = 0
+        dataReg.value = 0
+        busLatch = 0
+        palette = IntArray(32)
         v = 0
         t = 0
         fineX = 0
         w = false
-        busLatch = 0
-        controlReg.value = 0
-        maskReg.value = 0
-        statusReg.value = 0
-        scrollReg.value = 0
-        dataReg.value = 0
-        oamAddressReg.value = 0
+        cycle = 0
+        scanline = 261
+        oddFrame = false
+        nametableId = 0
+        attributeId = 0
+        bgTilePatternLow = 0
+        bgTilePatternHigh = 0
+        bgPatternDataLow = 0
+        bgPatternDataHigh = 0
+        bgAttributeDataLow = 0
+        bgAttributeDataHigh = 0
+        oamBuffer = IntArray(32) { 0xFF }
+        numSpritesOnScanline = 0
         oamData = IntArray(256)
+        oamClear = false
+        sprPatternDataLow = IntArray(8)
+        sprPatternDataHigh= IntArray(8)
         frameBuffer.clear()
-        palette = IntArray(32)
         dbgPatternTableFrame = IntArray(128 * 256)
         dbgNametableFrame = IntArray(512 * 480)
         dbgColorPalettes = Array(8) { IntArray(4 * 225) }
-        oamClear = false
-        oamBuffer = IntArray(32) { 0xFF }
-        sprPatternDataLow = IntArray(8)
-        sprPatternDataHigh= IntArray(8)
     }
 
     fun tick() {
@@ -666,7 +672,7 @@ class Ppu(
         oamData = data.copyOf()
     }
 
-    override fun createSaveState(): PpuState {
+    override fun captureState(): PpuState {
         return PpuState(
             controlRegister = controlReg.value,
             maskRegister = maskReg.value,
@@ -676,6 +682,8 @@ class Ppu(
             scrollRegister = scrollReg.value,
             addressRegister = addressReg.value,
             dataRegister = dataReg.value,
+            busLatch = busLatch,
+            palette = palette,
             v = v,
             t = t,
             fineX = fineX,
@@ -683,8 +691,6 @@ class Ppu(
             cycle = cycle,
             scanline = scanline,
             oddFrame = oddFrame,
-            busLatch = busLatch,
-            palette = palette,
             nametableId = nametableId,
             attributeId = attributeId,
             bgTilePatternLow = bgTilePatternLow,
@@ -693,12 +699,12 @@ class Ppu(
             bgPatternDataHigh = bgPatternDataHigh,
             bgAttributeDataLow = bgAttributeDataLow,
             bgAttributeDataHigh = bgAttributeDataHigh,
-            sprPatternDataLow = sprPatternDataLow,
-            sprPatternDataHigh = sprPatternDataHigh,
-            numSpritesOnScanline = numSpritesOnScanline,
             oamBuffer = oamBuffer,
+            numSpritesOnScanline = numSpritesOnScanline,
             oamData = oamData,
-            oamClear = oamClear
+            oamClear = oamClear,
+            sprPatternDataLow = sprPatternDataLow,
+            sprPatternDataHigh = sprPatternDataHigh
         )
     }
 
@@ -711,6 +717,8 @@ class Ppu(
         scrollReg.value = state.scrollRegister
         addressReg.value = state.addressRegister
         dataReg.value = state.dataRegister
+        busLatch = state.busLatch
+        palette = state.palette
         v = state.v
         t = state.t
         fineX = state.fineX
@@ -718,8 +726,6 @@ class Ppu(
         cycle = state.cycle
         scanline = state.scanline
         oddFrame = state.oddFrame
-        busLatch = state.busLatch
-        palette = state.palette
         nametableId = state.nametableId
         attributeId = state.attributeId
         bgTilePatternLow = state.bgTilePatternLow
@@ -728,12 +734,12 @@ class Ppu(
         bgPatternDataHigh = state.bgPatternDataHigh
         bgAttributeDataLow = state.bgAttributeDataLow
         bgAttributeDataHigh = state.bgAttributeDataHigh
-        sprPatternDataLow = state.sprPatternDataLow
-        sprPatternDataHigh = state.sprPatternDataHigh
-        numSpritesOnScanline = state.numSpritesOnScanline
         oamBuffer = state.oamBuffer
+        numSpritesOnScanline = state.numSpritesOnScanline
         oamData = state.oamData
         oamClear = state.oamClear
+        sprPatternDataLow = state.sprPatternDataLow
+        sprPatternDataHigh = state.sprPatternDataHigh
     }
 
     // Functions used for debugging

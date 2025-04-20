@@ -1,9 +1,12 @@
 package com.onandor.nesemu.domain.emulation.nes.apu
 
+import com.onandor.nesemu.domain.emulation.savestate.NoiseChannelState
+import com.onandor.nesemu.domain.emulation.savestate.Savable
+
 // https://www.nesdev.org/wiki/APU_Noise
 // The noise channel generates pseudo-random noise.
 
-class NoiseChannel {
+class NoiseChannel : Savable<NoiseChannelState> {
 
     private var enabled: Boolean = false
 
@@ -78,6 +81,28 @@ class NoiseChannel {
 
     fun getOutput(): Int {
         return if (shifter and 0x01 != 0 || lengthCounter.length == 0) 0 else envelope.getOutput()
+    }
+
+    override fun captureState(): NoiseChannelState {
+        return NoiseChannelState(
+            enabled = enabled,
+            timer = timer,
+            timerPeriod = timerPeriod,
+            shifter = shifter,
+            mode = mode,
+            envelope = envelope.captureState(),
+            lengthCounter = lengthCounter.captureState()
+        )
+    }
+
+    override fun loadState(state: NoiseChannelState) {
+        enabled = state.enabled
+        timer = state.timer
+        timerPeriod = state.timerPeriod
+        shifter = state.shifter
+        mode = state.mode
+        envelope.loadState(state.envelope)
+        lengthCounter.loadState(state.lengthCounter)
     }
 
     companion object {

@@ -161,7 +161,6 @@ class Nes(
             else -> throw RomParseException("Unsupported mapper: ${cartridge.mapperId}")
         }
         this.cartridge = cartridge
-        ppu.mirroring = cartridge.mirroring
     }
 
     private fun apuSampleReady(sample: Float) {
@@ -265,16 +264,16 @@ class Nes(
         }
     }
 
-    override fun createSaveState(): NesState {
+    override fun captureState(): NesState {
         return NesState(
             cpuMemory = cpuMemory.copyOf(),
             lastValueRead = lastValueRead,
             vram = vram.copyOf(),
-            cpu = cpu.createSaveState(),
-            ppu = ppu.createSaveState(),
-            apu = apu.createSaveState(),
-            cartridge = cartridge!!.createSaveState(),
-            mapper = mapper.createSaveState()
+            cpu = cpu.captureState(),
+            ppu = ppu.captureState(),
+            apu = apu.captureState(),
+            cartridge = cartridge!!.captureState(),
+            mapper = mapper.captureState()
         )
     }
 

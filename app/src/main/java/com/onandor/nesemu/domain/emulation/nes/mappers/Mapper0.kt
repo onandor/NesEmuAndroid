@@ -42,7 +42,7 @@ class Mapper0(cartridge: Cartridge) : Mapper(cartridge) {
         }
     }
 
-    override fun createSaveState(): MapperState {
+    override fun captureState(): MapperState {
         return MapperState()
     }
 

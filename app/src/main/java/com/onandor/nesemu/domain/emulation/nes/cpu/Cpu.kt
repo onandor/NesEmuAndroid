@@ -61,6 +61,10 @@ class Cpu(
         X = 0
         Y = 0
         PS = 0b00000100
+        instruction = 0
+        eaddress = 0
+        addressingCycle = false
+        instructionCycle = false
         totalCycles = 7 // https://www.pagetable.com/?p=410
         stallCycles = 0
         branchCycles = 0
@@ -820,7 +824,7 @@ class Cpu(
         /* F */   2,    5,    2,    8,    4,    4,    6,    6,    2,    4,    2,    7,    4,    4,    7,    7
     )
 
-    override fun createSaveState(): CpuState {
+    override fun captureState(): CpuState {
         return CpuState(
             PC = PC,
             SP = SP,

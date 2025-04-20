@@ -139,6 +139,7 @@ class Mapper1(cartridge: Cartridge) : Mapper(cartridge) {
 
     override fun reset() {
         shifter = 0b10000
+        shiftCount = 0
         prgBankSize = PrgBankSize.Double16K
         chrBankSize = ChrBankSize.Single8K
         prgBankSwitchMode = PrgBankSwitchMode.Last16KFixed
@@ -189,7 +190,7 @@ class Mapper1(cartridge: Cartridge) : Mapper(cartridge) {
         isPrgRamEnabled = (value and 0b10000) == 0
     }
 
-    override fun createSaveState(): MapperState {
+    override fun captureState(): MapperState {
         val state = Mapper1State(
             shifter = shifter,
             shiftCount = shiftCount,

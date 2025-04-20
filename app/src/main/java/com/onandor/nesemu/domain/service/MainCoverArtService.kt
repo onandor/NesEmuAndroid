@@ -88,11 +88,10 @@ class MainCoverArtService @Inject constructor(
             // Remove (..) and [..] parts from the file name
             .replace("[(\\[][^]^)]+[)\\]]".toRegex(), "")
             .trim()
+            .replace(' ', '+')
 
-        Log.d(TAG, "Fetching games")
         val games: QueryResult<List<Game>> = client.get("$GAME_SEARCH/$fileName").body()
         if (games.data.isEmpty()) {
-            Log.d(TAG, "Games empty")
             return null
         }
 

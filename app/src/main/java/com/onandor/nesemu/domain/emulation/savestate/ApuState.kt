@@ -4,98 +4,107 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ApuState(
-    val cpuCyclesSinceSample: Int,
-    val cycles: Int,
-    val cpuCycles: Int,
     val sequenceCycles: Int,
+    val interrupt: Boolean,
+    val interruptEnable: Boolean,
+    val cpuCycles: Int,
+    val cycles: Int,
     val pulse1: PulseChannelState,
     val pulse2: PulseChannelState,
     val triangle: TriangleChannelState,
     val noise: NoiseChannelState,
-    val dmc: DMCState
+    val dmc: DmcState
 ) : SaveState()
 
 @Serializable
 data class PulseChannelState(
-    val length: Int,
-    val lengthFrozen: Boolean,
-    val dutyCycle: Int,
-    val phase: Int,
-    val divider: DividerState,
+    val enabled: Boolean,
+    val sequencer: Int,
+    val sequencePhase: Int,
+    val timer: Int,
+    val timerPeriod: Int,
     val envelope: EnvelopeState,
+    val lengthCounter: LengthCounterState,
     val sweep: SweepState
 ) : SaveState()
 
 @Serializable
 data class TriangleChannelState(
-    val length: Int,
-    val control: Boolean,
-    val counter: Int,
-    val reloadValue: Int,
-    val reloadCounter: Boolean,
-    val phase: Int,
-    val divider: DividerState
+    val enabled: Boolean,
+    val sequencer: Int,
+    val timer: Int,
+    val timerPeriod: Int,
+    val linearCounter: Int,
+    val linearCounterPeriod: Int,
+    val reloadLinearCounter: Boolean,
+    val controlFlag: Boolean,
+    val lengthCounter: LengthCounterState
 ) : SaveState()
 
 @Serializable
 data class NoiseChannelState(
-    val length: Int,
-    val lengthFrozen : Boolean,
-    val mode: Boolean,
+    val enabled: Boolean,
+    val timer: Int,
+    val timerPeriod: Int,
     val shifter: Int,
-    val divider: DividerState,
-    val envelope: EnvelopeState
+    val mode: Boolean,
+    val envelope: EnvelopeState,
+    val lengthCounter: LengthCounterState
 ) : SaveState()
 
 @Serializable
-data class DMCState(
+data class DmcState(
+    val enabled: Boolean,
+    val timer: Int,
+    val timerPeriod: Int,
     val interruptEnable: Boolean,
-    val isLooping: Boolean,
-    val isEnabled: Boolean,
-    val sample : DMCSampleState,
-    val output: DMCOutputState,
-    val divider: DividerState
+    val interrupt: Boolean,
+    val loop: Boolean,
+    val reader : DmcReaderState,
+    val output: DmcOutputState
 ) : SaveState()
 
 @Serializable
-data class DMCSampleState(
+data class DmcReaderState(
     val address: Int,
     val startingAddress: Int,
     val length: Int,
     val bytesRemaining: Int,
     val buffer: Int,
-    val isEmpty: Boolean
+    val bufferEmpty: Boolean
 ) : SaveState()
 
 @Serializable
-data class DMCOutputState(
+data class DmcOutputState(
     val bitsRemaining: Int,
     val level: Int,
-    val isSilenced: Boolean,
+    val silenced: Boolean,
     val shifter: Int
 ) : SaveState()
 
 @Serializable
-data class DividerState(
-    val counter: Int,
-    val period: Int
-) : SaveState()
-
-@Serializable
 data class EnvelopeState(
-    val isStarted: Boolean,
-    val isLooping: Boolean,
-    val isConstant: Boolean,
+    val start: Boolean,
+    val divider: Int,
     val volume: Int,
-    val divider: DividerState
+    val decay: Int,
+    val constant: Boolean,
+    val loop: Boolean
 ) : SaveState()
 
 @Serializable
 data class SweepState(
-    val isEnabled: Boolean,
-    val isNegated: Boolean,
-    val reload: Boolean,
+    val divider: Int,
+    val dividerPeriod: Int,
+    val targetPulsePeriod: Int,
     val shiftCount: Int,
-    val targetPeriod: Int,
-    val divider: DividerState
+    val reload: Boolean,
+    val negate: Boolean,
+    val enabled: Boolean
+) : SaveState()
+
+@Serializable
+data class LengthCounterState(
+    val length: Int,
+    val halt: Boolean
 ) : SaveState()

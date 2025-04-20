@@ -12,18 +12,15 @@ data class PpuState(
     val scrollRegister: Int,
     val addressRegister: Int,
     val dataRegister: Int,
-
+    val busLatch: Int,
+    val palette: IntArray,
     val v: Int,
     val t: Int,
     val fineX: Int,
     val w: Boolean,
-
     val cycle: Int,
     val scanline: Int,
     val oddFrame: Boolean,
-    val busLatch: Int,
-
-    val palette: IntArray,
     val nametableId: Int,
     val attributeId: Int,
     val bgTilePatternLow: Int,
@@ -32,11 +29,10 @@ data class PpuState(
     val bgPatternDataHigh: Int,
     val bgAttributeDataLow: Int,
     val bgAttributeDataHigh: Int,
-    val sprPatternDataLow: IntArray,
-    val sprPatternDataHigh: IntArray,
-    val numSpritesOnScanline: Int,
-
     val oamBuffer: IntArray,
+    val numSpritesOnScanline: Int,
     val oamData: IntArray,
-    val oamClear: Boolean
+    val oamClear: Boolean,
+    val sprPatternDataLow: IntArray,
+    val sprPatternDataHigh: IntArray
 ) : SaveState()

@@ -1,5 +1,8 @@
 package com.onandor.nesemu.domain.emulation.nes.apu
 
+import com.onandor.nesemu.domain.emulation.savestate.EnvelopeState
+import com.onandor.nesemu.domain.emulation.savestate.Savable
+
 // https://www.nesdev.org/wiki/APU_Envelope
 // The envelope controls the main volume of the pulse and noise channels. It is clocked on every quarter frame.
 // It outputs a volume between 0 and 15, which can either be constant, or decaying depending on the configuration
@@ -8,12 +11,12 @@ package com.onandor.nesemu.domain.emulation.nes.apu
 // or remain muted until it is manually restarted.
 
 // https://www.nesdev.org/wiki/APU_Envelope
-class Envelope {
+class Envelope : Savable<EnvelopeState> {
 
     var start: Boolean = false
-    var divider: Int = 0
+    private var divider: Int = 0
     var volume: Int = 0
-    var decay: Int = 0
+    private var decay: Int = 0
     var constant: Boolean = false
     var loop: Boolean = false
 
@@ -44,5 +47,25 @@ class Envelope {
         decay = 0
         constant = false
         loop = false
+    }
+
+    override fun captureState(): EnvelopeState {
+        return EnvelopeState(
+            start = start,
+            divider = divider,
+            volume = volume,
+            decay = decay,
+            constant = constant,
+            loop = loop
+        )
+    }
+
+    override fun loadState(state: EnvelopeState) {
+        start = state.start
+        divider = state.divider
+        volume = state.volume
+        decay = state.decay
+        constant = state.constant
+        loop = state.loop
     }
 }

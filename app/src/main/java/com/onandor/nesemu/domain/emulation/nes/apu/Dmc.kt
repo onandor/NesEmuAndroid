@@ -1,7 +1,10 @@
 package com.onandor.nesemu.domain.emulation.nes.apu
 
-import android.util.Log
 import com.onandor.nesemu.domain.emulation.nes.cpu.IRQSource
+import com.onandor.nesemu.domain.emulation.savestate.DmcOutputState
+import com.onandor.nesemu.domain.emulation.savestate.DmcReaderState
+import com.onandor.nesemu.domain.emulation.savestate.DmcState
+import com.onandor.nesemu.domain.emulation.savestate.Savable
 
 // https://www.nesdev.org/wiki/APU_DMC
 // Unlike the other channels, the DMC channel reads from the memory and then outputs delta-encoded
@@ -10,11 +13,11 @@ import com.onandor.nesemu.domain.emulation.nes.cpu.IRQSource
 class Dmc(
     private val onReadMemory: (address: Int) -> Int,
     private val onSignalIRQ: (source: IRQSource, isRequest: Boolean) -> Unit
-) {
+) : Savable<DmcState> {
 
     // The memory reader unit is responsible for filling the sample buffer byte with the next by from the currently
     // playing sample. It keeps track of the address and length of the sample.
-    class Reader {
+    class Reader : Savable<DmcReaderState> {
         var address: Int = 0                // Address of the next byte to be loaded
         var startingAddress: Int = 0        // Starting address of the sample
         var length: Int = 0                 // Length of the sample in bytes
@@ -30,10 +33,30 @@ class Dmc(
             buffer = 0
             bufferEmpty = true
         }
+
+        override fun captureState(): DmcReaderState {
+            return DmcReaderState(
+                address = address,
+                startingAddress = startingAddress,
+                length = length,
+                bytesRemaining = bytesRemaining,
+                buffer = buffer,
+                bufferEmpty = bufferEmpty
+            )
+        }
+
+        override fun loadState(state: DmcReaderState) {
+            address = state.address
+            startingAddress = state.startingAddress
+            length = state.length
+            bytesRemaining = state.bytesRemaining
+            buffer = state.buffer
+            bufferEmpty = state.bufferEmpty
+        }
     }
 
     // The output unit continuously outputs a 7 bit output level to the mixer.
-    class Output {
+    class Output : Savable<DmcOutputState> {
         var bitsRemaining: Int = 0          // Bits remaining in the shifter
         var level: Int = 0                  // Output level, controlled by the shifter
         var silenced: Boolean = true        // Set if a new sample byte cannot be loaded from the reader
@@ -45,6 +68,22 @@ class Dmc(
             silenced = true
             shifter = 0
         }
+
+        override fun captureState(): DmcOutputState {
+            return DmcOutputState(
+                bitsRemaining = bitsRemaining,
+                level = level,
+                silenced = silenced,
+                shifter = shifter
+            )
+        }
+
+        override fun loadState(state: DmcOutputState) {
+            bitsRemaining = state.bitsRemaining
+            level = state.level
+            silenced = state.silenced
+            shifter = state.shifter
+        }
     }
 
     private var enabled: Boolean = false
@@ -52,7 +91,7 @@ class Dmc(
     // The timer contains the rate at which the output level changes (CPU cycles between level changes)
     // It is loaded from the RATE_LOOKUP table.
     private var timer: Int = 0
-    private var timerPeriod: Int = 0
+    private var timerPeriod: Int = RATE_LOOKUP[0]
 
     private var interruptEnable: Boolean = false
     var interrupt: Boolean = false
@@ -172,6 +211,30 @@ class Dmc(
     }
 
     fun getOutput(): Int = output.level
+
+    override fun captureState(): DmcState {
+        return DmcState(
+            enabled = enabled,
+            timer = timer,
+            timerPeriod = timerPeriod,
+            interruptEnable = interruptEnable,
+            interrupt = interrupt,
+            loop = loop,
+            reader = reader.captureState(),
+            output = output.captureState()
+        )
+    }
+
+    override fun loadState(state: DmcState) {
+        enabled = state.enabled
+        timer = state.timer
+        timerPeriod = state.timerPeriod
+        interruptEnable = state.interruptEnable
+        interrupt = state.interrupt
+        loop = state.loop
+        reader.loadState(state.reader)
+        output.loadState(state.output)
+    }
 
     companion object {
         private val RATE_LOOKUP: IntArray = intArrayOf(

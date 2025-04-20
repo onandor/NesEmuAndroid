@@ -4,6 +4,6 @@ abstract class SaveState
 
 interface Savable<T : SaveState> {
 
-    fun createSaveState(): T
+    fun captureState(): T
     fun loadState(state: T)
 }

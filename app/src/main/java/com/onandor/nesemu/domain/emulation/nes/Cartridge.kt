@@ -287,7 +287,7 @@ class Cartridge : Savable<CartridgeState> {
         return if ((flags7 and 0x0C) ushr 2 == 0x02) RomFormat.Nes2 else RomFormat.INes
     }
 
-    override fun createSaveState(): CartridgeState {
+    override fun captureState(): CartridgeState {
         return CartridgeState(
             prgRom = prgRom,
             chrRom = if (chrRomBanks > 0) chrRom else null,

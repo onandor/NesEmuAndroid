@@ -41,6 +41,7 @@ abstract class Mapper(open val cartridge: Cartridge) : Savable<MapperState> {
             2 to 0x400,
             3 to 0x800
         ),
+        // TODO
         Mirroring.FourScreen to mapOf(
             0 to 0x000,
             1 to 0x000,

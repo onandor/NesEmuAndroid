@@ -156,7 +156,7 @@ class CpuOpcodeTestRunner(
         actualCycles: Int
     ): Boolean {
         var pass = true
-        val cpuState = cpu.createSaveState()
+        val cpuState = cpu.captureState()
 
         if (cpuState.PC == finalState.PC) {
             if (canPrint(Verbosity.OK)) println("PC: OK")

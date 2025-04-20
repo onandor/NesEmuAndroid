@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.io.ByteArrayOutputStream
+import java.time.OffsetDateTime
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.time.TimeSource
@@ -89,7 +90,7 @@ class MainEmulationService @Inject constructor(
         }
 
         emulator.reset()
-        //emulator.loadSaveState(saveState.nesState)
+        emulator.loadSaveState(saveState.nesState)
         playtime = saveState.playtime
 
         if (isRunning) {
@@ -109,19 +110,19 @@ class MainEmulationService @Inject constructor(
             pause()
         }
 
-//        val saveState = SaveState(
-//            playtime = playtime,
-//            modificationDate = OffsetDateTime.now(),
-//            nesState = emulator.createSaveState(),
-//            romHash = loadedGame!!.romHash,
-//            slot = slot,
-//            preview = createPreview()
-//        )
-//        if (blocking) {
-//            runBlocking { saveStateRepository.upsert(saveState) }
-//        } else {
-//            ioScope.launch { saveStateRepository.upsert(saveState) }
-//        }
+        val saveState = SaveState(
+            playtime = playtime,
+            modificationDate = OffsetDateTime.now(),
+            nesState = emulator.createSaveState(),
+            romHash = loadedGame!!.romHash,
+            slot = slot,
+            preview = createPreview()
+        )
+        if (blocking) {
+            runBlocking { saveStateRepository.upsert(saveState) }
+        } else {
+            ioScope.launch { saveStateRepository.upsert(saveState) }
+        }
 
         if (isRunning) {
             start()
@@ -148,7 +149,7 @@ class MainEmulationService @Inject constructor(
         } else {
             stopEmulation()
         }
-        //saveGame(0, immediate)
+        saveGame(0, immediate)
 
         state = EmulationState.Ready
     }

@@ -203,12 +203,32 @@ class Apu(
         return pulseSample + tndSample
     }
 
-    override fun createSaveState(): ApuState {
-        TODO("Not yet implemented")
+    override fun captureState(): ApuState {
+        return ApuState(
+            sequenceCycles = sequenceCycles,
+            interrupt = interrupt,
+            interruptEnable = interruptEnable,
+            cpuCycles = cpuCycles,
+            cycles = cycles,
+            pulse1 = pulse1.captureState(),
+            pulse2 = pulse2.captureState(),
+            triangle = triangle.captureState(),
+            noise = noise.captureState(),
+            dmc = dmc.captureState()
+        )
     }
 
     override fun loadState(state: ApuState) {
-        TODO("Not yet implemented")
+        sequenceCycles = state.sequenceCycles
+        interrupt = state.interrupt
+        interruptEnable = state.interruptEnable
+        cpuCycles = state.cpuCycles
+        cycles = state.cycles
+        pulse1.loadState(state.pulse1)
+        pulse2.loadState(state.pulse2)
+        triangle.loadState(state.triangle)
+        noise.loadState(state.noise)
+        dmc.loadState(state.dmc)
     }
 
     companion object {

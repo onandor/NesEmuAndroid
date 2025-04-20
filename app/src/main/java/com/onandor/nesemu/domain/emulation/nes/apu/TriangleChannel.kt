@@ -1,10 +1,13 @@
 package com.onandor.nesemu.domain.emulation.nes.apu
 
+import com.onandor.nesemu.domain.emulation.savestate.Savable
+import com.onandor.nesemu.domain.emulation.savestate.TriangleChannelState
+
 // https://www.nesdev.org/wiki/APU_Triangle
 // The triangle channel produces a triangle waveform. It outputs a volume in the range of 0 and 15, chosen from 32
 // possible values depending on the sequencer.
 
-class TriangleChannel {
+class TriangleChannel : Savable<TriangleChannelState> {
 
     private var enabled: Boolean = false
 
@@ -96,6 +99,32 @@ class TriangleChannel {
 
     fun getOutput(): Int {
         return SEQUENCE_LOOKUP[sequencer]
+    }
+
+    override fun captureState(): TriangleChannelState {
+        return TriangleChannelState(
+            enabled = enabled,
+            sequencer = sequencer,
+            timer = timer,
+            timerPeriod = timerPeriod,
+            linearCounter = linearCounter,
+            linearCounterPeriod = linearCounterPeriod,
+            reloadLinearCounter = reloadLinearCounter,
+            controlFlag = controlFlag,
+            lengthCounter = lengthCounter.captureState()
+        )
+    }
+
+    override fun loadState(state: TriangleChannelState) {
+        enabled = state.enabled
+        sequencer = state.sequencer
+        timer = state.timer
+        timerPeriod = state.timerPeriod
+        linearCounter = state.linearCounter
+        linearCounterPeriod = state.linearCounterPeriod
+        reloadLinearCounter = state.reloadLinearCounter
+        controlFlag = state.controlFlag
+        lengthCounter.loadState(state.lengthCounter)
     }
 
     companion object {

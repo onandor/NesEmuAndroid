@@ -43,7 +43,7 @@ class Mapper2(cartridge: Cartridge) : Mapper(cartridge) {
         prgRomBank = 0
     }
 
-    override fun createSaveState(): MapperState {
+    override fun captureState(): MapperState {
         val state = Mapper2State(prgRomBank = prgRomBank)
         return MapperState(mapper2State = state)
     }

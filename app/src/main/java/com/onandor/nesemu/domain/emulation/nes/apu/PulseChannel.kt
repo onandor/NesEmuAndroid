@@ -1,9 +1,12 @@
 package com.onandor.nesemu.domain.emulation.nes.apu
 
+import com.onandor.nesemu.domain.emulation.savestate.PulseChannelState
+import com.onandor.nesemu.domain.emulation.savestate.Savable
+
 // https://www.nesdev.org/wiki/APU_Pulse
 // The pulse channel outputs a square waveform with variable duty.
 
-class PulseChannel(val channelNumber: Int) {
+class PulseChannel(val channelNumber: Int) : Savable<PulseChannelState> {
 
     private var enabled: Boolean = false
 
@@ -14,7 +17,7 @@ class PulseChannel(val channelNumber: Int) {
     // The timer has an 11 bit long period, which is decreased every APU cycle
     // When it reaches zero, it clocks the sequencer, and is automatically reloaded with the value
     // stored in timerPeriod
-    var timer: Int = 0
+    private var timer: Int = 0
     var timerPeriod: Int = 0
 
     private val envelope = Envelope()
@@ -98,6 +101,30 @@ class PulseChannel(val channelNumber: Int) {
         val silenced = (sequencer shl sequencePhase) and 0x80 == 0 ||
                 lengthCounter.length == 0 || sweep.isMuting()|| !enabled
         return if (silenced) 0 else envelope.getOutput()
+    }
+
+    override fun captureState(): PulseChannelState {
+        return PulseChannelState(
+            enabled = enabled,
+            sequencer = sequencer,
+            sequencePhase = sequencePhase,
+            timer = timer,
+            timerPeriod = timerPeriod,
+            envelope = envelope.captureState(),
+            lengthCounter = lengthCounter.captureState(),
+            sweep = sweep.captureState()
+        )
+    }
+
+    override fun loadState(state: PulseChannelState) {
+        enabled = state.enabled
+        sequencer = state.sequencer
+        sequencePhase = state.sequencePhase
+        timer = state.timer
+        timerPeriod = state.timerPeriod
+        envelope.loadState(state.envelope)
+        lengthCounter.loadState(state.lengthCounter)
+        sweep.loadState(state.sweep)
     }
 
     companion object {

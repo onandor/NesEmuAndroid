@@ -104,7 +104,7 @@ class Emulator (
         nes.setDebugFeatureInt(feature, value)
     }
 
-    fun createSaveState(): NesState = nes.createSaveState()
+    fun createSaveState(): NesState = nes.captureState()
 
     fun loadSaveState(nesState: NesState) {
         stop(true)
