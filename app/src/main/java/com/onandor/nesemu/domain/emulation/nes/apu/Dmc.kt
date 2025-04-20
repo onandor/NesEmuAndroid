@@ -1,10 +1,16 @@
 package com.onandor.nesemu.domain.emulation.nes.apu
 
+import android.util.Log
+import com.onandor.nesemu.domain.emulation.nes.cpu.IRQSource
+
 // https://www.nesdev.org/wiki/APU_DMC
 // Unlike the other channels, the DMC channel reads from the memory and then outputs delta-encoded
 // audio samples.
 
-class Dmc(private val onReadMemory: (address: Int) -> Int) {
+class Dmc(
+    private val onReadMemory: (address: Int) -> Int,
+    private val onSignalIRQ: (source: IRQSource, isRequest: Boolean) -> Unit
+) {
 
     // The memory reader unit is responsible for filling the sample buffer byte with the next by from the currently
     // playing sample. It keeps track of the address and length of the sample.
@@ -86,6 +92,7 @@ class Dmc(private val onReadMemory: (address: Int) -> Int) {
                 reader.bytesRemaining = reader.length
             } else if (interruptEnable) {
                 interrupt = true
+                onSignalIRQ(IRQSource.ApuDmc, true)
             }
         }
     }
@@ -128,6 +135,7 @@ class Dmc(private val onReadMemory: (address: Int) -> Int) {
         interruptEnable = value and 0x80 > 0
         if (!interruptEnable) {
             interrupt = false
+            onSignalIRQ(IRQSource.ApuDmc, false)
         }
         loop = value and 0x40 > 0
         timerPeriod = RATE_LOOKUP[value and 0x0F]
@@ -152,6 +160,7 @@ class Dmc(private val onReadMemory: (address: Int) -> Int) {
     fun writeEnabled(enabled: Boolean) {
         this.enabled = enabled
         interrupt = false
+        onSignalIRQ(IRQSource.ApuDmc, false)
         if (!enabled) {
             reader.bytesRemaining = 0
         } else {

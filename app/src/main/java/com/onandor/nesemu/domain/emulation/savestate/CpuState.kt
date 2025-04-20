@@ -18,6 +18,7 @@ data class CpuState(
     val instructionCycle: Boolean,
     val totalCycles: Int,
     val stallCycles: Int,
+    var branchCycles: Int,
     val nmiSignaled: Boolean,
     val irqSignals: Set<IRQSource>
 ) : SaveState()

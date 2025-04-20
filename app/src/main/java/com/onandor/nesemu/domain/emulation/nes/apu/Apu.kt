@@ -29,7 +29,7 @@ class Apu(
     private val pulse2 = PulseChannel(PulseChannel.CHANNEL_2)
     private val triangle = TriangleChannel()
     private val noise = NoiseChannel()
-    private val dmc = Dmc(onReadMemory)
+    private val dmc = Dmc(onReadMemory, onSignalIRQ)
 
     // Mixer tables
     private val pulseOutputTable = FloatArray(31)
@@ -74,6 +74,7 @@ class Apu(
                     isHalfFrame = true
                     if (interruptEnable) {
                         interrupt = true
+                        onSignalIRQ(IRQSource.ApuFrameCounter, true)
                     }
                 }
             }
@@ -93,9 +94,6 @@ class Apu(
         }
         triangle.clockTimer()
         dmc.clockTimer()
-
-        onSignalIRQ(IRQSource.ApuDmc, dmc.interrupt)
-        onSignalIRQ(IRQSource.ApuFrameCounter, interrupt)
 
         cpuCycles += 1
         cycles = cpuCycles / 2
@@ -132,6 +130,7 @@ class Apu(
                 (dmc.reader.bytesRemaining > 0).toInt() shl 4 or
                 interrupt.toInt() shl 6 or
                 dmc.interrupt.toInt() shl 7
+        onSignalIRQ(IRQSource.ApuFrameCounter, false)
         return status.also { interrupt = false }
     }
 
@@ -166,6 +165,7 @@ class Apu(
                 interruptEnable = value and 0x40 == 0
                 if (!interruptEnable) {
                     interrupt = false
+                    onSignalIRQ(IRQSource.ApuFrameCounter, false)
                 }
 
                 // The frame counter reset and the clocking of the units is supposed to happen

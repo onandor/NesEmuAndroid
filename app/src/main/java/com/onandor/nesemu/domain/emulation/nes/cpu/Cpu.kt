@@ -49,6 +49,7 @@ class Cpu(
 
     private var totalCycles: Int = 7
     private var stallCycles: Int = 0
+    private var branchCycles: Int = 0
 
     private var nmiSignaled: Boolean = false
     private val irqSignals: MutableSet<IRQSource> = mutableSetOf()
@@ -61,6 +62,8 @@ class Cpu(
         Y = 0
         PS = 0b00000100
         totalCycles = 7 // https://www.pagetable.com/?p=410
+        stallCycles = 0
+        branchCycles = 0
         nmiSignaled = false
         irqSignals.clear()
     }
@@ -84,7 +87,7 @@ class Cpu(
             return stepCycles
         }
 
-        if (irqSignals.isNotEmpty()) {
+        if (irqSignals.size > 0) {
             stepCycles += IRQ()
             if (stepCycles > 0) {
                 // Interrupt disable didn't mask the IRQ
@@ -100,12 +103,13 @@ class Cpu(
         ADDRESS_HANDLER_TABLE[instruction]()
         INSTRUCTION_HANDLER_TABLE[instruction]()
 
-        stepCycles += INSTRUCTION_CYCLES_TABLE[instruction]
+        stepCycles += (INSTRUCTION_CYCLES_TABLE[instruction] + branchCycles)
         if (addressingCycle && instructionCycle) {
             stepCycles++
         }
 
-        this.totalCycles += stepCycles
+        totalCycles += stepCycles
+        branchCycles = 0
         return stepCycles
     }
 
@@ -310,7 +314,8 @@ class Cpu(
         val offset = readByte(eaddress)
         val oldPC = PC
         PC = PC.plus16(offset.toSigned8())
-        totalCycles += 1 + ((PC and 0xFF00) != (oldPC and 0xFF00)).toInt()
+        branchCycles = 1 + ((PC and 0xFF00) != (oldPC and 0xFF00)).toInt()
+        totalCycles += branchCycles
     }
 
     private fun ADC_binary(operand: Int) {
@@ -829,6 +834,7 @@ class Cpu(
             instructionCycle = instructionCycle,
             totalCycles = totalCycles,
             stallCycles = stallCycles,
+            branchCycles = branchCycles,
             nmiSignaled = nmiSignaled,
             irqSignals = irqSignals
         )
@@ -847,6 +853,7 @@ class Cpu(
         instructionCycle = state.instructionCycle
         totalCycles = state.totalCycles
         stallCycles = state.stallCycles
+        branchCycles = state.branchCycles
         nmiSignaled = state.nmiSignaled
         irqSignals.addAll(state.irqSignals)
     }
