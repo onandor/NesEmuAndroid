@@ -25,6 +25,9 @@ import java.time.OffsetDateTime
 import java.util.concurrent.CountDownLatch
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.absoluteValue
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.microseconds
 import kotlin.time.TimeSource
 import kotlin.time.TimeSource.Monotonic.ValueTimeMark
 
@@ -147,6 +150,7 @@ class MainEmulationService @Inject constructor(
 
         startAudioPlayback()
         emulatorJob = defaultScope.launch {
+            Thread.currentThread().priority = Thread.MAX_PRIORITY
             try {
                 runEmulation()
             } catch (e: Exception) {
@@ -192,11 +196,13 @@ class MainEmulationService @Inject constructor(
         nes.reset()
     }
 
-    private suspend fun runEmulation() {
+    private fun runEmulation() {
         val timeSource = TimeSource.Monotonic
         var fpsMeasureStart = timeSource.markNow()
         var numFrames = 0
         emulationRunning = true
+
+        val targetFrameTime = (1_000_000 / 60).microseconds
 
         while (emulationRunning) {
             val frameStart = timeSource.markNow()
@@ -207,18 +213,23 @@ class MainEmulationService @Inject constructor(
             _frames.tryEmit(frame)
             audioTrack.write(audioSamples, 0, audioSamples.size, AudioTrack.WRITE_NON_BLOCKING)
 
-            val now = timeSource.markNow()
+            val frameEnd = timeSource.markNow()
+            val targetFrameEnd = frameStart + targetFrameTime
 
-            val sleepMicros = 1_000_000 / 60 - (now - frameStart).inWholeMicroseconds
-            if (sleepMicros > 0) {
-                val millis = sleepMicros / 1000
-                val nanos = ((sleepMicros % 1_000) * 1_000).toInt()
-                Thread.sleep(millis, nanos)
+            while (targetFrameEnd.hasNotPassedNow()) {
+                // Busy waiting
             }
+
+//            val sleepMicros = 1_000_000 / 60 - (frameEnd - frameStart).inWholeMicroseconds
+//            if (sleepMicros > 0) {
+//                val millis = sleepMicros / 1000
+//                val nanos = ((sleepMicros % 1_000) * 1_000).toInt()
+//                Thread.sleep(millis, nanos)
+//            }
 
             numFrames += 1
 
-            if ((now - fpsMeasureStart).inWholeMilliseconds >= 3000) {
+            if ((frameEnd - fpsMeasureStart).inWholeMilliseconds >= 3000) {
                 val fps = numFrames / 3f
                 numFrames = 0
                 fpsMeasureStart = timeSource.markNow()

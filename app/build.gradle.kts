@@ -53,13 +53,6 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        externalNativeBuild {
-            cmake {
-                cppFlags += "-std=c++2a"
-                arguments += "-DANDROID_STL=c++_shared"
-                arguments += "-DCMAKE_BUILD_TYPE=debug"
-            }
-        }
     }
 
     buildTypes {
@@ -84,13 +77,6 @@ android {
     }
     buildFeatures {
         compose = true
-        prefab = true
-    }
-    externalNativeBuild {
-        cmake {
-            path = file("CMakeLists.txt")
-            version = "3.22.1"
-        }
     }
 }
 
@@ -124,8 +110,6 @@ dependencies {
     // Protobuf
     implementation(libs.google.protobuf.javalite)
     implementation(libs.google.protobuf.kotlin.lite)
-    // Oboe
-    implementation(libs.google.oboe)
     // guava
     implementation(libs.google.guava)
     // Room
