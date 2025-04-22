@@ -1,6 +1,5 @@
-package com.onandor.nesemu.domain.emulation.nes
+package com.onandor.nesemu.domain.emulation.nes.cpu
 
-import com.onandor.nesemu.domain.emulation.nes.cpu.Cpu
 import com.onandor.nesemu.domain.emulation.savestate.CpuState
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -79,8 +78,10 @@ class CpuOpcodeTestRunner(
                 addressingCycle = false,
                 instructionCycle = false,
                 totalCycles = 0,
-                interruptCycles = 0,
-                stallCycles = 0
+                stallCycles = 0,
+                branchCycles = 0,
+                nmiSignaled = false,
+                irqSignals = emptySet()
             )
             cpu.loadState(cpuState)
             opcodeTest.initialState.memory.forEach { value ->

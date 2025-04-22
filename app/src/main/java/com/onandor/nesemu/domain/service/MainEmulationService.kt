@@ -1,14 +1,15 @@
 package com.onandor.nesemu.domain.service
 
 import android.graphics.Bitmap
-import android.media.AudioManager
+import android.media.AudioTrack
 import android.util.Log
 import com.onandor.nesemu.data.entity.LibraryEntry
 import com.onandor.nesemu.data.repository.SaveStateRepository
 import com.onandor.nesemu.data.entity.SaveState
 import com.onandor.nesemu.di.DefaultDispatcher
 import com.onandor.nesemu.di.IODispatcher
-import com.onandor.nesemu.domain.emulation.Emulator
+import com.onandor.nesemu.domain.emulation.nes.Cartridge
+import com.onandor.nesemu.domain.emulation.nes.DebugFeature
 import com.onandor.nesemu.domain.emulation.nes.Nes
 import com.onandor.nesemu.ui.components.game.NesRenderer
 import com.onandor.nesemu.util.DocumentAccessor
@@ -21,6 +22,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.io.ByteArrayOutputStream
 import java.time.OffsetDateTime
+import java.util.concurrent.CountDownLatch
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.time.TimeSource
@@ -35,7 +37,7 @@ enum class EmulationState {
 
 @Singleton
 class MainEmulationService @Inject constructor(
-    audioManager: AudioManager,
+    private val audioTrack: AudioTrack,
     inputService: InputService,
     private val saveStateRepository: SaveStateRepository,
     private val documentAccessor: DocumentAccessor,
@@ -43,12 +45,13 @@ class MainEmulationService @Inject constructor(
     @IODispatcher private val ioScope: CoroutineScope
 ) : EmulationService {
 
-    override val emulator = Emulator(
-        audioManager = audioManager,
-        onFrameReady = { _frames.tryEmit(it) },
+    private val nes = Nes(
         onPollController1 = { inputService.getButtonStates(InputService.PLAYER_1) },
         onPollController2 = { inputService.getButtonStates(InputService.PLAYER_2) }
     )
+    private lateinit var cartridge: Cartridge
+    private var emulationRunning: Boolean = false
+    private var stopLatch = CountDownLatch(1)
 
     private val _frames = MutableSharedFlow<Nes.Frame>(
         extraBufferCapacity = 2,
@@ -67,13 +70,21 @@ class MainEmulationService @Inject constructor(
     private var playtime: Long = 0
     private var lastResumed: ValueTimeMark = timeSource.markNow()
 
+    init {
+        nes.apu.setSampleRate(audioTrack.sampleRate)
+    }
+
     override fun loadGame(game: LibraryEntry, saveState: SaveState?) {
-        val rom = documentAccessor.readBytes(game.uri)
         loadedGame = game
-        emulator.loadRom(rom)
-        emulator.reset()
+
+        val rom = documentAccessor.readBytes(game.uri)
+        cartridge = Cartridge()
+        cartridge.parseRom(rom)
+        nes.insertCartridge(cartridge)
+        nes.reset()
+
         saveState?.let {
-            emulator.loadSaveState(it.nesState)
+            nes.loadState(it.nesState)
             playtime = it.playtime
         }
         state = EmulationState.Ready
@@ -89,8 +100,8 @@ class MainEmulationService @Inject constructor(
             pause()
         }
 
-        emulator.reset()
-        emulator.loadSaveState(saveState.nesState)
+        nes.reset()
+        nes.loadState(saveState.nesState)
         playtime = saveState.playtime
 
         if (isRunning) {
@@ -113,7 +124,7 @@ class MainEmulationService @Inject constructor(
         val saveState = SaveState(
             playtime = playtime,
             modificationDate = OffsetDateTime.now(),
-            nesState = emulator.createSaveState(),
+            nesState = nes.captureState(),
             romHash = loadedGame!!.romHash,
             slot = slot,
             preview = createPreview()
@@ -134,7 +145,15 @@ class MainEmulationService @Inject constructor(
             return
         }
 
-        startEmulation()
+        startAudioPlayback()
+        emulatorJob = defaultScope.launch {
+            try {
+                runEmulation()
+            } catch (e: Exception) {
+                Log.e(TAG, e.localizedMessage, e)
+                state = EmulationState.Ready
+            }
+        }
 
         lastResumed = timeSource.markNow()
         state = EmulationState.Running
@@ -147,6 +166,7 @@ class MainEmulationService @Inject constructor(
         if (state == EmulationState.Running) {
             pause()
         } else {
+            stopAudioPlayback()
             stopEmulation()
         }
         saveGame(0, immediate)
@@ -158,29 +178,66 @@ class MainEmulationService @Inject constructor(
         if (state != EmulationState.Running) {
             return
         }
+
+        stopAudioPlayback()
         stopEmulation()
+
         playtime += lastResumed.elapsedNow().inWholeSeconds
         state = EmulationState.Paused
     }
 
     override fun reset() {
+        stopAudioPlayback()
         stopEmulation()
-        emulator.reset()
+        nes.reset()
     }
 
-    private fun startEmulation() {
-        emulatorJob = defaultScope.launch {
-            try {
-                emulator.run()
-            } catch (e: Exception) {
-                Log.e(TAG, e.localizedMessage, e)
-                state = EmulationState.Ready
+    private suspend fun runEmulation() {
+        val timeSource = TimeSource.Monotonic
+        var fpsMeasureStart = timeSource.markNow()
+        var numFrames = 0
+        emulationRunning = true
+
+        while (emulationRunning) {
+            val frameStart = timeSource.markNow()
+
+            val frame = nes.generateFrame()
+            val audioSamples = nes.drainAudioBuffer()
+
+            _frames.tryEmit(frame)
+            audioTrack.write(audioSamples, 0, audioSamples.size, AudioTrack.WRITE_NON_BLOCKING)
+
+            val now = timeSource.markNow()
+
+            val sleepMicros = 1_000_000 / 60 - (now - frameStart).inWholeMicroseconds
+            if (sleepMicros > 0) {
+                val millis = sleepMicros / 1000
+                val nanos = ((sleepMicros % 1_000) * 1_000).toInt()
+                Thread.sleep(millis, nanos)
+            }
+
+            numFrames += 1
+
+            if ((now - fpsMeasureStart).inWholeMilliseconds >= 3000) {
+                val fps = numFrames / 3f
+                numFrames = 0
+                fpsMeasureStart = timeSource.markNow()
+                Log.i(TAG, "FPS: $fps")
             }
         }
+
+        stopLatch.countDown()
     }
 
     private fun stopEmulation() {
-        emulator.stop(true)
+        if (!emulationRunning) {
+            return
+        }
+
+        emulationRunning = false
+        stopLatch.await()
+        stopLatch = CountDownLatch(1)
+
         emulatorJob?.cancel()
         runBlocking { emulatorJob?.join() }
         emulatorJob = null
@@ -194,6 +251,27 @@ class MainEmulationService @Inject constructor(
             }
         }
         return ByteArray(0)
+    }
+
+    private fun startAudioPlayback() {
+        if (audioTrack.playState != AudioTrack.PLAYSTATE_PLAYING) {
+            audioTrack.play()
+        }
+    }
+
+    private fun stopAudioPlayback() {
+        if (audioTrack.playState == AudioTrack.PLAYSTATE_PLAYING) {
+            audioTrack.pause()
+            audioTrack.flush()
+        }
+    }
+
+    override fun setDebugFeatureBool(feature: DebugFeature, value: Boolean) {
+        nes.setDebugFeatureBool(feature, value)
+    }
+
+    override fun setDebugFeatureInt(feature: DebugFeature, value: Int) {
+        nes.setDebugFeatureInt(feature, value)
     }
 
     companion object {

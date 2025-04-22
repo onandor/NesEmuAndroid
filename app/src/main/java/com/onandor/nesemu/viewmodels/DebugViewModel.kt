@@ -58,9 +58,9 @@ class DebugViewModel @Inject constructor(
 
     init {
         collectRenderedFrames()
-        emulationService.emulator.setDebugFeatureBool(DebugFeature.PpuRenderPatternTable, true)
-        emulationService.emulator.setDebugFeatureBool(DebugFeature.PpuRenderNametable, true)
-        emulationService.emulator.setDebugFeatureBool(DebugFeature.PpuRenderColorPalettes, true)
+        emulationService.setDebugFeatureBool(DebugFeature.PpuRenderPatternTable, true)
+        emulationService.setDebugFeatureBool(DebugFeature.PpuRenderNametable, true)
+        emulationService.setDebugFeatureBool(DebugFeature.PpuRenderColorPalettes, true)
     }
 
     fun onEvent(event: Event) {
@@ -76,8 +76,7 @@ class DebugViewModel @Inject constructor(
             }
             is Event.OnColorPaletteTouch -> {
                 if (event.motionEvent.action == MotionEvent.ACTION_DOWN) {
-                    emulationService.emulator
-                        .setDebugFeatureInt(DebugFeature.PpuSetColorPalette, event.index)
+                    emulationService.setDebugFeatureInt(DebugFeature.PpuSetColorPalette, event.index)
                 }
             }
             is Event.OnSetDebugFeatureBool -> {
@@ -93,7 +92,7 @@ class DebugViewModel @Inject constructor(
                     }
                     else -> {}
                 }
-                emulationService.emulator.setDebugFeatureBool(event.feature, event.value)
+                emulationService.setDebugFeatureBool(event.feature, event.value)
             }
             is Event.OnNavigateBack -> {
                 navManager.navigateBack()
@@ -132,9 +131,9 @@ class DebugViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        emulationService.emulator.setDebugFeatureInt(DebugFeature.PpuSetColorPalette, 0)
-        emulationService.emulator.setDebugFeatureBool(DebugFeature.PpuRenderPatternTable, false)
-        emulationService.emulator.setDebugFeatureBool(DebugFeature.PpuRenderNametable, false)
-        emulationService.emulator.setDebugFeatureBool(DebugFeature.PpuRenderColorPalettes, false)
+        emulationService.setDebugFeatureInt(DebugFeature.PpuSetColorPalette, 0)
+        emulationService.setDebugFeatureBool(DebugFeature.PpuRenderPatternTable, false)
+        emulationService.setDebugFeatureBool(DebugFeature.PpuRenderNametable, false)
+        emulationService.setDebugFeatureBool(DebugFeature.PpuRenderColorPalettes, false)
     }
 }

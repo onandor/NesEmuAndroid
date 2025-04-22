@@ -1,7 +1,5 @@
-package com.onandor.nesemu
+package com.onandor.nesemu.domain.emulation.nes.cpu
 
-import com.onandor.nesemu.domain.emulation.nes.CpuOpcodeTestRunner
-import com.onandor.nesemu.domain.emulation.nes.CpuTest
 import org.junit.Test
 import kotlin.collections.listOf
 

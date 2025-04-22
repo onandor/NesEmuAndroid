@@ -1,7 +1,6 @@
-package com.onandor.nesemu
+package com.onandor.nesemu.domain.emulation.nes.cpu
 
 import com.onandor.nesemu.domain.emulation.nes.Cartridge
-import com.onandor.nesemu.domain.emulation.nes.cpu.Cpu
 import com.onandor.nesemu.domain.emulation.nes.InvalidOperationException
 import com.onandor.nesemu.domain.emulation.nes.Nes
 import com.onandor.nesemu.domain.emulation.nes.plus16
@@ -23,7 +22,7 @@ class NesTestCpu {
         private const val NUM_TEST_INSTRUCTIONS = 8991
     }
 
-    private val nes = Nes({ a, b, c, d -> }, { 0 }, { 0 })
+    private val nes = Nes({ 0 }, { 0 })
     private val traceList = mutableListOf<String>()
 
     private fun createNesTestTrace(PC: Int, SP: Int, A: Int, X: Int, Y: Int, PS: Int, cycles: Int) {

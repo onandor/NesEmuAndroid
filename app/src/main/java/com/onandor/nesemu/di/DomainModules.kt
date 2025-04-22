@@ -2,7 +2,10 @@ package com.onandor.nesemu.di
 
 import android.content.Context
 import android.hardware.input.InputManager
+import android.media.AudioAttributes
+import android.media.AudioFormat
 import android.media.AudioManager
+import android.media.AudioTrack
 import com.onandor.nesemu.data.preferences.PreferenceManager
 import com.onandor.nesemu.data.repository.CoverArtRepository
 import com.onandor.nesemu.data.repository.LibraryEntryRepository
@@ -85,7 +88,7 @@ object ServiceModule {
     @Provides
     @Singleton
     fun provideEmulationService(
-        @ApplicationContext context: Context,
+        audioTrack: AudioTrack,
         saveStateRepository: SaveStateRepository,
         documentAccessor: DocumentAccessor,
         @DefaultDispatcher defaultScope: CoroutineScope,
@@ -93,11 +96,40 @@ object ServiceModule {
         inputService: InputService
     ): EmulationService =
         MainEmulationService(
-            audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager,
+            audioTrack = audioTrack,
             inputService = inputService,
             saveStateRepository = saveStateRepository,
             documentAccessor = documentAccessor,
             defaultScope = defaultScope,
             ioScope = ioScope
         )
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+object AudioModule {
+
+    @Provides
+    @Singleton
+    fun provideAudioTrack(@ApplicationContext context: Context) : AudioTrack {
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val sampleRate = audioManager.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE).toInt()
+        val bufferSizeBytes = AudioTrack.getMinBufferSize(
+            sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_FLOAT) * 2
+
+        return AudioTrack.Builder()
+            .setAudioFormat(AudioFormat.Builder()
+                .setSampleRate(sampleRate)
+                .setEncoding(AudioFormat.ENCODING_PCM_FLOAT)
+                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                .build())
+            .setAudioAttributes(AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_GAME)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build())
+            //.setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
+            .setTransferMode(AudioTrack.MODE_STREAM)
+            .setBufferSizeInBytes(bufferSizeBytes)
+            .build()
+    }
 }

@@ -126,10 +126,10 @@ fun DPad(
         if (NesButtonState.Down == buttonStates[NesButton.DPadRight]) {
             highlightedParts.addPath(right)
         }
-        if (NesButtonState.Down == buttonStates[NesButton.DPadDown]!!) {
+        if (NesButtonState.Down == buttonStates[NesButton.DPadDown]) {
             highlightedParts.addPath(bottom)
         }
-        if (NesButtonState.Down == buttonStates[NesButton.DPadLeft]!!) {
+        if (NesButtonState.Down == buttonStates[NesButton.DPadLeft]) {
             highlightedParts.addPath(left)
         }
 

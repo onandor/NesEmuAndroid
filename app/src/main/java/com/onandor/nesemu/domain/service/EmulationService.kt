@@ -2,14 +2,13 @@ package com.onandor.nesemu.domain.service
 
 import com.onandor.nesemu.data.entity.LibraryEntry
 import com.onandor.nesemu.data.entity.SaveState
-import com.onandor.nesemu.domain.emulation.Emulator
+import com.onandor.nesemu.domain.emulation.nes.DebugFeature
 import com.onandor.nesemu.domain.emulation.nes.Nes
 import com.onandor.nesemu.ui.components.game.NesRenderer
 import kotlinx.coroutines.flow.SharedFlow
 
 interface EmulationService {
 
-    val emulator: Emulator
     val loadedGame: LibraryEntry?
     val state: EmulationState
     var renderer: NesRenderer?
@@ -22,4 +21,6 @@ interface EmulationService {
     fun stop(immediate: Boolean = false)
     fun pause()
     fun reset()
+    fun setDebugFeatureBool(feature: DebugFeature, value: Boolean)
+    fun setDebugFeatureInt(feature: DebugFeature, value: Int)
 }
