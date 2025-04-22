@@ -423,7 +423,7 @@ class Ppu(
         var tileIndex = oamBuffer[spriteIndex * 4 + 1]
         val tileAttributes = oamBuffer[spriteIndex * 4 + 2]
 
-        var basePatternTable: Int
+        val basePatternTable: Int
         var rowShift = 0
         if (controlReg.tallSprites > 0) {
             // 8x16 sprites: the base attribute table is calculated from the LSB of
@@ -439,9 +439,9 @@ class Ppu(
 
         var address = if (tileAttributes and 0x80 > 0) {
             // Tile is flipped vertically
-            basePatternTable or ((tileIndex + rowShift) * 16) or (7 - (scanline - tileY))
+            basePatternTable or ((tileIndex + rowShift) * 16) or (7 - ((scanline - tileY) and 0x07))
         } else {
-            basePatternTable or ((tileIndex + rowShift) * 16) or (scanline - tileY)
+            basePatternTable or ((tileIndex + rowShift) * 16) or ((scanline - tileY) and 0x07)
         }
 
         // This function gets called on cycle mod 8 = 5 and cycle mod 8 = 7
@@ -475,7 +475,7 @@ class Ppu(
         bgAttributeDataHigh = bgAttributeDataHigh shl 1
 
         if (cycle in 1 .. 256) {
-            // Check all 8 (or less, because dummy 0xFF bits) sprites in secondary OAM
+            // Check all 8 (or fewer) sprites in secondary OAM
             for (i in 0 ..< 8) {
                 if (cycle - 1 > oamBuffer[i * 4 + 3]) {
                     // Sprite X coordinate reached, shift its pattern data

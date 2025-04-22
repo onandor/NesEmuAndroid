@@ -247,7 +247,9 @@ class GameViewModel @Inject constructor(
         lifecycleObserver.events.collect { event ->
             when (event) {
                 Lifecycle.Event.ON_RESUME -> {
-                    emulationService.start()
+                    if (!_uiState.value.showPauseMenu) {
+                        emulationService.start()
+                    }
                 }
                 Lifecycle.Event.ON_PAUSE -> {
                     emulationService.stop(immediate = true)
