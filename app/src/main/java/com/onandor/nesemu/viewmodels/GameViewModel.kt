@@ -31,10 +31,10 @@ import javax.inject.Inject
 
 @HiltViewModel
 class GameViewModel @Inject constructor(
-    @IODispatcher private val coroutineScope: CoroutineScope,
+    @IODispatcher private val ioScope: CoroutineScope,
     private val navManager: NavigationManager,
     private val emulationService: EmulationService,
-    private val inputManager: InputService,
+    private val inputService: InputService,
     private val saveStateRepository: SaveStateRepository,
     private val lifecycleObserver: GlobalLifecycleObserver
 ) : ViewModel() {
@@ -106,12 +106,12 @@ class GameViewModel @Inject constructor(
         when (event) {
             is Event.OnButtonStateChanged -> {
                 buttonStateMap[event.button] = event.state
-                inputManager.onInputEvent(
+                inputService.onInputEvent(
                     InputService.VIRTUAL_CONTROLLER_DEVICE_ID, event.button, event.state)
             }
             is Event.OnDpadStateChanged -> {
                 buttonStateMap.putAll(event.buttonStates)
-                inputManager.onInputEvents(
+                inputService.onInputEvents(
                     InputService.VIRTUAL_CONTROLLER_DEVICE_ID, event.buttonStates)
             }
             is Event.OnToastShown -> {
@@ -186,7 +186,7 @@ class GameViewModel @Inject constructor(
         _uiState.update { it.copy(saveStateSheetType = null, saveStates = emptyList()) }
     }
 
-    private fun showSaveStateSheet(type: SaveStateSheetType) = coroutineScope.launch {
+    private fun showSaveStateSheet(type: SaveStateSheetType) = ioScope.launch {
         var saveStates = saveStateRepository
             .findByRomHash(emulationService.loadedGame?.romHash ?: "")
             .map { it.toUiSaveState() }
@@ -211,7 +211,7 @@ class GameViewModel @Inject constructor(
     }
 
     private fun collectInputManagerEvents(): Job = viewModelScope.launch {
-        inputManager.events.collect { event ->
+        inputService.events.collect { event ->
             when (event) {
                 is InputService.Event.OnPauseButtonPressed -> {
                     if (navManager.getCurrentRoute() != NavDestinations.GAME_SCREEN) {

@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import java.util.Stack
 
-class NavigationManagerImpl : NavigationManager {
+class MainNavigationManager : NavigationManager {
 
     private val _navActions: MutableSharedFlow<NavAction?> by lazy { MutableSharedFlow() }
     override val navActions: SharedFlow<NavAction?> = _navActions.asSharedFlow()

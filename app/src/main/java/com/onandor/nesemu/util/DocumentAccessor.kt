@@ -98,10 +98,4 @@ class DocumentAccessor @Inject constructor(
             ?: throw RuntimeException("Unable to open input stream")
         return stream.readBytes().also { stream.close() }
     }
-
-    companion object {
-        private fun isDirectory(documentUri: Uri) {
-
-        }
-    }
 }

@@ -1,7 +1,7 @@
 package com.onandor.nesemu.di
 
 import com.onandor.nesemu.navigation.NavigationManager
-import com.onandor.nesemu.navigation.NavigationManagerImpl
+import com.onandor.nesemu.navigation.MainNavigationManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -14,5 +14,5 @@ object NavigationModule {
 
     @Singleton
     @Provides
-    fun provideNavigationManager(): NavigationManager = NavigationManagerImpl()
+    fun provideNavigationManager(): NavigationManager = MainNavigationManager()
 }
