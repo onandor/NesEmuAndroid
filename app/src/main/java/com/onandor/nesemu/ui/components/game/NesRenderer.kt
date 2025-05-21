@@ -39,7 +39,7 @@ class NesRenderer(private val width: Int, private val height: Int) : GLSurfaceVi
         glBufferData(
             GL_ARRAY_BUFFER,
             SCREEN_VERTICES.size * SIZE_OF_FLOAT,
-            TEST_QUAD_VERTEX_BUFFER,
+            QUAD_VERTEX_BUFFER,
             GL_STATIC_DRAW
         )
 
@@ -148,32 +148,32 @@ class NesRenderer(private val width: Int, private val height: Int) : GLSurfaceVi
     companion object {
         private val VERTEX_SHADER_SOURCE =
             """
-                #version 300 es
-                
-                layout (location = 0) in vec2 vPos;
-                layout (location = 1) in vec2 vTexCoord;
-                
-                out vec2 TexCoord;
-                
-                void main() {
-                    gl_Position = vec4(vPos.x, vPos.y, 0.0, 1.0);
-                    TexCoord = vTexCoord;
-                }
+            #version 300 es
+            
+            layout (location = 0) in vec2 vPos;
+            layout (location = 1) in vec2 vTexCoord;
+            
+            out vec2 TexCoord;
+            
+            void main() {
+                gl_Position = vec4(vPos.x, vPos.y, 0.0, 1.0);
+                TexCoord = vTexCoord;
+            }
             """.trim()
 
         private val FRAGMENT_SHADER_SOURCE =
             """
-                #version 300 es
-                
-                precision mediump float;
-                
-                in vec2 TexCoord;
-                out vec4 FragColor;
-                uniform sampler2D _texture;
-                
-                void main() {
-                    FragColor = texture(_texture, TexCoord);
-                }
+            #version 300 es
+            
+            precision mediump float;
+            
+            in vec2 TexCoord;
+            out vec4 FragColor;
+            uniform sampler2D _texture;
+            
+            void main() {
+                FragColor = texture(_texture, TexCoord);
+            }
             """.trim()
 
         private const val SIZE_OF_FLOAT = 4
@@ -187,7 +187,7 @@ class NesRenderer(private val width: Int, private val height: Int) : GLSurfaceVi
             1f,  1f, 1f, 0f    // top right
         )
 
-        private val TEST_QUAD_VERTEX_BUFFER: FloatBuffer = ByteBuffer
+        private val QUAD_VERTEX_BUFFER: FloatBuffer = ByteBuffer
             .allocateDirect(SCREEN_VERTICES.size * SIZE_OF_FLOAT)
             .run {
                 order(ByteOrder.nativeOrder())

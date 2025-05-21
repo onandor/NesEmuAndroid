@@ -14,8 +14,8 @@ fun NesSurfaceView(
 ) {
     AndroidView(
         modifier = modifier,
-        factory = {
-            NesSurfaceView(it, renderer, onTouchEvent).apply {
+        factory = { context ->
+            NesSurfaceView(context, renderer, onTouchEvent).apply {
                 onRenderCallbackCreated(this::requestRender)
             }
         }

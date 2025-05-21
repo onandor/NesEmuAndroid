@@ -5,8 +5,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class NesState(
     val cpuMemory: IntArray,
-    val lastValueRead: Int,
     val vram: IntArray,
+    val lastValueRead: Int,
     val cpu: CpuState,
     val ppu: PpuState,
     val apu: ApuState,

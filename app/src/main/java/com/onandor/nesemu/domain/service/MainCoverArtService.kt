@@ -88,7 +88,7 @@ class MainCoverArtService @Inject constructor(
             // Remove (..) and [..] parts from the file name
             .replace("[(\\[][^]^)]+[)\\]]".toRegex(), "")
             .trim()
-            .replace(' ', '+')
+            .replace(" ", "%20")
 
         val games: QueryResult<List<Game>> = client.get("$GAME_SEARCH/$fileName").body()
         if (games.data.isEmpty()) {

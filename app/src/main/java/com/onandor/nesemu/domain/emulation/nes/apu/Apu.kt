@@ -13,7 +13,7 @@ class Apu(
 ) : Savable<ApuState> {
 
     // Sample generation
-    private var cpuCyclesPerSample: Int = Cpu.FREQUENCY_HZ / 4800
+    private var cpuCyclesPerSample: Int = Cpu.FREQUENCY_HZ / 48000
     private var cpuCyclesSinceSample: Int = 0
 
     // Frame counter

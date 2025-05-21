@@ -20,7 +20,7 @@ fun SaveState.toUiSaveState(): UiSaveState {
         entity = this,
         playtime = playtime.toTimeString(),
         lastPlayedDate = formatter.format(modificationDate),
-        name = if (slot == 0) "Exit save" else "Slot $slot",
+        name = if (slot == 0) "Autosave" else "Slot $slot",
         preview = BitmapFactory.decodeByteArray(preview, 0, preview.size)
     )
 }

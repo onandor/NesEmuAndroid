@@ -232,7 +232,7 @@ private fun InputDeviceSection(
 ) {
     ListItem(
         onClick = { onEvent(Event.OnOpenDeviceSelectionDialog(InputService.PLAYER_1)) },
-        mainText = { MainText("Controller 1") },
+        mainText = { MainText("Player 1") },
         subText = {
             InputDeviceText(
                 deviceName = controller1Device?.name ?: "not connected",
@@ -248,7 +248,7 @@ private fun InputDeviceSection(
     )
     ListItem(
         onClick = { onEvent(Event.OnOpenDeviceSelectionDialog(InputService.PLAYER_2)) },
-        mainText = { MainText("Controller 2") },
+        mainText = { MainText("Player 2") },
         subText = {
             InputDeviceText(
                 deviceName = controller2Device?.name ?: "not connected",

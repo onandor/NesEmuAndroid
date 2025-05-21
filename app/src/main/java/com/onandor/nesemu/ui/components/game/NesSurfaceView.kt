@@ -7,7 +7,7 @@ import android.view.MotionEvent
 class NesSurfaceView(
     context: Context,
     renderer: NesRenderer,
-    private val touchEventCallback: (MotionEvent) -> Unit = {}
+    private val _onTouchEvent: (MotionEvent) -> Unit = {}
 ): GLSurfaceView(context) {
 
     init {
@@ -17,8 +17,8 @@ class NesSurfaceView(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (touchEventCallback !== {}) {
-            this.touchEventCallback(event)
+        if (_onTouchEvent !== {}) {
+            _onTouchEvent(event)
             return true
         }
         return false
