@@ -65,7 +65,7 @@ class MainCoverArtServiceTest {
     }
 
     @Test
-    fun coverArtService_SourceUrlsCalledThrice_RanOnce() {
+    fun coverArtService_SourceUrlsCalledTwice_RanOnce() {
         val mockCoverArtRepository = mockk<CoverArtRepository> {
             coEvery { existsByRomHash(any()) } coAnswers {
                 delay(100)
