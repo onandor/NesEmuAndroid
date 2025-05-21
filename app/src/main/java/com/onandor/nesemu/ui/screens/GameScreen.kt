@@ -203,7 +203,7 @@ private fun Game(
 }
 
 @Composable
-private fun VerticalControls(
+internal fun VerticalControls(
     modifier: Modifier = Modifier,
     onEvent: (Event) -> Unit
 ) {

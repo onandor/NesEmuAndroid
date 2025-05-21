@@ -18,6 +18,7 @@ import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.onandor.nesemu.domain.input.NesButton
 import com.onandor.nesemu.domain.input.NesButtonState
@@ -42,6 +43,7 @@ fun DPad(
     val sizePx = with(LocalDensity.current) { sizeDp.toPx() }
 
     val canvasModifier = modifier
+        .testTag("DPad")
         .size(sizeDp)
         .pointerInput(Unit) {
             awaitPointerEventScope {

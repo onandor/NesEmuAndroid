@@ -195,7 +195,7 @@ fun LibraryScreen(
 }
 
 @Composable
-private fun LibraryBrowser(
+internal fun LibraryBrowser(
     modifier: Modifier = Modifier,
     entries: List<UiLibraryEntry>,
     coverArtUrls: Map<String, String?>,
@@ -240,7 +240,7 @@ private fun LibraryBrowser(
                 onClick = { onEvent(Event.OnNavigateUp) },
                 enabled = inSubdirectory
             ) {
-                Icon(imageVector = Icons.AutoMirrored.Default.ArrowBack, null)
+                Icon(imageVector = Icons.AutoMirrored.Default.ArrowBack, "Navigate up")
             }
             Text(
                 modifier = Modifier.padding(start = 10.dp),

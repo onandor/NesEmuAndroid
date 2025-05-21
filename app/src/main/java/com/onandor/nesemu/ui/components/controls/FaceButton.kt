@@ -18,6 +18,7 @@ import androidx.compose.ui.input.pointer.changedToDown
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.onandor.nesemu.domain.input.NesButtonState
 
@@ -30,6 +31,7 @@ fun FaceButton(
     var buttonState by remember { mutableStateOf(NesButtonState.Up) }
 
     val canvasModifier = Modifier
+        .testTag(text)
         .width(60.dp)
         .height(60.dp)
         .pointerInput(Unit) {
